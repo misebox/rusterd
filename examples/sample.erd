@@ -1,42 +1,49 @@
-# Sample ER diagram
+# Sample ERD - demonstrates all features
 
-entity User {
-    @hint.level = 0
-    id int pk
-    name string not null
-    email string unique
+# Grid-based layout
+@hint.arrangement = {
+    Category User;
+    Product Order
 }
 
-entity Order {
-    @hint.level = 1
+# Self-referential entity
+entity Category {
     id int pk
-    user_id int fk -> User.id
-    total decimal
+    parent_id int fk -> Category.id
+    name string not null
+}
+
+entity User {
+    id int pk
+    email string unique not null
+    name string
     created_at timestamp
 }
 
-entity OrderItem {
-    @hint.level = 2
-    id int pk
-    order_id int fk -> Order.id
-    product_id int fk -> Product.id
-    quantity int
-    price decimal
-}
-
 entity Product {
-    @hint.level = 1
     id int pk
+    category_id int fk -> Category.id
     name string not null
     price decimal
+    is_active boolean
 }
 
+entity Order {
+    id int pk
+    user_id int fk -> User.id
+    total decimal
+    status string not null
+}
+
+# All cardinality types: 1, *, 0..1, 1..*
 rel {
+    Category 1 -- * Category : "parent"
+    Category 1 -- * Product
     User 1 -- * Order : "places"
-    Order 1 -- * OrderItem
-    Product 1 -- * OrderItem
+    User 0..1 -- 1..* Product : "favorites"
 }
 
-view core {
+# Filtered view
+view simple {
     include User, Order
 }
