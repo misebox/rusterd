@@ -32,8 +32,9 @@ impl SvgRenderer {
         writeln!(
             &mut svg,
             r#"<style>
-  .entity-box {{ fill: #fff; stroke: #333; stroke-width: 1.5; }}
+  .entity-bg {{ fill: #fff; }}
   .entity-header {{ fill: #e0e0e0; }}
+  .entity-border {{ fill: none; stroke: #333; stroke-width: 1.5; }}
   .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; }}
   .column-text {{ font-family: monospace; font-size: 12px; }}
   .pk {{ font-weight: bold; }}
@@ -80,24 +81,31 @@ impl SvgRenderer {
         let w = layout.width;
         let header_h = self.metrics.line_height + self.metrics.header_padding * 2.0;
 
-        // Entity box
+        // 1. Background (white)
         writeln!(
             svg,
-            r#"<rect class="entity-box" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+            r#"<rect class="entity-bg" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
             x, y, w, layout.height
         )
         .unwrap();
 
-        // Header background
-        writeln!(
-            svg,
-            r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
-            x, y, w, header_h
-        )
-        .unwrap();
-
-        // Fix corners if there are columns
-        if !node.columns.is_empty() {
+        // 2. Header background (gray)
+        if node.columns.is_empty() {
+            // No columns: header fills entire box
+            writeln!(
+                svg,
+                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                x, y, w, layout.height
+            )
+            .unwrap();
+        } else {
+            // With columns: header at top with square bottom corners
+            writeln!(
+                svg,
+                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                x, y, w, header_h
+            )
+            .unwrap();
             writeln!(
                 svg,
                 r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" />"#,
@@ -109,7 +117,7 @@ impl SvgRenderer {
             .unwrap();
         }
 
-        // Entity name
+        // 3. Entity name
         let text_y = y + header_h / 2.0 + 5.0;
         writeln!(
             svg,
@@ -120,7 +128,7 @@ impl SvgRenderer {
         )
         .unwrap();
 
-        // Separator line
+        // 4. Separator line and columns
         if !node.columns.is_empty() {
             writeln!(
                 svg,
@@ -131,34 +139,41 @@ impl SvgRenderer {
                 y + header_h
             )
             .unwrap();
+
+            let mut col_y = y + header_h + self.metrics.padding_y + self.metrics.line_height * 0.7;
+            for col in &node.columns {
+                let mut class = "column-text".to_string();
+                if col.is_pk {
+                    class.push_str(" pk");
+                }
+                if col.is_fk {
+                    class.push_str(" fk");
+                }
+
+                let prefix = if col.is_pk { "◆ " } else { "  " };
+                let text = format!("{}{}: {}", prefix, col.name, col.typ);
+
+                writeln!(
+                    svg,
+                    r#"<text class="{}" x="{}" y="{}">{}</text>"#,
+                    class,
+                    x + self.metrics.padding_x,
+                    col_y,
+                    escape_xml(&text)
+                )
+                .unwrap();
+
+                col_y += self.metrics.line_height;
+            }
         }
 
-        // Columns
-        let mut col_y = y + header_h + self.metrics.padding_y + self.metrics.line_height * 0.7;
-        for col in &node.columns {
-            let mut class = "column-text".to_string();
-            if col.is_pk {
-                class.push_str(" pk");
-            }
-            if col.is_fk {
-                class.push_str(" fk");
-            }
-
-            let prefix = if col.is_pk { "◆ " } else { "  " };
-            let text = format!("{}{}: {}", prefix, col.name, col.typ);
-
-            writeln!(
-                svg,
-                r#"<text class="{}" x="{}" y="{}">{}</text>"#,
-                class,
-                x + self.metrics.padding_x,
-                col_y,
-                escape_xml(&text)
-            )
-            .unwrap();
-
-            col_y += self.metrics.line_height;
-        }
+        // 5. Border (drawn last to be on top)
+        writeln!(
+            svg,
+            r#"<rect class="entity-border" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+            x, y, w, layout.height
+        )
+        .unwrap();
     }
 
     fn render_edge(&self, svg: &mut String, layout: &LayoutEdge, edge: &Edge) {
