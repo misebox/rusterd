@@ -12,8 +12,6 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <line class="edge" x1="100" y1="124" x2="92" y2="204" />
-<text class="cardinality" x="99.25372210734251" y="131.4627789265749" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="92.74627789265749" y="196.5372210734251" text-anchor="start" dominant-baseline="alphabetic">*</text>
 <rect class="entity-bg" x="40" y="40" width="120" height="84" rx="4" />
 <rect class="entity-header" x="40" y="40" width="120" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="120" height="4" />
@@ -54,4 +52,6 @@
 <text class="column-text pk" x="52" y="418">◆ id: int</text>
 <text class="column-text" x="52" y="438">  flag: boolean</text>
 <rect class="entity-border" x="40" y="368" width="128" height="84" rx="4" />
+<text class="cardinality" x="99.25372210734251" y="131.4627789265749" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="92.74627789265749" y="196.5372210734251" text-anchor="start" dominant-baseline="alphabetic">*</text>
 </svg>

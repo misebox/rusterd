@@ -12,15 +12,8 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <line class="edge" x1="104" y1="144" x2="136" y2="224" />
-<text class="cardinality" x="106.78543007265577" y="150.96357518163944" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="133.21456992734423" y="217.03642481836056" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="120" y="184" text-anchor="middle" dominant-baseline="middle">places</text>
-<line class="edge" x1="136" y1="348" x2="112" y2="428" />
-<text class="cardinality" x="133.8448908582524" y="355.18369713915865" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="114.15510914174759" y="420.81630286084135" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<line class="edge" x1="332" y1="276" x2="184" y2="500" />
-<text class="cardinality" x="327.865570509223" y="282.25751490495975" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="188.134429490777" y="493.74248509504025" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<line class="edge" x1="136" y1="348" x2="88" y2="428" />
+<line class="edge" x1="400" y1="328" x2="136" y2="428" />
 <rect class="entity-bg" x="40" y="40" width="128" height="104" rx="4" />
 <rect class="entity-header" x="40" y="40" width="128" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="128" height="4" />
@@ -60,4 +53,11 @@
 <text class="column-text" x="52" y="538">  quantity: int</text>
 <text class="column-text" x="52" y="558">  price: decimal</text>
 <rect class="entity-border" x="40" y="428" width="144" height="144" rx="4" />
+<text class="cardinality" x="106.78543007265577" y="150.96357518163944" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="133.21456992734423" y="217.03642481836056" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="120" y="184" text-anchor="middle" dominant-baseline="middle">places</text>
+<text class="cardinality" x="132.14128183429355" y="354.43119694284405" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="91.85871816570645" y="421.56880305715595" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="392.9863041603261" y="330.6567029695735" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="143.01369583967394" y="425.3432970304265" text-anchor="start" dominant-baseline="alphabetic">*</text>
 </svg>

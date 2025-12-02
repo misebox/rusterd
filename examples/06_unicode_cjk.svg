@@ -12,15 +12,8 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <line class="edge" x1="140" y1="204" x2="128" y2="284" />
-<text class="cardinality" x="138.88744660302316" y="211.41702264651224" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="129.11255339697684" y="276.58297735348776" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="134" y="244" text-anchor="middle" dominant-baseline="middle">注文する</text>
-<line class="edge" x1="128" y1="428" x2="104" y2="508" />
-<text class="cardinality" x="125.84489085825241" y="435.18369713915865" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="106.15510914174759" y="500.81630286084135" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<line class="edge" x1="316" y1="356" x2="168" y2="580" />
-<text class="cardinality" x="311.865570509223" y="362.25751490495975" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="172.134429490777" y="573.7424850950403" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<line class="edge" x1="128" y1="428" x2="80" y2="508" />
+<line class="edge" x1="384" y1="428" x2="128" y2="508" />
 <rect class="entity-bg" x="40" y="40" width="200" height="164" rx="4" />
 <rect class="entity-header" x="40" y="40" width="200" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="200" height="4" />
@@ -66,4 +59,11 @@
 <text class="column-text" x="52" y="618">  数量: int</text>
 <text class="column-text" x="52" y="638">  単価: decimal</text>
 <rect class="entity-border" x="40" y="508" width="128" height="144" rx="4" />
+<text class="cardinality" x="138.88744660302316" y="211.41702264651224" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="129.11255339697684" y="276.58297735348776" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="134" y="244" text-anchor="middle" dominant-baseline="middle">注文する</text>
+<text class="cardinality" x="124.14128183429355" y="434.43119694284405" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="83.85871816570645" y="501.56880305715595" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="376.84140016473725" y="430.2370624485196" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="135.15859983526272" y="505.7629375514804" text-anchor="start" dominant-baseline="alphabetic">*</text>
 </svg>

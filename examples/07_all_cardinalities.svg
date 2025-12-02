@@ -11,22 +11,10 @@
   .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
-<line class="edge" x1="100" y1="124" x2="108" y2="204" />
-<text class="cardinality" x="100.74627789265749" y="131.4627789265749" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="107.25372210734251" y="196.5372210734251" text-anchor="end" dominant-baseline="alphabetic">0..1</text>
-<text class="edge-label" x="104" y="164" text-anchor="middle" dominant-baseline="middle">has</text>
-<line class="edge" x1="160" y1="82" x2="276" y2="246" />
-<text class="cardinality" x="164.33098540470104" y="88.12311729630149" text-anchor="start" dominant-baseline="hanging">0..1</text>
-<text class="cardinality" x="271.66901459529896" y="239.8768827036985" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="218" y="164" text-anchor="middle" dominant-baseline="middle">owns</text>
-<line class="edge" x1="160" y1="82" x2="504" y2="246" />
-<text class="cardinality" x="166.76999810174829" y="85.22755723455441" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="497.2300018982517" y="242.7724427654456" text-anchor="end" dominant-baseline="alphabetic">1..*</text>
-<text class="edge-label" x="332" y="164" text-anchor="middle" dominant-baseline="middle">holds</text>
-<line class="edge" x1="100" y1="124" x2="108" y2="388" />
-<text class="cardinality" x="100.22716844980577" y="131.49655884359035" text-anchor="start" dominant-baseline="hanging">0..1</text>
-<text class="cardinality" x="107.77283155019423" y="380.5034411564096" text-anchor="end" dominant-baseline="alphabetic">1..*</text>
-<text class="edge-label" x="104" y="256" text-anchor="middle" dominant-baseline="middle">parents</text>
+<line class="edge" x1="76" y1="124" x2="108" y2="204" />
+<line class="edge" x1="160" y1="58" x2="276" y2="246" />
+<line class="edge" x1="160" y1="106" x2="504" y2="246" />
+<line class="edge" x1="124" y1="124" x2="108" y2="388" />
 <rect class="entity-bg" x="40" y="40" width="120" height="84" rx="4" />
 <rect class="entity-header" x="40" y="40" width="120" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="120" height="4" />
@@ -68,4 +56,16 @@
 <text class="column-text pk" x="52" y="438">◆ id: int</text>
 <text class="column-text fk" x="52" y="458">  parent_id: int</text>
 <rect class="entity-border" x="40" y="388" width="136" height="84" rx="4" />
+<text class="cardinality" x="78.78543007265577" y="130.96357518163944" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="105.21456992734423" y="197.03642481836056" text-anchor="end" dominant-baseline="alphabetic">0..1</text>
+<text class="edge-label" x="92" y="164" text-anchor="middle" dominant-baseline="middle">has</text>
+<text class="cardinality" x="163.93830495284956" y="64.38277009599756" text-anchor="start" dominant-baseline="hanging">0..1</text>
+<text class="cardinality" x="272.06169504715047" y="239.61722990400244" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="218" y="152" text-anchor="middle" dominant-baseline="middle">owns</text>
+<text class="cardinality" x="166.94673756105277" y="108.82716063531217" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="497.05326243894723" y="243.17283936468783" text-anchor="end" dominant-baseline="alphabetic">1..*</text>
+<text class="edge-label" x="332" y="176" text-anchor="middle" dominant-baseline="middle">holds</text>
+<text class="cardinality" x="123.54628704698582" y="131.48626372473393" text-anchor="end" dominant-baseline="hanging">0..1</text>
+<text class="cardinality" x="108.45371295301418" y="380.51373627526607" text-anchor="start" dominant-baseline="alphabetic">1..*</text>
+<text class="edge-label" x="116" y="256" text-anchor="middle" dominant-baseline="middle">parents</text>
 </svg>

@@ -1,16 +1,19 @@
 # Test: Full e-commerce schema (realistic complexity)
 
-entity Category {
+entity Customer {
     @hint.level = 0
     id int pk
-    parent_id int fk -> Category.id
-    name string not null
-    slug string unique
-    description text
+    email string unique not null
+    password_hash string not null
+    first_name string
+    last_name string
+    phone string
+    created_at timestamp
+    updated_at timestamp
 }
 
 entity Address {
-    @hint.level = 0
+    @hint.level = 1
     id int pk
     customer_id int fk -> Customer.id
     type string
@@ -23,16 +26,13 @@ entity Address {
     is_default boolean
 }
 
-entity Customer {
+entity Category {
     @hint.level = 0
     id int pk
-    email string unique not null
-    password_hash string not null
-    first_name string
-    last_name string
-    phone string
-    created_at timestamp
-    updated_at timestamp
+    parent_id int fk -> Category.id
+    name string not null
+    slug string unique
+    description text
 }
 
 entity Product {
@@ -47,6 +47,31 @@ entity Product {
     cost decimal
     quantity int
     is_active boolean
+}
+
+entity ProductImage {
+    @hint.level = 2
+    id int pk
+    product_id int fk -> Product.id
+    url string not null
+    alt_text string
+    position int
+}
+
+entity Cart {
+    @hint.level = 1
+    id int pk
+    customer_id int fk -> Customer.id
+    created_at timestamp
+    updated_at timestamp
+}
+
+entity CartItem {
+    @hint.level = 2
+    id int pk
+    cart_id int fk -> Cart.id
+    product_id int fk -> Product.id
+    quantity int not null
 }
 
 entity Order {
@@ -64,35 +89,6 @@ entity Order {
     created_at timestamp
 }
 
-entity Review {
-    @hint.level = 1
-    id int pk
-    product_id int fk -> Product.id
-    customer_id int fk -> Customer.id
-    rating int not null
-    title string
-    body text
-    is_verified boolean
-    created_at timestamp
-}
-
-entity Cart {
-    @hint.level = 1
-    id int pk
-    customer_id int fk -> Customer.id
-    created_at timestamp
-    updated_at timestamp
-}
-
-entity ProductImage {
-    @hint.level = 2
-    id int pk
-    product_id int fk -> Product.id
-    url string not null
-    alt_text string
-    position int
-}
-
 entity OrderItem {
     @hint.level = 2
     id int pk
@@ -103,14 +99,6 @@ entity OrderItem {
     total decimal not null
 }
 
-entity CartItem {
-    @hint.level = 2
-    id int pk
-    cart_id int fk -> Cart.id
-    product_id int fk -> Product.id
-    quantity int not null
-}
-
 entity Payment {
     @hint.level = 2
     id int pk
@@ -119,6 +107,18 @@ entity Payment {
     status string not null
     amount decimal not null
     transaction_id string
+    created_at timestamp
+}
+
+entity Review {
+    @hint.level = 2
+    id int pk
+    product_id int fk -> Product.id
+    customer_id int fk -> Customer.id
+    rating int not null
+    title string
+    body text
+    is_verified boolean
     created_at timestamp
 }
 

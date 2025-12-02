@@ -12,9 +12,6 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <line class="edge" x1="324" y1="144" x2="244" y2="224" />
-<text class="cardinality" x="318.6966991411009" y="149.3033008588991" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="249.3033008588991" y="218.6966991411009" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="284" y="184" text-anchor="middle" dominant-baseline="middle">has many with long label text</text>
 <rect class="entity-bg" x="40" y="40" width="568" height="104" rx="4" />
 <rect class="entity-header" x="40" y="40" width="568" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="568" height="4" />
@@ -33,4 +30,7 @@
 <text class="column-text" x="52" y="294">  short: string</text>
 <text class="column-text fk" x="52" y="314">  very_long_foreign_key_column_name: int</text>
 <rect class="entity-border" x="40" y="224" width="408" height="104" rx="4" />
+<text class="cardinality" x="318.6966991411009" y="149.3033008588991" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="249.3033008588991" y="218.6966991411009" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="284" y="184" text-anchor="middle" dominant-baseline="middle">has many with long label text</text>
 </svg>

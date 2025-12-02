@@ -12,20 +12,10 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <line class="edge" x1="100" y1="124" x2="108" y2="204" />
-<text class="cardinality" x="100.74627789265749" y="131.4627789265749" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="107.25372210734251" y="196.5372210734251" text-anchor="end" dominant-baseline="alphabetic">*</text>
 <line class="edge" x1="108" y1="288" x2="108" y2="368" />
-<text class="cardinality" x="108" y="295.5" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="108" y="360.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
 <line class="edge" x1="108" y1="452" x2="108" y2="532" />
-<text class="cardinality" x="108" y="459.5" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="108" y="524.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
 <line class="edge" x1="108" y1="616" x2="108" y2="696" />
-<text class="cardinality" x="108" y="623.5" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="108" y="688.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
 <line class="edge" x1="108" y1="780" x2="108" y2="860" />
-<text class="cardinality" x="108" y="787.5" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="108" y="852.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
 <rect class="entity-bg" x="40" y="40" width="120" height="84" rx="4" />
 <rect class="entity-header" x="40" y="40" width="120" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="120" height="4" />
@@ -74,4 +64,14 @@
 <text class="column-text pk" x="52" y="910">◆ id: int</text>
 <text class="column-text fk" x="52" y="930">  parent_id: int</text>
 <rect class="entity-border" x="40" y="860" width="136" height="84" rx="4" />
+<text class="cardinality" x="100.74627789265749" y="131.4627789265749" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="107.25372210734251" y="196.5372210734251" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="108" y="295.5" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="108" y="360.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="108" y="459.5" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="108" y="524.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="108" y="623.5" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="108" y="688.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="cardinality" x="108" y="787.5" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="108" y="852.5" text-anchor="end" dominant-baseline="alphabetic">*</text>
 </svg>
