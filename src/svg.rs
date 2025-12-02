@@ -340,7 +340,7 @@ fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
     // Background rect
     writeln!(
         svg,
-        r#"<rect class="edge-label-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="2" />"#,
+        r#"<rect class="edge-label-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="8" />"#,
         rect_x, rect_y, rect_w, rect_h
     )
     .unwrap();
@@ -378,7 +378,7 @@ fn render_cardinality(
     // Background rect
     writeln!(
         svg,
-        r#"<rect class="cardinality-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="2" />"#,
+        r#"<rect class="cardinality-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="8" />"#,
         rect_x, rect_y, rect_w, rect_h
     )
     .unwrap();
