@@ -1,5 +1,5 @@
 import { createSignal, createEffect, onMount } from "solid-js";
-import init, { render_erd } from "../pkg/rusterd.js";
+import init, { erdToSvg } from "../pkg/rusterd.js";
 
 const DEFAULT_ERD = `# Sample ERD - demonstrates all features
 
@@ -65,7 +65,7 @@ export default function App() {
   createEffect(() => {
     if (!ready()) return;
     try {
-      const result = render_erd(source());
+      const result = erdToSvg(source());
       setSvg(result);
       setError("");
     } catch (e) {

@@ -21,14 +21,8 @@ pub fn init() {
 }
 
 /// Render ERD source to SVG
-#[wasm_bindgen]
-pub fn render_erd(source: &str) -> Result<String, String> {
-    render_erd_with_options(source, None, None)
-}
-
-/// Render ERD source to SVG with options
-#[wasm_bindgen]
-pub fn render_erd_with_options(
+#[wasm_bindgen(js_name = "erdToSvg")]
+pub fn render_erd(
     source: &str,
     view: Option<String>,
     detail: Option<String>,
