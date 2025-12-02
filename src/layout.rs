@@ -75,6 +75,12 @@ impl LayoutEngine {
             levels.entry(level).or_default().push(node);
         }
 
+        // Sort nodes within each level by their order (from arrangement)
+        // Nodes without order go to the end
+        for nodes in levels.values_mut() {
+            nodes.sort_by_key(|n| n.order.unwrap_or(i64::MAX));
+        }
+
         let mut level_keys: Vec<i64> = levels.keys().copied().collect();
         level_keys.sort();
 

@@ -56,9 +56,20 @@ impl Parser {
         let mut entities = Vec::new();
         let mut relationships = Vec::new();
         let mut views = Vec::new();
+        let mut arrangement = None;
 
         while *self.peek() != Token::Eof {
-            if self.check_ident("entity") {
+            if *self.peek() == Token::At {
+                // Could be @hint.arrangement at top level
+                if self.try_parse_arrangement()? {
+                    arrangement = Some(self.parse_arrangement_block()?);
+                } else {
+                    return Err(ParseError::Unexpected(
+                        self.peek().clone(),
+                        "entity, rel, view, or @hint.arrangement",
+                    ));
+                }
+            } else if self.check_ident("entity") {
                 self.advance();
                 entities.push(self.parse_entity()?);
             } else if self.check_ident("rel") {
@@ -70,7 +81,7 @@ impl Parser {
             } else {
                 return Err(ParseError::Unexpected(
                     self.peek().clone(),
-                    "entity, rel, or view",
+                    "entity, rel, view, or @hint.arrangement",
                 ));
             }
         }
@@ -79,7 +90,80 @@ impl Parser {
             entities,
             relationships,
             views,
+            arrangement,
         })
+    }
+
+    /// Check if we're at @hint.arrangement and consume those tokens if so
+    fn try_parse_arrangement(&mut self) -> Result<bool, ParseError> {
+        if *self.peek() != Token::At {
+            return Ok(false);
+        }
+
+        // Look ahead: @ hint . arrangement =
+        let start_pos = self.pos;
+
+        self.advance(); // @
+        if !self.check_ident("hint") {
+            self.pos = start_pos;
+            return Ok(false);
+        }
+        self.advance(); // hint
+
+        if *self.peek() != Token::Dot {
+            self.pos = start_pos;
+            return Ok(false);
+        }
+        self.advance(); // .
+
+        if !self.check_ident("arrangement") {
+            self.pos = start_pos;
+            return Ok(false);
+        }
+        self.advance(); // arrangement
+
+        if *self.peek() != Token::Eq {
+            self.pos = start_pos;
+            return Ok(false);
+        }
+        self.advance(); // =
+
+        Ok(true)
+    }
+
+    /// Parse arrangement block: { Entity1 Entity2; Entity3 Entity4; ... }
+    fn parse_arrangement_block(&mut self) -> Result<Vec<Vec<String>>, ParseError> {
+        self.expect(Token::LBrace)?;
+
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        let mut current_row: Vec<String> = Vec::new();
+
+        while *self.peek() != Token::RBrace {
+            match self.peek().clone() {
+                Token::Ident(name) => {
+                    self.advance();
+                    current_row.push(name);
+                }
+                Token::Semicolon => {
+                    self.advance();
+                    if !current_row.is_empty() {
+                        rows.push(current_row);
+                        current_row = Vec::new();
+                    }
+                }
+                tok => {
+                    return Err(ParseError::Unexpected(tok, "entity name or semicolon"));
+                }
+            }
+        }
+
+        // Don't forget the last row (no trailing semicolon required)
+        if !current_row.is_empty() {
+            rows.push(current_row);
+        }
+
+        self.expect(Token::RBrace)?;
+        Ok(rows)
     }
 
     fn parse_entity(&mut self) -> Result<Entity, ParseError> {
@@ -415,5 +499,36 @@ mod tests {
         let schema = Parser::new(input).unwrap().parse().unwrap();
         assert_eq!(schema.entities[0].name, "ユーザー");
         assert_eq!(schema.entities[0].columns[0].name, "名前");
+    }
+
+    #[test]
+    fn test_parse_arrangement() {
+        let input = r#"
+            @hint.arrangement = {
+                Category Address Customer;
+                Product Order Review Cart;
+                ProductImage OrderItem CartItem Payment
+            }
+
+            entity Category { id int pk }
+            entity Address { id int pk }
+            entity Customer { id int pk }
+            entity Product { id int pk }
+            entity Order { id int pk }
+            entity Review { id int pk }
+            entity Cart { id int pk }
+            entity ProductImage { id int pk }
+            entity OrderItem { id int pk }
+            entity CartItem { id int pk }
+            entity Payment { id int pk }
+        "#;
+        let schema = Parser::new(input).unwrap().parse().unwrap();
+
+        assert!(schema.arrangement.is_some());
+        let arr = schema.arrangement.unwrap();
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr[0], vec!["Category", "Address", "Customer"]);
+        assert_eq!(arr[1], vec!["Product", "Order", "Review", "Cart"]);
+        assert_eq!(arr[2], vec!["ProductImage", "OrderItem", "CartItem", "Payment"]);
     }
 }
