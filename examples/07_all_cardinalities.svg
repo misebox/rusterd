@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="512" viewBox="0 0 680 512">
+<style>
+  .entity-bg { fill: #fff; }
+  .entity-header { fill: #e0e0e0; }
+  .entity-border { fill: none; stroke: #333; stroke-width: 1.5; }
+  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .column-text { font-family: monospace; font-size: 12px; }
+  .pk { font-weight: bold; }
+  .fk { font-style: italic; }
+  .edge { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+</style>
+<line class="edge" x1="100" y1="124" x2="108" y2="204" />
+<text class="cardinality" x="100.74627789265749" y="131.4627789265749" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="107.25372210734251" y="196.5372210734251" text-anchor="end" dominant-baseline="alphabetic">0..1</text>
+<text class="edge-label" x="104" y="164" text-anchor="middle" dominant-baseline="middle">has</text>
+<line class="edge" x1="160" y1="82" x2="276" y2="246" />
+<text class="cardinality" x="164.33098540470104" y="88.12311729630149" text-anchor="start" dominant-baseline="hanging">0..1</text>
+<text class="cardinality" x="271.66901459529896" y="239.8768827036985" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="218" y="164" text-anchor="middle" dominant-baseline="middle">owns</text>
+<line class="edge" x1="160" y1="82" x2="504" y2="246" />
+<text class="cardinality" x="166.76999810174829" y="85.22755723455441" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="497.2300018982517" y="242.7724427654456" text-anchor="end" dominant-baseline="alphabetic">1..*</text>
+<text class="edge-label" x="332" y="164" text-anchor="middle" dominant-baseline="middle">holds</text>
+<line class="edge" x1="100" y1="124" x2="108" y2="388" />
+<text class="cardinality" x="100.22716844980577" y="131.49655884359035" text-anchor="start" dominant-baseline="hanging">0..1</text>
+<text class="cardinality" x="107.77283155019423" y="380.5034411564096" text-anchor="end" dominant-baseline="alphabetic">1..*</text>
+<text class="edge-label" x="104" y="256" text-anchor="middle" dominant-baseline="middle">parents</text>
+<rect class="entity-bg" x="40" y="40" width="120" height="84" rx="4" />
+<rect class="entity-header" x="40" y="40" width="120" height="28" rx="4" />
+<rect class="entity-header" x="40" y="64" width="120" height="4" />
+<text class="entity-name" x="100" y="59" text-anchor="middle">Person</text>
+<line x1="40" y1="68" x2="160" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="90">◆ id: int</text>
+<text class="column-text" x="52" y="110">  name: string</text>
+<rect class="entity-border" x="40" y="40" width="120" height="84" rx="4" />
+<rect class="entity-bg" x="40" y="204" width="136" height="104" rx="4" />
+<rect class="entity-header" x="40" y="204" width="136" height="28" rx="4" />
+<rect class="entity-header" x="40" y="228" width="136" height="4" />
+<text class="entity-name" x="108" y="223" text-anchor="middle">Passport</text>
+<line x1="40" y1="232" x2="176" y2="232" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="254">◆ id: int</text>
+<text class="column-text fk" x="52" y="274">  person_id: int</text>
+<text class="column-text" x="52" y="294">  number: string</text>
+<rect class="entity-border" x="40" y="204" width="136" height="104" rx="4" />
+<rect class="entity-bg" x="276" y="204" width="128" height="84" rx="4" />
+<rect class="entity-header" x="276" y="204" width="128" height="28" rx="4" />
+<rect class="entity-header" x="276" y="228" width="128" height="4" />
+<text class="entity-name" x="340" y="223" text-anchor="middle">Car</text>
+<line x1="276" y1="232" x2="404" y2="232" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="288" y="254">◆ id: int</text>
+<text class="column-text fk" x="288" y="274">  owner_id: int</text>
+<rect class="entity-border" x="276" y="204" width="128" height="84" rx="4" />
+<rect class="entity-bg" x="504" y="204" width="136" height="84" rx="4" />
+<rect class="entity-header" x="504" y="204" width="136" height="28" rx="4" />
+<rect class="entity-header" x="504" y="228" width="136" height="4" />
+<text class="entity-name" x="572" y="223" text-anchor="middle">License</text>
+<line x1="504" y1="232" x2="640" y2="232" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="516" y="254">◆ id: int</text>
+<text class="column-text fk" x="516" y="274">  person_id: int</text>
+<rect class="entity-border" x="504" y="204" width="136" height="84" rx="4" />
+<rect class="entity-bg" x="40" y="388" width="136" height="84" rx="4" />
+<rect class="entity-header" x="40" y="388" width="136" height="28" rx="4" />
+<rect class="entity-header" x="40" y="412" width="136" height="4" />
+<text class="entity-name" x="108" y="407" text-anchor="middle">Child</text>
+<line x1="40" y1="416" x2="176" y2="416" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="438">◆ id: int</text>
+<text class="column-text fk" x="52" y="458">  parent_id: int</text>
+<rect class="entity-border" x="40" y="388" width="136" height="84" rx="4" />
+</svg>

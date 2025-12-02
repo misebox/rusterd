@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="1028" viewBox="0 0 680 1028">
+<style>
+  .entity-bg { fill: #fff; }
+  .entity-header { fill: #e0e0e0; }
+  .entity-border { fill: none; stroke: #333; stroke-width: 1.5; }
+  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .column-text { font-family: monospace; font-size: 12px; }
+  .pk { font-weight: bold; }
+  .fk { font-style: italic; }
+  .edge { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+</style>
+<rect class="entity-bg" x="40" y="40" width="112" height="64" rx="4" />
+<rect class="entity-header" x="40" y="40" width="112" height="28" rx="4" />
+<rect class="entity-header" x="40" y="64" width="112" height="4" />
+<text class="entity-name" x="96" y="59" text-anchor="middle">Config</text>
+<line x1="40" y1="68" x2="152" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="90">◆ key: string</text>
+<rect class="entity-border" x="40" y="40" width="112" height="64" rx="4" />
+<rect class="entity-bg" x="252" y="40" width="192" height="304" rx="4" />
+<rect class="entity-header" x="252" y="40" width="192" height="28" rx="4" />
+<rect class="entity-header" x="252" y="64" width="192" height="4" />
+<text class="entity-name" x="348" y="59" text-anchor="middle">AuditLog</text>
+<line x1="252" y1="68" x2="444" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="264" y="90">◆ id: int</text>
+<text class="column-text" x="264" y="110">  table_name: string</text>
+<text class="column-text" x="264" y="130">  record_id: int</text>
+<text class="column-text" x="264" y="150">  action: string</text>
+<text class="column-text" x="264" y="170">  old_values: json</text>
+<text class="column-text" x="264" y="190">  new_values: json</text>
+<text class="column-text" x="264" y="210">  user_id: int</text>
+<text class="column-text" x="264" y="230">  ip_address: string</text>
+<text class="column-text" x="264" y="250">  user_agent: string</text>
+<text class="column-text" x="264" y="270">  session_id: string</text>
+<text class="column-text" x="264" y="290">  request_id: string</text>
+<text class="column-text" x="264" y="310">  created_at: timestamp</text>
+<text class="column-text" x="264" y="330">  metadata: json</text>
+<rect class="entity-border" x="252" y="40" width="192" height="304" rx="4" />
+<rect class="entity-bg" x="544" y="40" width="96" height="64" rx="4" />
+<rect class="entity-header" x="544" y="40" width="96" height="28" rx="4" />
+<rect class="entity-header" x="544" y="64" width="96" height="4" />
+<text class="entity-name" x="592" y="59" text-anchor="middle">Status</text>
+<line x1="544" y1="68" x2="640" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="556" y="90">◆ code: int</text>
+<rect class="entity-border" x="544" y="40" width="96" height="64" rx="4" />
+<rect class="entity-bg" x="40" y="424" width="264" height="564" rx="4" />
+<rect class="entity-header" x="40" y="424" width="264" height="28" rx="4" />
+<rect class="entity-header" x="40" y="448" width="264" height="4" />
+<text class="entity-name" x="172" y="443" text-anchor="middle">FullProfile</text>
+<line x1="40" y1="452" x2="304" y2="452" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="474">◆ id: int</text>
+<text class="column-text" x="52" y="494">  user_id: int</text>
+<text class="column-text" x="52" y="514">  bio: text</text>
+<text class="column-text" x="52" y="534">  avatar_url: string</text>
+<text class="column-text" x="52" y="554">  cover_url: string</text>
+<text class="column-text" x="52" y="574">  website: string</text>
+<text class="column-text" x="52" y="594">  location: string</text>
+<text class="column-text" x="52" y="614">  birthday: date</text>
+<text class="column-text" x="52" y="634">  gender: string</text>
+<text class="column-text" x="52" y="654">  occupation: string</text>
+<text class="column-text" x="52" y="674">  company: string</text>
+<text class="column-text" x="52" y="694">  education: string</text>
+<text class="column-text" x="52" y="714">  interests: text</text>
+<text class="column-text" x="52" y="734">  skills: text</text>
+<text class="column-text" x="52" y="754">  languages: string</text>
+<text class="column-text" x="52" y="774">  timezone: string</text>
+<text class="column-text" x="52" y="794">  locale: string</text>
+<text class="column-text" x="52" y="814">  theme: string</text>
+<text class="column-text" x="52" y="834">  notifications_enabled: boolean</text>
+<text class="column-text" x="52" y="854">  email_verified: boolean</text>
+<text class="column-text" x="52" y="874">  phone_verified: boolean</text>
+<text class="column-text" x="52" y="894">  two_factor_enabled: boolean</text>
+<text class="column-text" x="52" y="914">  last_login_at: timestamp</text>
+<text class="column-text" x="52" y="934">  login_count: int</text>
+<text class="column-text" x="52" y="954">  created_at: timestamp</text>
+<text class="column-text" x="52" y="974">  updated_at: timestamp</text>
+<rect class="entity-border" x="40" y="424" width="264" height="564" rx="4" />
+</svg>

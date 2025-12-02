@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="508" height="612" viewBox="0 0 508 612">
+<style>
+  .entity-bg { fill: #fff; }
+  .entity-header { fill: #e0e0e0; }
+  .entity-border { fill: none; stroke: #333; stroke-width: 1.5; }
+  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .column-text { font-family: monospace; font-size: 12px; }
+  .pk { font-weight: bold; }
+  .fk { font-style: italic; }
+  .edge { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+</style>
+<line class="edge" x1="104" y1="144" x2="136" y2="224" />
+<text class="cardinality" x="106.78543007265577" y="150.96357518163944" text-anchor="start" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="133.21456992734423" y="217.03642481836056" text-anchor="end" dominant-baseline="alphabetic">*</text>
+<text class="edge-label" x="120" y="184" text-anchor="middle" dominant-baseline="middle">places</text>
+<line class="edge" x1="136" y1="348" x2="112" y2="428" />
+<text class="cardinality" x="133.8448908582524" y="355.18369713915865" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="114.15510914174759" y="420.81630286084135" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<line class="edge" x1="332" y1="276" x2="184" y2="500" />
+<text class="cardinality" x="327.865570509223" y="282.25751490495975" text-anchor="end" dominant-baseline="hanging">1</text>
+<text class="cardinality" x="188.134429490777" y="493.74248509504025" text-anchor="start" dominant-baseline="alphabetic">*</text>
+<rect class="entity-bg" x="40" y="40" width="128" height="104" rx="4" />
+<rect class="entity-header" x="40" y="40" width="128" height="28" rx="4" />
+<rect class="entity-header" x="40" y="64" width="128" height="4" />
+<text class="entity-name" x="104" y="59" text-anchor="middle">User</text>
+<line x1="40" y1="68" x2="168" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="90">◆ id: int</text>
+<text class="column-text" x="52" y="110">  name: string</text>
+<text class="column-text" x="52" y="130">  email: string</text>
+<rect class="entity-border" x="40" y="40" width="128" height="104" rx="4" />
+<rect class="entity-bg" x="40" y="224" width="192" height="124" rx="4" />
+<rect class="entity-header" x="40" y="224" width="192" height="28" rx="4" />
+<rect class="entity-header" x="40" y="248" width="192" height="4" />
+<text class="entity-name" x="136" y="243" text-anchor="middle">Order</text>
+<line x1="40" y1="252" x2="232" y2="252" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="274">◆ id: int</text>
+<text class="column-text fk" x="52" y="294">  user_id: int</text>
+<text class="column-text" x="52" y="314">  total: decimal</text>
+<text class="column-text" x="52" y="334">  created_at: timestamp</text>
+<rect class="entity-border" x="40" y="224" width="192" height="124" rx="4" />
+<rect class="entity-bg" x="332" y="224" width="136" height="104" rx="4" />
+<rect class="entity-header" x="332" y="224" width="136" height="28" rx="4" />
+<rect class="entity-header" x="332" y="248" width="136" height="4" />
+<text class="entity-name" x="400" y="243" text-anchor="middle">Product</text>
+<line x1="332" y1="252" x2="468" y2="252" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="344" y="274">◆ id: int</text>
+<text class="column-text" x="344" y="294">  name: string</text>
+<text class="column-text" x="344" y="314">  price: decimal</text>
+<rect class="entity-border" x="332" y="224" width="136" height="104" rx="4" />
+<rect class="entity-bg" x="40" y="428" width="144" height="144" rx="4" />
+<rect class="entity-header" x="40" y="428" width="144" height="28" rx="4" />
+<rect class="entity-header" x="40" y="452" width="144" height="4" />
+<text class="entity-name" x="112" y="447" text-anchor="middle">OrderItem</text>
+<line x1="40" y1="456" x2="184" y2="456" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="478">◆ id: int</text>
+<text class="column-text fk" x="52" y="498">  order_id: int</text>
+<text class="column-text fk" x="52" y="518">  product_id: int</text>
+<text class="column-text" x="52" y="538">  quantity: int</text>
+<text class="column-text" x="52" y="558">  price: decimal</text>
+<rect class="entity-border" x="40" y="428" width="144" height="144" rx="4" />
+</svg>

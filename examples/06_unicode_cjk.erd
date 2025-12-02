@@ -1,0 +1,44 @@
+# Test: Unicode and CJK characters (width calculation)
+
+entity 顧客 {
+    @hint.level = 0
+    顧客ID int pk
+    氏名 string not null
+    メールアドレス string unique
+    電話番号 string
+    住所 string
+    登録日時 timestamp
+}
+
+entity 注文 {
+    @hint.level = 1
+    注文ID int pk
+    顧客ID int fk -> 顧客.顧客ID
+    注文日時 timestamp not null
+    合計金額 decimal
+    ステータス string
+}
+
+entity 注文明細 {
+    @hint.level = 2
+    明細ID int pk
+    注文ID int fk -> 注文.注文ID
+    商品ID int fk -> 商品.商品ID
+    数量 int not null
+    単価 decimal not null
+}
+
+entity 商品 {
+    @hint.level = 1
+    商品ID int pk
+    商品名 string not null
+    説明 text
+    価格 decimal not null
+    在庫数 int
+}
+
+rel {
+    顧客 1 -- * 注文 : "注文する"
+    注文 1 -- * 注文明細
+    商品 1 -- * 注文明細
+}

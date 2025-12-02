@@ -1,0 +1,45 @@
+# Test: Deep hierarchy (many levels)
+
+entity Level0 {
+    @hint.level = 0
+    id int pk
+    name string
+}
+
+entity Level1 {
+    @hint.level = 1
+    id int pk
+    parent_id int fk -> Level0.id
+}
+
+entity Level2 {
+    @hint.level = 2
+    id int pk
+    parent_id int fk -> Level1.id
+}
+
+entity Level3 {
+    @hint.level = 3
+    id int pk
+    parent_id int fk -> Level2.id
+}
+
+entity Level4 {
+    @hint.level = 4
+    id int pk
+    parent_id int fk -> Level3.id
+}
+
+entity Level5 {
+    @hint.level = 5
+    id int pk
+    parent_id int fk -> Level4.id
+}
+
+rel {
+    Level0 1 -- * Level1
+    Level1 1 -- * Level2
+    Level2 1 -- * Level3
+    Level3 1 -- * Level4
+    Level4 1 -- * Level5
+}

@@ -1,0 +1,41 @@
+# Test: Many entities at the same level (horizontal crowding)
+
+entity A {
+    @hint.level = 0
+    id int pk
+}
+
+entity B {
+    @hint.level = 0
+    id int pk
+}
+
+entity C {
+    @hint.level = 0
+    id int pk
+}
+
+entity D {
+    @hint.level = 0
+    id int pk
+}
+
+entity E {
+    @hint.level = 0
+    id int pk
+}
+
+entity F {
+    @hint.level = 0
+    id int pk
+}
+
+entity G {
+    @hint.level = 0
+    id int pk
+}
+
+entity H {
+    @hint.level = 0
+    id int pk
+}

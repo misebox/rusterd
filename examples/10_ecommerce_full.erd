@@ -1,0 +1,141 @@
+# Test: Full e-commerce schema (realistic complexity)
+
+entity Customer {
+    @hint.level = 0
+    id int pk
+    email string unique not null
+    password_hash string not null
+    first_name string
+    last_name string
+    phone string
+    created_at timestamp
+    updated_at timestamp
+}
+
+entity Address {
+    @hint.level = 1
+    id int pk
+    customer_id int fk -> Customer.id
+    type string
+    line1 string not null
+    line2 string
+    city string not null
+    state string
+    postal_code string not null
+    country string not null
+    is_default boolean
+}
+
+entity Category {
+    @hint.level = 0
+    id int pk
+    parent_id int fk -> Category.id
+    name string not null
+    slug string unique
+    description text
+}
+
+entity Product {
+    @hint.level = 1
+    id int pk
+    category_id int fk -> Category.id
+    sku string unique not null
+    name string not null
+    description text
+    price decimal not null
+    compare_at_price decimal
+    cost decimal
+    quantity int
+    is_active boolean
+}
+
+entity ProductImage {
+    @hint.level = 2
+    id int pk
+    product_id int fk -> Product.id
+    url string not null
+    alt_text string
+    position int
+}
+
+entity Cart {
+    @hint.level = 1
+    id int pk
+    customer_id int fk -> Customer.id
+    created_at timestamp
+    updated_at timestamp
+}
+
+entity CartItem {
+    @hint.level = 2
+    id int pk
+    cart_id int fk -> Cart.id
+    product_id int fk -> Product.id
+    quantity int not null
+}
+
+entity Order {
+    @hint.level = 1
+    id int pk
+    customer_id int fk -> Customer.id
+    shipping_address_id int fk -> Address.id
+    billing_address_id int fk -> Address.id
+    status string not null
+    subtotal decimal
+    tax decimal
+    shipping decimal
+    total decimal
+    notes text
+    created_at timestamp
+}
+
+entity OrderItem {
+    @hint.level = 2
+    id int pk
+    order_id int fk -> Order.id
+    product_id int fk -> Product.id
+    quantity int not null
+    unit_price decimal not null
+    total decimal not null
+}
+
+entity Payment {
+    @hint.level = 2
+    id int pk
+    order_id int fk -> Order.id
+    method string not null
+    status string not null
+    amount decimal not null
+    transaction_id string
+    created_at timestamp
+}
+
+entity Review {
+    @hint.level = 2
+    id int pk
+    product_id int fk -> Product.id
+    customer_id int fk -> Customer.id
+    rating int not null
+    title string
+    body text
+    is_verified boolean
+    created_at timestamp
+}
+
+rel {
+    Customer 1 -- * Address
+    Customer 1 -- 0..1 Cart
+    Customer 1 -- * Order
+    Customer 1 -- * Review
+    Category 1 -- * Category : "subcategory"
+    Category 1 -- * Product
+    Product 1 -- * ProductImage
+    Product 1 -- * CartItem
+    Product 1 -- * OrderItem
+    Product 1 -- * Review
+    Cart 1 -- * CartItem
+    Order 1 -- * OrderItem
+    Order 1 -- * Payment
+    Address 1 -- * Order : "ships to"
+    Address 1 -- * Order : "bills to"
+}
