@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="1028" viewBox="0 0 680 1028">
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="1038" viewBox="0 0 680 1038">
 <style>
   .entity-bg { fill: #fff; }
   .entity-header { fill: #e0e0e0; }
@@ -44,36 +44,36 @@
 <line x1="544" y1="68" x2="640" y2="68" stroke="#333" stroke-width="1" />
 <text class="column-text pk" x="556" y="90">◆ code: int</text>
 <rect class="entity-border" x="544" y="40" width="96" height="64" rx="4" />
-<rect class="entity-bg" x="40" y="424" width="264" height="564" rx="4" />
-<rect class="entity-header" x="40" y="424" width="264" height="28" rx="4" />
-<rect class="entity-header" x="40" y="448" width="264" height="4" />
-<text class="entity-name" x="172" y="443" text-anchor="middle">FullProfile</text>
-<line x1="40" y1="452" x2="304" y2="452" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="52" y="474">◆ id: int</text>
-<text class="column-text" x="52" y="494">  user_id: int</text>
-<text class="column-text" x="52" y="514">  bio: text</text>
-<text class="column-text" x="52" y="534">  avatar_url: string</text>
-<text class="column-text" x="52" y="554">  cover_url: string</text>
-<text class="column-text" x="52" y="574">  website: string</text>
-<text class="column-text" x="52" y="594">  location: string</text>
-<text class="column-text" x="52" y="614">  birthday: date</text>
-<text class="column-text" x="52" y="634">  gender: string</text>
-<text class="column-text" x="52" y="654">  occupation: string</text>
-<text class="column-text" x="52" y="674">  company: string</text>
-<text class="column-text" x="52" y="694">  education: string</text>
-<text class="column-text" x="52" y="714">  interests: text</text>
-<text class="column-text" x="52" y="734">  skills: text</text>
-<text class="column-text" x="52" y="754">  languages: string</text>
-<text class="column-text" x="52" y="774">  timezone: string</text>
-<text class="column-text" x="52" y="794">  locale: string</text>
-<text class="column-text" x="52" y="814">  theme: string</text>
-<text class="column-text" x="52" y="834">  notifications_enabled: boolean</text>
-<text class="column-text" x="52" y="854">  email_verified: boolean</text>
-<text class="column-text" x="52" y="874">  phone_verified: boolean</text>
-<text class="column-text" x="52" y="894">  two_factor_enabled: boolean</text>
-<text class="column-text" x="52" y="914">  last_login_at: timestamp</text>
-<text class="column-text" x="52" y="934">  login_count: int</text>
-<text class="column-text" x="52" y="954">  created_at: timestamp</text>
-<text class="column-text" x="52" y="974">  updated_at: timestamp</text>
-<rect class="entity-border" x="40" y="424" width="264" height="564" rx="4" />
+<rect class="entity-bg" x="40" y="434" width="264" height="564" rx="4" />
+<rect class="entity-header" x="40" y="434" width="264" height="28" rx="4" />
+<rect class="entity-header" x="40" y="458" width="264" height="4" />
+<text class="entity-name" x="172" y="453" text-anchor="middle">FullProfile</text>
+<line x1="40" y1="462" x2="304" y2="462" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="484">◆ id: int</text>
+<text class="column-text" x="52" y="504">  user_id: int</text>
+<text class="column-text" x="52" y="524">  bio: text</text>
+<text class="column-text" x="52" y="544">  avatar_url: string</text>
+<text class="column-text" x="52" y="564">  cover_url: string</text>
+<text class="column-text" x="52" y="584">  website: string</text>
+<text class="column-text" x="52" y="604">  location: string</text>
+<text class="column-text" x="52" y="624">  birthday: date</text>
+<text class="column-text" x="52" y="644">  gender: string</text>
+<text class="column-text" x="52" y="664">  occupation: string</text>
+<text class="column-text" x="52" y="684">  company: string</text>
+<text class="column-text" x="52" y="704">  education: string</text>
+<text class="column-text" x="52" y="724">  interests: text</text>
+<text class="column-text" x="52" y="744">  skills: text</text>
+<text class="column-text" x="52" y="764">  languages: string</text>
+<text class="column-text" x="52" y="784">  timezone: string</text>
+<text class="column-text" x="52" y="804">  locale: string</text>
+<text class="column-text" x="52" y="824">  theme: string</text>
+<text class="column-text" x="52" y="844">  notifications_enabled: boolean</text>
+<text class="column-text" x="52" y="864">  email_verified: boolean</text>
+<text class="column-text" x="52" y="884">  phone_verified: boolean</text>
+<text class="column-text" x="52" y="904">  two_factor_enabled: boolean</text>
+<text class="column-text" x="52" y="924">  last_login_at: timestamp</text>
+<text class="column-text" x="52" y="944">  login_count: int</text>
+<text class="column-text" x="52" y="964">  created_at: timestamp</text>
+<text class="column-text" x="52" y="984">  updated_at: timestamp</text>
+<rect class="entity-border" x="40" y="434" width="264" height="564" rx="4" />
 </svg>
