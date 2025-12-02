@@ -1,0 +1,9 @@
+#!/bin/bash
+
+filename="$1"
+dname=$(dirname $filename)
+bname=$(basename $filename)
+svgname=${dname}/${bname}.svg
+cargo run $filename -o $svgname && svgview $svgname
+
+
