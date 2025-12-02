@@ -8,24 +8,25 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
-  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality-bg { fill: rgba(240,240,240,0.7); }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
 <path class="edge" d="M 576 142 L 534 142 Q 526 142 526 150 L 526 154 Q 526 162 518 162 L 476 162" />
-<path class="edge" d="M 708 244 L 708 321 Q 708 329 716 329 L 1060 329 Q 1068 329 1068 337 L 1068 494" />
-<path class="edge" d="M 684 244 L 684 345 Q 684 353 692 353 L 780 353 Q 788 353 788 361 L 788 494" />
-<path class="edge" d="M 660 244 L 660 369 Q 660 377 652 377 L 480 377 Q 472 377 472 385 L 472 494" />
+<path class="edge" d="M 732 244 L 732 321 Q 732 329 740 329 L 1060 329 Q 1068 329 1068 337 L 1068 494" />
+<path class="edge" d="M 692 244 L 692 345 Q 692 353 700 353 L 796 353 Q 804 353 804 361 L 804 494" />
+<path class="edge" d="M 652 244 L 652 369 Q 652 377 644 377 L 488 377 Q 480 377 480 385 L 480 494" />
 <path class="edge" d="M 200 83.19999999999999 L 217 83.19999999999999 Q 225 83.19999999999999 225 91.19999999999999 L 225 132.8 Q 225 140.8 217 140.8 L 200 140.8" />
 <path class="edge" d="M 120 184 L 120 441 Q 120 449 128 449 L 144 449 Q 152 449 152 457 L 152 494" />
-<path class="edge" d="M 116 738 L 116 923 L 116 923 L 116 968" />
-<path class="edge" d="M 188 738 L 188 867 Q 188 875 196 875 L 920 875 Q 928 875 928 883 L 928 968" />
-<path class="edge" d="M 140 738 L 140 891 Q 140 899 148 899 L 360 899 Q 368 899 368 907 L 368 968" />
+<path class="edge" d="M 92 738 L 92 915 Q 92 923 100 923 L 108 923 Q 116 923 116 931 L 116 968" />
+<path class="edge" d="M 212 738 L 212 867 Q 212 875 220 875 L 912 875 Q 920 875 920 883 L 920 968" />
+<path class="edge" d="M 132 738 L 132 891 Q 132 899 140 899 L 352 899 Q 360 899 360 907 L 360 968" />
 <path class="edge" d="M 264 616 L 306 616 Q 314 616 314 608 L 314 604 Q 314 596 322 596 L 364 596" />
-<path class="edge" d="M 1068 618 L 1068 795 Q 1068 803 1060 803 L 960 803 Q 952 803 952 811 L 952 968" />
-<path class="edge" d="M 752 758 L 752 843 Q 752 851 744 851 L 400 851 Q 392 851 392 859 L 392 968" />
-<path class="edge" d="M 776 758 L 776 819 Q 776 827 768 827 L 676 827 Q 668 827 668 835 L 668 968" />
-<path class="edge" d="M 376 284 L 376 417 Q 376 425 384 425 L 732 425 Q 740 425 740 433 L 740 494" />
-<path class="edge" d="M 400 284 L 400 393 Q 400 401 408 401 L 756 401 Q 764 401 764 409 L 764 494" />
+<path class="edge" d="M 1068 618 L 1068 795 Q 1068 803 1060 803 L 968 803 Q 960 803 960 811 L 960 968" />
+<path class="edge" d="M 744 758 L 744 843 Q 744 851 736 851 L 408 851 Q 400 851 400 859 L 400 968" />
+<path class="edge" d="M 784 758 L 784 819 Q 784 827 776 827 L 676 827 Q 668 827 668 835 L 668 968" />
+<path class="edge" d="M 368 284 L 368 417 Q 368 425 376 425 L 716 425 Q 724 425 724 433 L 724 494" />
+<path class="edge" d="M 408 284 L 408 393 Q 408 401 416 401 L 756 401 Q 764 401 764 409 L 764 494" />
 <rect class="entity-bg" x="40" y="40" width="160" height="144" rx="4" />
 <rect class="entity-header" x="40" y="40" width="160" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="160" height="4" />
@@ -170,37 +171,67 @@
 <text class="column-text fk" x="880" y="1058">  product_id: int</text>
 <text class="column-text" x="880" y="1078">  quantity: int</text>
 <rect class="entity-border" x="868" y="968" width="144" height="124" rx="4" />
-<text class="cardinality" x="568.5" y="142" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="483.5" y="162" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="715.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="1060.5" y="486.5" text-anchor="start" dominant-baseline="middle">0..1</text>
-<text class="cardinality" x="691.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="780.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="667.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="464.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="232.5" y="83.19999999999999" text-anchor="start" dominant-baseline="middle">1</text>
-<text class="cardinality" x="232.5" y="140.8" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="232.5" y="112" text-anchor="start" dominant-baseline="middle">subcategory</text>
-<text class="cardinality" x="127.5" y="191.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="144.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="123.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="108.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="195.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="920.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="147.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="360.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="271.5" y="616" text-anchor="start" dominant-baseline="middle">1</text>
-<text class="cardinality" x="356.5" y="596" text-anchor="end" dominant-baseline="middle">*</text>
-<text class="cardinality" x="1075.5" y="625.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="944.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="759.5" y="765.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="384.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="783.5" y="765.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="660.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="cardinality" x="383.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="732.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="558" y="421" text-anchor="middle" dominant-baseline="alphabetic">ships to</text>
-<text class="cardinality" x="407.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
-<text class="cardinality" x="756.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="582" y="397" text-anchor="middle" dominant-baseline="alphabetic">bills to</text>
+<rect class="cardinality-bg" x="558.0" y="132.5" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="564.5" y="142" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="481.0" y="152.5" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="487.5" y="162" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="725.5" y="246.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="732" y="255.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="1048.0" y="473.0" width="40.0" height="19.0" rx="2" />
+<text class="cardinality" x="1068" y="482.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
+<rect class="cardinality-bg" x="685.5" y="246.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="692" y="255.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="797.5" y="473.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="804" y="482.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="645.5" y="246.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="652" y="255.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="473.5" y="473.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="480" y="482.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="222.5" y="73.7" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="229" y="83.19999999999999" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="222.5" y="131.3" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="229" y="140.8" text-anchor="middle" dominant-baseline="middle">*</text>
+<text class="edge-label" x="229" y="112" text-anchor="start" dominant-baseline="middle">subcategory</text>
+<rect class="cardinality-bg" x="113.5" y="186.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="120" y="195.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="145.5" y="473.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="152" y="482.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="85.5" y="740.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="92" y="749.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="109.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="116" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="205.5" y="740.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="212" y="749.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="913.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="920" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="125.5" y="740.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="132" y="749.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="353.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="360" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="269.0" y="606.5" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="275.5" y="616" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="346.0" y="586.5" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="352.5" y="596" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="1061.5" y="620.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="1068" y="629.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="953.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="960" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="737.5" y="760.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="744" y="769.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="393.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="400" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="777.5" y="760.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="784" y="769.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="661.5" y="947.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="668" y="956.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="361.5" y="286.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="368" y="295.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="717.5" y="473.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="724" y="482.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<text class="edge-label" x="546" y="421" text-anchor="middle" dominant-baseline="alphabetic">ships to</text>
+<rect class="cardinality-bg" x="401.5" y="286.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="408" y="295.5" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="757.5" y="473.0" width="13.0" height="19.0" rx="2" />
+<text class="cardinality" x="764" y="482.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<text class="edge-label" x="586" y="397" text-anchor="middle" dominant-baseline="alphabetic">bills to</text>
 </svg>

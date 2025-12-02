@@ -8,8 +8,9 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
-  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality-bg { fill: rgba(240,240,240,0.7); }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
 <rect class="entity-bg" x="40" y="40" width="112" height="64" rx="4" />
 <rect class="entity-header" x="40" y="40" width="112" height="28" rx="4" />
