@@ -1,0 +1,42 @@
+# Sample ER diagram
+
+entity User {
+    @hint.level = 0
+    id int pk
+    name string not null
+    email string unique
+}
+
+entity Order {
+    @hint.level = 1
+    id int pk
+    user_id int fk -> User.id
+    total decimal
+    created_at timestamp
+}
+
+entity OrderItem {
+    @hint.level = 2
+    id int pk
+    order_id int fk -> Order.id
+    product_id int fk -> Product.id
+    quantity int
+    price decimal
+}
+
+entity Product {
+    @hint.level = 1
+    id int pk
+    name string not null
+    price decimal
+}
+
+rel {
+    User 1 -- * Order : "places"
+    Order 1 -- * OrderItem
+    Product 1 -- * OrderItem
+}
+
+view core {
+    include User, Order
+}
