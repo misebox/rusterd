@@ -49,6 +49,18 @@ entity Product {
     is_active boolean
 }
 
+entity Review {
+    @hint.level = 1
+    id int pk
+    product_id int fk -> Product.id
+    customer_id int fk -> Customer.id
+    rating int not null
+    title string
+    body text
+    is_verified boolean
+    created_at timestamp
+}
+
 entity Order {
     @hint.level = 1
     id int pk
@@ -61,18 +73,6 @@ entity Order {
     shipping decimal
     total decimal
     notes text
-    created_at timestamp
-}
-
-entity Review {
-    @hint.level = 1
-    id int pk
-    product_id int fk -> Product.id
-    customer_id int fk -> Customer.id
-    rating int not null
-    title string
-    body text
-    is_verified boolean
     created_at timestamp
 }
 
@@ -103,14 +103,6 @@ entity OrderItem {
     total decimal not null
 }
 
-entity CartItem {
-    @hint.level = 2
-    id int pk
-    cart_id int fk -> Cart.id
-    product_id int fk -> Product.id
-    quantity int not null
-}
-
 entity Payment {
     @hint.level = 2
     id int pk
@@ -120,6 +112,14 @@ entity Payment {
     amount decimal not null
     transaction_id string
     created_at timestamp
+}
+
+entity CartItem {
+    @hint.level = 2
+    id int pk
+    cart_id int fk -> Cart.id
+    product_id int fk -> Product.id
+    quantity int not null
 }
 
 rel {
