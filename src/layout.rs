@@ -47,7 +47,7 @@ impl Default for LayoutEngine {
             node_gap_x: 100.0,
             node_gap_y: 30.0,     // Base vertical gap between levels
             channel_gap: 50.0,    // Base space for routing channels (will expand with edge count)
-            lane_spacing: 20.0,   // Spacing between parallel edges
+            lane_spacing: 24.0,   // Spacing between parallel edges (>= 1em)
             corner_radius: 8.0,   // Rounded corner radius
             entity_margin: 30.0,  // Minimum distance from entity edge to channel
         }
@@ -244,10 +244,16 @@ impl LayoutEngine {
             }
 
             // Sort edges in each channel by from_cx DESCENDING (rightmost first)
+            // Use edge index as tiebreaker to ensure deterministic, unique lane assignments
             // This prevents crossings: edges starting from right turn first (upper lane),
             // so their horizontal segment doesn't block edges starting from left
             for (_channel, edges) in channel_edges.iter_mut() {
-                edges.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                edges.sort_by(|a, b| {
+                    match b.1.partial_cmp(&a.1) {
+                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
+                        Some(ord) => ord,
+                    }
+                });
                 for (lane, (edge_idx, _)) in edges.iter().enumerate() {
                     edge_lane_assignments.insert(*edge_idx, lane);
                 }
@@ -344,16 +350,15 @@ impl LayoutEngine {
                                 ]
                             }
                         } else {
-                            // Non-adjacent: route below the level
-                            let max_bottom = from_node.y.max(to_node.y)
-                                + from_node.height.max(to_node.height);
-                            let ch_y = max_bottom + self.entity_margin + lane_offset.abs();
+                            // Non-adjacent same-level: route ABOVE the level (separate from inter-level channel)
+                            let min_top = from_node.y.min(to_node.y);
+                            let ch_y = min_top - self.entity_margin - lane_offset.abs();
 
                             vec![
-                                (from_cx, from_node.y + from_node.height),
+                                (from_cx, from_node.y),
                                 (from_cx, ch_y),
                                 (to_cx, ch_y),
-                                (to_cx, to_node.y + to_node.height),
+                                (to_cx, to_node.y),
                             ]
                         }
                     } else {
