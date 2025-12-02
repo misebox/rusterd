@@ -1,0 +1,19 @@
+# Test: Very long entity and column names
+
+entity VeryLongEntityNameThatMightCauseLayoutIssues {
+    @hint.level = 0
+    id int pk
+    this_is_a_very_long_column_name_that_tests_width_calculation string not null
+    another_extremely_long_column_name_for_testing decimal
+}
+
+entity AnotherExtremelyLongEntityNameForTestingPurposes {
+    @hint.level = 1
+    id int pk
+    short string
+    very_long_foreign_key_column_name int fk -> VeryLongEntityNameThatMightCauseLayoutIssues.id
+}
+
+rel {
+    VeryLongEntityNameThatMightCauseLayoutIssues 1 -- * AnotherExtremelyLongEntityNameForTestingPurposes : "has many with long label text"
+}

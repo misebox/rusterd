@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="144" viewBox="0 0 1420 144">
+<style>
+  .entity-bg { fill: #fff; }
+  .entity-header { fill: #e0e0e0; }
+  .entity-border { fill: none; stroke: #333; stroke-width: 1.5; }
+  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .column-text { font-family: monospace; font-size: 12px; }
+  .pk { font-weight: bold; }
+  .fk { font-style: italic; }
+  .edge { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
+</style>
+<rect class="entity-bg" x="40" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="40" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="40" y="64" width="80" height="4" />
+<text class="entity-name" x="80" y="59" text-anchor="middle">A</text>
+<line x1="40" y1="68" x2="120" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="90">◆ id: int</text>
+<rect class="entity-border" x="40" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="220" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="220" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="220" y="64" width="80" height="4" />
+<text class="entity-name" x="260" y="59" text-anchor="middle">B</text>
+<line x1="220" y1="68" x2="300" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="232" y="90">◆ id: int</text>
+<rect class="entity-border" x="220" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="400" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="400" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="400" y="64" width="80" height="4" />
+<text class="entity-name" x="440" y="59" text-anchor="middle">C</text>
+<line x1="400" y1="68" x2="480" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="412" y="90">◆ id: int</text>
+<rect class="entity-border" x="400" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="580" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="580" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="580" y="64" width="80" height="4" />
+<text class="entity-name" x="620" y="59" text-anchor="middle">D</text>
+<line x1="580" y1="68" x2="660" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="592" y="90">◆ id: int</text>
+<rect class="entity-border" x="580" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="760" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="760" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="760" y="64" width="80" height="4" />
+<text class="entity-name" x="800" y="59" text-anchor="middle">E</text>
+<line x1="760" y1="68" x2="840" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="772" y="90">◆ id: int</text>
+<rect class="entity-border" x="760" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="940" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="940" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="940" y="64" width="80" height="4" />
+<text class="entity-name" x="980" y="59" text-anchor="middle">F</text>
+<line x1="940" y1="68" x2="1020" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="952" y="90">◆ id: int</text>
+<rect class="entity-border" x="940" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="1120" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="1120" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="1120" y="64" width="80" height="4" />
+<text class="entity-name" x="1160" y="59" text-anchor="middle">G</text>
+<line x1="1120" y1="68" x2="1200" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="1132" y="90">◆ id: int</text>
+<rect class="entity-border" x="1120" y="40" width="80" height="64" rx="4" />
+<rect class="entity-bg" x="1300" y="40" width="80" height="64" rx="4" />
+<rect class="entity-header" x="1300" y="40" width="80" height="28" rx="4" />
+<rect class="entity-header" x="1300" y="64" width="80" height="4" />
+<text class="entity-name" x="1340" y="59" text-anchor="middle">H</text>
+<line x1="1300" y1="68" x2="1380" y2="68" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="1312" y="90">◆ id: int</text>
+<rect class="entity-border" x="1300" y="40" width="80" height="64" rx="4" />
+</svg>

@@ -1,0 +1,35 @@
+# Test: Entities without relationships (orphans)
+
+entity ConnectedA {
+    @hint.level = 0
+    id int pk
+    name string
+}
+
+entity ConnectedB {
+    @hint.level = 1
+    id int pk
+    a_id int fk -> ConnectedA.id
+}
+
+entity OrphanX {
+    @hint.level = 0
+    id int pk
+    data string
+}
+
+entity OrphanY {
+    @hint.level = 1
+    id int pk
+    value int
+}
+
+entity OrphanZ {
+    @hint.level = 2
+    id int pk
+    flag boolean
+}
+
+rel {
+    ConnectedA 1 -- * ConnectedB
+}

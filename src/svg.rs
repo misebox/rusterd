@@ -32,15 +32,16 @@ impl SvgRenderer {
         writeln!(
             &mut svg,
             r#"<style>
-  .entity-box {{ fill: #fff; stroke: #333; stroke-width: 1.5; }}
+  .entity-bg {{ fill: #fff; }}
   .entity-header {{ fill: #e0e0e0; }}
+  .entity-border {{ fill: none; stroke: #333; stroke-width: 1.5; }}
   .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; }}
   .column-text {{ font-family: monospace; font-size: 12px; }}
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label {{ font-family: monospace; font-size: 11px; fill: #666; }}
-  .cardinality {{ font-family: monospace; font-size: 11px; fill: #333; }}
+  .edge-label {{ font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }}
+  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }}
 </style>"#
         )
         .unwrap();
@@ -49,24 +50,22 @@ impl SvgRenderer {
         let node_map: HashMap<&str, &crate::ir::Node> =
             ir.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
-        // Build edge lookup
-        let edge_map: HashMap<(&str, &str), &Edge> = ir
-            .edges
-            .iter()
-            .map(|e| ((e.from.as_str(), e.to.as_str()), e))
-            .collect();
-
-        // Render edges first (behind nodes)
+        // 1. Render edge lines (behind nodes)
         for edge in &layout.edges {
-            if let Some(ir_edge) = edge_map.get(&(edge.from.as_str(), edge.to.as_str())) {
-                self.render_edge(&mut svg, edge, ir_edge);
-            }
+            self.render_edge_line(&mut svg, edge);
         }
 
-        // Render nodes
+        // 2. Render nodes (backgrounds, text, borders)
         for node in &layout.nodes {
             if let Some(ir_node) = node_map.get(node.id.as_str()) {
                 self.render_node(&mut svg, node, ir_node);
+            }
+        }
+
+        // 3. Render edge labels and cardinalities (on top of everything)
+        for edge in &layout.edges {
+            if let Some(ir_edge) = ir.edges.get(edge.edge_index) {
+                self.render_edge_labels(&mut svg, edge, ir_edge);
             }
         }
 
@@ -80,24 +79,31 @@ impl SvgRenderer {
         let w = layout.width;
         let header_h = self.metrics.line_height + self.metrics.header_padding * 2.0;
 
-        // Entity box
+        // 1. Background (white)
         writeln!(
             svg,
-            r#"<rect class="entity-box" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+            r#"<rect class="entity-bg" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
             x, y, w, layout.height
         )
         .unwrap();
 
-        // Header background
-        writeln!(
-            svg,
-            r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
-            x, y, w, header_h
-        )
-        .unwrap();
-
-        // Fix corners if there are columns
-        if !node.columns.is_empty() {
+        // 2. Header background (gray)
+        if node.columns.is_empty() {
+            // No columns: header fills entire box
+            writeln!(
+                svg,
+                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                x, y, w, layout.height
+            )
+            .unwrap();
+        } else {
+            // With columns: header at top with square bottom corners
+            writeln!(
+                svg,
+                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                x, y, w, header_h
+            )
+            .unwrap();
             writeln!(
                 svg,
                 r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" />"#,
@@ -109,7 +115,7 @@ impl SvgRenderer {
             .unwrap();
         }
 
-        // Entity name
+        // 3. Entity name
         let text_y = y + header_h / 2.0 + 5.0;
         writeln!(
             svg,
@@ -120,7 +126,7 @@ impl SvgRenderer {
         )
         .unwrap();
 
-        // Separator line
+        // 4. Separator line and columns
         if !node.columns.is_empty() {
             writeln!(
                 svg,
@@ -131,93 +137,154 @@ impl SvgRenderer {
                 y + header_h
             )
             .unwrap();
+
+            let mut col_y = y + header_h + self.metrics.padding_y + self.metrics.line_height * 0.7;
+            for col in &node.columns {
+                let mut class = "column-text".to_string();
+                if col.is_pk {
+                    class.push_str(" pk");
+                }
+                if col.is_fk {
+                    class.push_str(" fk");
+                }
+
+                let prefix = if col.is_pk { "◆ " } else { "  " };
+                let text = format!("{}{}: {}", prefix, col.name, col.typ);
+
+                writeln!(
+                    svg,
+                    r#"<text class="{}" x="{}" y="{}">{}</text>"#,
+                    class,
+                    x + self.metrics.padding_x,
+                    col_y,
+                    escape_xml(&text)
+                )
+                .unwrap();
+
+                col_y += self.metrics.line_height;
+            }
         }
 
-        // Columns
-        let mut col_y = y + header_h + self.metrics.padding_y + self.metrics.line_height * 0.7;
-        for col in &node.columns {
-            let mut class = "column-text".to_string();
-            if col.is_pk {
-                class.push_str(" pk");
-            }
-            if col.is_fk {
-                class.push_str(" fk");
-            }
-
-            let prefix = if col.is_pk { "◆ " } else { "  " };
-            let text = format!("{}{}: {}", prefix, col.name, col.typ);
-
-            writeln!(
-                svg,
-                r#"<text class="{}" x="{}" y="{}">{}</text>"#,
-                class,
-                x + self.metrics.padding_x,
-                col_y,
-                escape_xml(&text)
-            )
-            .unwrap();
-
-            col_y += self.metrics.line_height;
-        }
+        // 5. Border (drawn last to be on top)
+        writeln!(
+            svg,
+            r#"<rect class="entity-border" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+            x, y, w, layout.height
+        )
+        .unwrap();
     }
 
-    fn render_edge(&self, svg: &mut String, layout: &LayoutEdge, edge: &Edge) {
+    fn render_edge_line(&self, svg: &mut String, layout: &LayoutEdge) {
         let (x1, y1) = layout.from_point;
         let (x2, y2) = layout.to_point;
 
-        // Draw line
-        writeln!(
-            svg,
-            r#"<line class="edge" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
-            x1, y1, x2, y2
-        )
-        .unwrap();
-
-        // Cardinality markers
-        let offset = 15.0;
-        let dx = x2 - x1;
-        let dy = y2 - y1;
-        let len = (dx * dx + dy * dy).sqrt();
-        if len > 0.0 {
-            let ux = dx / len;
-            let uy = dy / len;
-
-            // From cardinality
-            let from_x = x1 + ux * offset;
-            let from_y = y1 + uy * offset - 5.0;
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}">{}</text>"#,
-                from_x,
-                from_y,
-                cardinality_symbol(edge.from_cardinality)
-            )
-            .unwrap();
-
-            // To cardinality
-            let to_x = x2 - ux * offset;
-            let to_y = y2 - uy * offset - 5.0;
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}">{}</text>"#,
-                to_x,
-                to_y,
-                cardinality_symbol(edge.to_cardinality)
-            )
-            .unwrap();
-
-            // Label
-            if let Some(label) = &edge.label {
-                let mid_x = (x1 + x2) / 2.0;
-                let mid_y = (y1 + y2) / 2.0 - 5.0;
+        if layout.is_self_ref {
+            if let Some([(cx1, cy1), (cx2, cy2)]) = layout.control_points {
                 writeln!(
                     svg,
-                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle">{}</text>"#,
-                    mid_x,
-                    mid_y,
-                    escape_xml(label)
+                    r#"<path class="edge" d="M {} {} C {} {}, {} {}, {} {}" />"#,
+                    x1, y1, cx1, cy1, cx2, cy2, x2, y2
                 )
                 .unwrap();
+            }
+        } else {
+            writeln!(
+                svg,
+                r#"<line class="edge" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+                x1, y1, x2, y2
+            )
+            .unwrap();
+        }
+    }
+
+    fn render_edge_labels(&self, svg: &mut String, layout: &LayoutEdge, edge: &Edge) {
+        let (x1, y1) = layout.from_point;
+        let (x2, y2) = layout.to_point;
+
+        let font_size = 15.0;
+        let margin = font_size * 0.5;
+
+        let from_symbol = cardinality_symbol(edge.from_cardinality);
+        let to_symbol = cardinality_symbol(edge.to_cardinality);
+
+        if layout.is_self_ref {
+            // Self-referential: place cardinalities on the loop
+            if let Some([(cx1, _), (cx2, _)]) = layout.control_points {
+                let loop_x = (cx1 + cx2) / 2.0 + margin;
+
+                // From cardinality near top of loop
+                writeln!(
+                    svg,
+                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                    loop_x, y1, from_symbol
+                )
+                .unwrap();
+
+                // To cardinality near bottom of loop
+                writeln!(
+                    svg,
+                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                    loop_x, y2, to_symbol
+                )
+                .unwrap();
+
+                // Label at center of loop
+                if let Some(label) = &edge.label {
+                    let mid_y = (y1 + y2) / 2.0;
+                    writeln!(
+                        svg,
+                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                        loop_x,
+                        mid_y,
+                        escape_xml(label)
+                    )
+                    .unwrap();
+                }
+            }
+        } else {
+            let dx = x2 - x1;
+            let dy = y2 - y1;
+            let len = (dx * dx + dy * dy).sqrt();
+            if len > 0.0 {
+                let ux = dx / len;
+                let uy = dy / len;
+
+                let from_anchor = if ux >= 0.0 { "start" } else { "end" };
+                let from_baseline = if uy >= 0.0 { "hanging" } else { "alphabetic" };
+                let from_x = x1 + ux * margin;
+                let from_y = y1 + uy * margin;
+
+                writeln!(
+                    svg,
+                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
+                    from_x, from_y, from_anchor, from_baseline, from_symbol
+                )
+                .unwrap();
+
+                let to_anchor = if ux >= 0.0 { "end" } else { "start" };
+                let to_baseline = if uy >= 0.0 { "alphabetic" } else { "hanging" };
+                let to_x = x2 - ux * margin;
+                let to_y = y2 - uy * margin;
+
+                writeln!(
+                    svg,
+                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
+                    to_x, to_y, to_anchor, to_baseline, to_symbol
+                )
+                .unwrap();
+
+                if let Some(label) = &edge.label {
+                    let mid_x = (x1 + x2) / 2.0;
+                    let mid_y = (y1 + y2) / 2.0;
+                    writeln!(
+                        svg,
+                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
+                        mid_x,
+                        mid_y,
+                        escape_xml(label)
+                    )
+                    .unwrap();
+                }
             }
         }
     }

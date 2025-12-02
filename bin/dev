@@ -1,0 +1,5 @@
+#!/bin/bash
+
+dname=$(dirname $0)
+for f in examples/*.erd; do echo $f; ${dname}/svg $f; done
+

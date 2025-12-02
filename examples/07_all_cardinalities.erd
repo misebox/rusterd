@@ -1,0 +1,39 @@
+# Test: All cardinality types
+
+entity Person {
+    @hint.level = 0
+    id int pk
+    name string
+}
+
+entity Passport {
+    @hint.level = 1
+    id int pk
+    person_id int fk -> Person.id
+    number string unique
+}
+
+entity Car {
+    @hint.level = 1
+    id int pk
+    owner_id int fk -> Person.id
+}
+
+entity License {
+    @hint.level = 1
+    id int pk
+    person_id int fk -> Person.id
+}
+
+entity Child {
+    @hint.level = 2
+    id int pk
+    parent_id int fk -> Person.id
+}
+
+rel {
+    Person 1 -- 0..1 Passport : "has"
+    Person 0..1 -- * Car : "owns"
+    Person 1 -- 1..* License : "holds"
+    Person 0..1 -- 1..* Child : "parents"
+}

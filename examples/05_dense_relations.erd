@@ -1,0 +1,59 @@
+# Test: Dense relationship network (many edges)
+
+entity User {
+    @hint.level = 0
+    id int pk
+    name string
+}
+
+entity Post {
+    @hint.level = 1
+    id int pk
+    author_id int fk -> User.id
+}
+
+entity Comment {
+    @hint.level = 2
+    id int pk
+    author_id int fk -> User.id
+    post_id int fk -> Post.id
+}
+
+entity Like {
+    @hint.level = 2
+    id int pk
+    user_id int fk -> User.id
+    post_id int fk -> Post.id
+}
+
+entity Follow {
+    @hint.level = 1
+    id int pk
+    follower_id int fk -> User.id
+    followee_id int fk -> User.id
+}
+
+entity Tag {
+    @hint.level = 1
+    id int pk
+    name string
+}
+
+entity PostTag {
+    @hint.level = 2
+    id int pk
+    post_id int fk -> Post.id
+    tag_id int fk -> Tag.id
+}
+
+rel {
+    User 1 -- * Post : "writes"
+    User 1 -- * Comment : "comments"
+    User 1 -- * Like : "likes"
+    User 1 -- * Follow : "follows"
+    User 1 -- * Follow : "followed by"
+    Post 1 -- * Comment
+    Post 1 -- * Like
+    Post 1 -- * PostTag
+    Tag 1 -- * PostTag
+}

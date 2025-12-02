@@ -1,0 +1,5 @@
+#!/bin/bash
+
+dname=$(dirname $1)
+bname=$(basename -s .erd $1)
+cargo run $1 -o ${dname}/${bname}.svg

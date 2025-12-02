@@ -1,0 +1,34 @@
+# Test: Entity with many columns (vertical overflow)
+
+entity Employee {
+    @hint.level = 0
+    id int pk
+    employee_number string unique not null
+    first_name string not null
+    last_name string not null
+    middle_name string
+    email string unique
+    phone string
+    mobile_phone string
+    address_line1 string
+    address_line2 string
+    city string
+    state string
+    postal_code string
+    country string
+    department_id int fk -> Department.id
+    manager_id int fk -> Employee.id
+    hire_date date not null
+    termination_date date
+    salary decimal
+    bonus_rate decimal
+    is_active boolean
+    created_at timestamp
+    updated_at timestamp
+}
+
+entity Department {
+    @hint.level = 0
+    id int pk
+    name string not null
+}
