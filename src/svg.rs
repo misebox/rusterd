@@ -40,7 +40,8 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label {{ font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }}
+  .edge-label-bg {{ fill: rgba(245,245,245,0.85); }}
+  .edge-label {{ font-family: monospace; font-size: 14px; fill: #555; }}
   .cardinality-bg {{ fill: rgba(240,240,240,0.7); }}
   .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }}
 </style>"#
@@ -252,12 +253,9 @@ impl SvgRenderer {
 
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
-                writeln!(
-                    svg,
-                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                    loop_x, mid_y, escape_xml(label)
-                )
-                .unwrap();
+                // Position label further from entity to avoid overlap
+                let label_x = loop_x + label.len() as f64 * 4.0 + 10.0;
+                render_edge_label(svg, label_x, mid_y, label);
             }
         } else {
             // For orthogonal edges, place cardinalities near first/last segments
@@ -306,21 +304,11 @@ impl SvgRenderer {
                     let (hx2, hy2) = layout.waypoints[2];
                     let mid_x = (hx1 + hx2) / 2.0;
                     let mid_y = (hy1 + hy2) / 2.0;
-                    writeln!(
-                        svg,
-                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="alphabetic">{}</text>"#,
-                        mid_x, mid_y - 4.0, escape_xml(label)
-                    )
-                    .unwrap();
+                    render_edge_label(svg, mid_x, mid_y, label);
                 } else {
                     let mid_x = (x1 + x2) / 2.0;
                     let mid_y = (y1 + y2) / 2.0;
-                    writeln!(
-                        svg,
-                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-                        mid_x, mid_y, escape_xml(label)
-                    )
-                    .unwrap();
+                    render_edge_label(svg, mid_x, mid_y, label);
                 }
             }
         }
@@ -334,6 +322,37 @@ fn cardinality_symbol(c: Cardinality) -> &'static str {
         Cardinality::Many => "*",
         Cardinality::OneOrMore => "1..*",
     }
+}
+
+/// Render edge label with semi-transparent background
+fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
+    let font_size = 14.0;
+    let char_width = font_size * 0.6;
+    let text_width = label.len() as f64 * char_width;
+    let text_height = font_size;
+    let padding = 3.0;
+
+    // Rect centered on (x, y)
+    let rect_x = x - text_width / 2.0 - padding;
+    let rect_y = y - text_height / 2.0 - padding;
+    let rect_w = text_width + padding * 2.0;
+    let rect_h = text_height + padding * 2.0;
+
+    // Background rect
+    writeln!(
+        svg,
+        r#"<rect class="edge-label-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="2" />"#,
+        rect_x, rect_y, rect_w, rect_h
+    )
+    .unwrap();
+
+    // Text centered at (x, y)
+    writeln!(
+        svg,
+        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
+        x, y, escape_xml(label)
+    )
+    .unwrap();
 }
 
 /// Render cardinality label with semi-transparent background

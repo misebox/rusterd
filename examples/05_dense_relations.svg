@@ -8,7 +8,8 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label { font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .edge-label-bg { fill: rgba(245,245,245,0.85); }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
   .cardinality-bg { fill: rgba(240,240,240,0.7); }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
@@ -85,27 +86,32 @@
 <text class="cardinality" x="60" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="101.5" y="289.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="108" y="298.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="84" y="261" text-anchor="middle" dominant-baseline="alphabetic">writes</text>
+<rect class="edge-label-bg" x="55.8" y="255.0" width="56.4" height="20.0" rx="2" />
+<text class="edge-label" x="84" y="265" text-anchor="middle" dominant-baseline="middle">writes</text>
 <rect class="cardinality-bg" x="93.5" y="126.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="100" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="121.5" y="555.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="128" y="564.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="114" y="237" text-anchor="middle" dominant-baseline="alphabetic">comments</text>
+<rect class="edge-label-bg" x="77.4" y="231.0" width="73.2" height="20.0" rx="2" />
+<text class="edge-label" x="114" y="241" text-anchor="middle" dominant-baseline="middle">comments</text>
 <rect class="cardinality-bg" x="133.5" y="126.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="140" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="349.5" y="555.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="356" y="564.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="248" y="213" text-anchor="middle" dominant-baseline="alphabetic">likes</text>
+<rect class="edge-label-bg" x="224.0" y="207.0" width="48.0" height="20.0" rx="2" />
+<text class="edge-label" x="248" y="217" text-anchor="middle" dominant-baseline="middle">likes</text>
 <rect class="cardinality-bg" x="173.5" y="126.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="180" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="325.5" y="289.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="332" y="298.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="256" y="189" text-anchor="middle" dominant-baseline="alphabetic">follows</text>
+<rect class="edge-label-bg" x="223.6" y="183.0" width="64.8" height="20.0" rx="2" />
+<text class="edge-label" x="256" y="193" text-anchor="middle" dominant-baseline="middle">follows</text>
 <rect class="cardinality-bg" x="213.5" y="126.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="220" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="365.5" y="289.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="372" y="298.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="296" y="165" text-anchor="middle" dominant-baseline="alphabetic">followed by</text>
+<rect class="edge-label-bg" x="246.8" y="159.0" width="98.4" height="20.0" rx="2" />
+<text class="edge-label" x="296" y="169" text-anchor="middle" dominant-baseline="middle">followed by</text>
 <rect class="cardinality-bg" x="61.5" y="396.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="68" y="405.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="81.5" y="555.0" width="13.0" height="19.0" rx="2" />

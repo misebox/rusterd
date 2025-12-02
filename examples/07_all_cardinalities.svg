@@ -8,7 +8,8 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label { font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .edge-label-bg { fill: rgba(245,245,245,0.85); }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
   .cardinality-bg { fill: rgba(240,240,240,0.7); }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
@@ -61,20 +62,24 @@
 <text class="cardinality" x="60" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="88.0" y="265.0" width="40.0" height="19.0" rx="2" />
 <text class="cardinality" x="108" y="274.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
-<text class="edge-label" x="84" y="237" text-anchor="middle" dominant-baseline="alphabetic">has</text>
+<rect class="edge-label-bg" x="68.4" y="231.0" width="31.2" height="20.0" rx="2" />
+<text class="edge-label" x="84" y="241" text-anchor="middle" dominant-baseline="middle">has</text>
 <rect class="cardinality-bg" x="120.0" y="126.0" width="40.0" height="19.0" rx="2" />
 <text class="cardinality" x="140" y="135.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
 <rect class="cardinality-bg" x="333.5" y="265.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="340" y="274.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<text class="edge-label" x="240" y="189" text-anchor="middle" dominant-baseline="alphabetic">owns</text>
+<rect class="edge-label-bg" x="220.2" y="183.0" width="39.6" height="20.0" rx="2" />
+<text class="edge-label" x="240" y="193" text-anchor="middle" dominant-baseline="middle">owns</text>
 <rect class="cardinality-bg" x="173.5" y="126.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="180" y="135.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="552.0" y="265.0" width="40.0" height="19.0" rx="2" />
 <text class="cardinality" x="572" y="274.5" text-anchor="middle" dominant-baseline="middle">1..*</text>
-<text class="edge-label" x="376" y="165" text-anchor="middle" dominant-baseline="alphabetic">holds</text>
+<rect class="edge-label-bg" x="352.0" y="159.0" width="48.0" height="20.0" rx="2" />
+<text class="edge-label" x="376" y="169" text-anchor="middle" dominant-baseline="middle">holds</text>
 <rect class="cardinality-bg" x="80.0" y="126.0" width="40.0" height="19.0" rx="2" />
 <text class="cardinality" x="100" y="135.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
 <rect class="cardinality-bg" x="88.0" y="459.0" width="40.0" height="19.0" rx="2" />
 <text class="cardinality" x="108" y="468.5" text-anchor="middle" dominant-baseline="middle">1..*</text>
-<text class="edge-label" x="104" y="213" text-anchor="middle" dominant-baseline="alphabetic">parents</text>
+<rect class="edge-label-bg" x="71.6" y="207.0" width="64.8" height="20.0" rx="2" />
+<text class="edge-label" x="104" y="217" text-anchor="middle" dominant-baseline="middle">parents</text>
 </svg>

@@ -8,7 +8,8 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label { font-family: monospace; font-size: 14px; fill: #555; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
+  .edge-label-bg { fill: rgba(245,245,245,0.85); }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
   .cardinality-bg { fill: rgba(240,240,240,0.7); }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
