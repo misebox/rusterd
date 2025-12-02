@@ -52,7 +52,7 @@ impl SvgRenderer {
 
         // 1. Render edge lines (behind nodes)
         for edge in &layout.edges {
-            self.render_edge_line(&mut svg, edge);
+            self.render_edge_line(&mut svg, edge, layout.corner_radius);
         }
 
         // 2. Render nodes (backgrounds, text, borders)
@@ -174,32 +174,66 @@ impl SvgRenderer {
         .unwrap();
     }
 
-    fn render_edge_line(&self, svg: &mut String, layout: &LayoutEdge) {
-        let (x1, y1) = layout.from_point;
-        let (x2, y2) = layout.to_point;
-
-        if layout.is_self_ref {
-            if let Some([(cx1, cy1), (cx2, cy2)]) = layout.control_points {
-                writeln!(
-                    svg,
-                    r#"<path class="edge" d="M {} {} C {} {}, {} {}, {} {}" />"#,
-                    x1, y1, cx1, cy1, cx2, cy2, x2, y2
-                )
-                .unwrap();
-            }
-        } else {
-            writeln!(
-                svg,
-                r#"<line class="edge" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
-                x1, y1, x2, y2
-            )
-            .unwrap();
+    fn render_edge_line(&self, svg: &mut String, layout: &LayoutEdge, corner_radius: f64) {
+        if layout.waypoints.len() < 2 {
+            return;
         }
+
+        // Build SVG path with rounded corners at each waypoint
+        let mut path = String::new();
+        let r = corner_radius;
+
+        for (i, &(x, y)) in layout.waypoints.iter().enumerate() {
+            if i == 0 {
+                path.push_str(&format!("M {} {}", x, y));
+            } else if i == layout.waypoints.len() - 1 {
+                // Last point: just line to it
+                path.push_str(&format!(" L {} {}", x, y));
+            } else {
+                // Middle point: add rounded corner
+                let (px, py) = layout.waypoints[i - 1];
+                let (nx, ny) = layout.waypoints[i + 1];
+
+                // Direction from previous point
+                let dx1 = x - px;
+                let dy1 = y - py;
+                let len1 = (dx1 * dx1 + dy1 * dy1).sqrt();
+
+                // Direction to next point
+                let dx2 = nx - x;
+                let dy2 = ny - y;
+                let len2 = (dx2 * dx2 + dy2 * dy2).sqrt();
+
+                if len1 > 0.0 && len2 > 0.0 {
+                    // Limit radius to half the segment length
+                    let effective_r = r.min(len1 / 2.0).min(len2 / 2.0);
+
+                    // Point before corner
+                    let bx = x - (dx1 / len1) * effective_r;
+                    let by = y - (dy1 / len1) * effective_r;
+
+                    // Point after corner
+                    let ax = x + (dx2 / len2) * effective_r;
+                    let ay = y + (dy2 / len2) * effective_r;
+
+                    // Draw line to before corner, then arc to after corner
+                    path.push_str(&format!(" L {} {} Q {} {} {} {}", bx, by, x, y, ax, ay));
+                } else {
+                    path.push_str(&format!(" L {} {}", x, y));
+                }
+            }
+        }
+
+        writeln!(svg, r#"<path class="edge" d="{}" />"#, path).unwrap();
     }
 
     fn render_edge_labels(&self, svg: &mut String, layout: &LayoutEdge, edge: &Edge) {
-        let (x1, y1) = layout.from_point;
-        let (x2, y2) = layout.to_point;
+        if layout.waypoints.len() < 2 {
+            return;
+        }
+
+        let (x1, y1) = layout.waypoints[0];
+        let (x2, y2) = layout.waypoints[layout.waypoints.len() - 1];
 
         let font_size = 15.0;
         let margin = font_size * 0.5;
@@ -207,81 +241,99 @@ impl SvgRenderer {
         let from_symbol = cardinality_symbol(edge.from_cardinality);
         let to_symbol = cardinality_symbol(edge.to_cardinality);
 
-        if layout.is_self_ref {
-            // Self-referential: place cardinalities on the loop
-            if let Some([(cx1, _), (cx2, _)]) = layout.control_points {
-                let loop_x = (cx1 + cx2) / 2.0 + margin;
+        if layout.is_self_ref && layout.waypoints.len() >= 4 {
+            // Self-referential: place cardinalities on the right side of loop
+            let loop_x = layout.waypoints[1].0 + margin;
 
-                // From cardinality near top of loop
+            writeln!(
+                svg,
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                loop_x, y1, from_symbol
+            )
+            .unwrap();
+
+            writeln!(
+                svg,
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                loop_x, y2, to_symbol
+            )
+            .unwrap();
+
+            if let Some(label) = &edge.label {
+                let mid_y = (y1 + y2) / 2.0;
                 writeln!(
                     svg,
-                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                    loop_x, y1, from_symbol
+                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
+                    loop_x, mid_y, escape_xml(label)
                 )
                 .unwrap();
-
-                // To cardinality near bottom of loop
-                writeln!(
-                    svg,
-                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                    loop_x, y2, to_symbol
-                )
-                .unwrap();
-
-                // Label at center of loop
-                if let Some(label) = &edge.label {
-                    let mid_y = (y1 + y2) / 2.0;
-                    writeln!(
-                        svg,
-                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                        loop_x,
-                        mid_y,
-                        escape_xml(label)
-                    )
-                    .unwrap();
-                }
             }
         } else {
-            let dx = x2 - x1;
-            let dy = y2 - y1;
-            let len = (dx * dx + dy * dy).sqrt();
-            if len > 0.0 {
-                let ux = dx / len;
-                let uy = dy / len;
+            // For orthogonal edges, place cardinalities near first/last segments
+            // From cardinality: near the start point
+            let (p1x, p1y) = layout.waypoints[0];
+            let (p2x, p2y) = layout.waypoints[1];
+            let dx1 = p2x - p1x;
+            let dy1 = p2y - p1y;
 
-                let from_anchor = if ux >= 0.0 { "start" } else { "end" };
-                let from_baseline = if uy >= 0.0 { "hanging" } else { "alphabetic" };
-                let from_x = x1 + ux * margin;
-                let from_y = y1 + uy * margin;
+            let from_anchor = if dy1.abs() > dx1.abs() {
+                if dy1 > 0.0 { "end" } else { "start" }
+            } else {
+                if dx1 > 0.0 { "start" } else { "end" }
+            };
+            let from_x = p1x + if dx1.abs() > 0.1 { dx1.signum() * margin } else { margin };
+            let from_y = p1y + if dy1.abs() > 0.1 { dy1.signum() * margin } else { 0.0 };
 
-                writeln!(
-                    svg,
-                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
-                    from_x, from_y, from_anchor, from_baseline, from_symbol
-                )
-                .unwrap();
+            writeln!(
+                svg,
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="middle">{}</text>"#,
+                from_x, from_y, from_anchor, from_symbol
+            )
+            .unwrap();
 
-                let to_anchor = if ux >= 0.0 { "end" } else { "start" };
-                let to_baseline = if uy >= 0.0 { "alphabetic" } else { "hanging" };
-                let to_x = x2 - ux * margin;
-                let to_y = y2 - uy * margin;
+            // To cardinality: near the end point
+            let n = layout.waypoints.len();
+            let (pnx, pny) = layout.waypoints[n - 1];
+            let (pn1x, pn1y) = layout.waypoints[n - 2];
+            let dx2 = pnx - pn1x;
+            let dy2 = pny - pn1y;
 
-                writeln!(
-                    svg,
-                    r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
-                    to_x, to_y, to_anchor, to_baseline, to_symbol
-                )
-                .unwrap();
+            let to_anchor = if dy2.abs() > dx2.abs() {
+                if dy2 > 0.0 { "start" } else { "end" }
+            } else {
+                if dx2 > 0.0 { "end" } else { "start" }
+            };
+            let to_x = pnx - if dx2.abs() > 0.1 { dx2.signum() * margin } else { margin };
+            let to_y = pny - if dy2.abs() > 0.1 { dy2.signum() * margin } else { 0.0 };
 
-                if let Some(label) = &edge.label {
+            writeln!(
+                svg,
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="middle">{}</text>"#,
+                to_x, to_y, to_anchor, to_symbol
+            )
+            .unwrap();
+
+            // Label in the middle of the horizontal segment (if exists)
+            if let Some(label) = &edge.label {
+                // Find the horizontal segment (usually waypoints[1] to waypoints[2])
+                if layout.waypoints.len() >= 4 {
+                    let (hx1, hy1) = layout.waypoints[1];
+                    let (hx2, hy2) = layout.waypoints[2];
+                    let mid_x = (hx1 + hx2) / 2.0;
+                    let mid_y = (hy1 + hy2) / 2.0;
+                    writeln!(
+                        svg,
+                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="alphabetic">{}</text>"#,
+                        mid_x, mid_y - 4.0, escape_xml(label)
+                    )
+                    .unwrap();
+                } else {
                     let mid_x = (x1 + x2) / 2.0;
                     let mid_y = (y1 + y2) / 2.0;
                     writeln!(
                         svg,
                         r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-                        mid_x,
-                        mid_y,
-                        escape_xml(label)
+                        mid_x, mid_y, escape_xml(label)
                     )
                     .unwrap();
                 }
