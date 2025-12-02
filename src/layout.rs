@@ -204,9 +204,13 @@ impl LayoutEngine {
         // Pre-calculate lane assignments by sorting edges within each channel
         // Edges starting from left should get earlier lanes (turn higher) to avoid crossings
         let mut edge_lane_assignments: HashMap<usize, usize> = HashMap::new();
+        // Separate lane assignments for same-level edges (routed above)
+        let mut same_level_lane_assignments: HashMap<usize, usize> = HashMap::new();
         {
-            // Collect edges with their channel info and starting x position
-            let mut channel_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new(); // channel -> [(edge_idx, from_cx)]
+            // Collect inter-level edges with their channel info and starting x position
+            let mut channel_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+            // Collect same-level edges per level
+            let mut same_level_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
 
             for (idx, edge) in ir.edges.iter().enumerate() {
                 if edge.from == edge.to {
@@ -216,9 +220,10 @@ impl LayoutEngine {
                     Some(n) => n,
                     None => continue,
                 };
-                if node_positions.get(edge.to.as_str()).is_none() {
-                    continue;
-                }
+                let to_node = match node_positions.get(edge.to.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
 
                 let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
                 let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
@@ -240,13 +245,27 @@ impl LayoutEngine {
                         .entry(channel_level)
                         .or_default()
                         .push((idx, from_cx));
+                } else {
+                    // Same-level edge - check if non-adjacent (needs above routing)
+                    let (left_node, right_node) = if from_node.x < to_node.x {
+                        (from_node, to_node)
+                    } else {
+                        (to_node, from_node)
+                    };
+                    let gap_between = right_node.x - (left_node.x + left_node.width);
+
+                    if gap_between > self.node_gap_x * 1.5 {
+                        // Non-adjacent same-level edge - needs lane assignment
+                        let from_cx = from_node.x + from_node.width / 2.0;
+                        same_level_edges
+                            .entry(from_level)
+                            .or_default()
+                            .push((idx, from_cx));
+                    }
                 }
             }
 
-            // Sort edges in each channel by from_cx DESCENDING (rightmost first)
-            // Use edge index as tiebreaker to ensure deterministic, unique lane assignments
-            // This prevents crossings: edges starting from right turn first (upper lane),
-            // so their horizontal segment doesn't block edges starting from left
+            // Sort and assign lanes for inter-level edges
             for (_channel, edges) in channel_edges.iter_mut() {
                 edges.sort_by(|a, b| {
                     match b.1.partial_cmp(&a.1) {
@@ -256,6 +275,19 @@ impl LayoutEngine {
                 });
                 for (lane, (edge_idx, _)) in edges.iter().enumerate() {
                     edge_lane_assignments.insert(*edge_idx, lane);
+                }
+            }
+
+            // Sort and assign lanes for same-level edges
+            for (_level, edges) in same_level_edges.iter_mut() {
+                edges.sort_by(|a, b| {
+                    match b.1.partial_cmp(&a.1) {
+                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
+                        Some(ord) => ord,
+                    }
+                });
+                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                    same_level_lane_assignments.insert(*edge_idx, lane);
                 }
             }
         }
@@ -351,8 +383,12 @@ impl LayoutEngine {
                             }
                         } else {
                             // Non-adjacent same-level: route ABOVE the level (separate from inter-level channel)
+                            let same_level_lane = *same_level_lane_assignments.get(&idx).unwrap_or(&0);
+                            // Lane 0 is closest to entity, higher lanes go further up
+                            let same_level_lane_offset = same_level_lane as f64 * self.lane_spacing;
+
                             let min_top = from_node.y.min(to_node.y);
-                            let ch_y = min_top - self.entity_margin - lane_offset.abs();
+                            let ch_y = min_top - self.entity_margin - same_level_lane_offset;
 
                             vec![
                                 (from_cx, from_node.y),
