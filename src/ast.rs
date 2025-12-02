@@ -3,6 +3,9 @@ pub struct Schema {
     pub entities: Vec<Entity>,
     pub relationships: Vec<Relationship>,
     pub views: Vec<View>,
+    /// Grid-based layout arrangement: rows of entity names
+    /// Each row represents a level, columns represent horizontal order
+    pub arrangement: Option<Vec<Vec<String>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

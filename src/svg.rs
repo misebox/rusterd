@@ -40,8 +40,10 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label {{ font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }}
-  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }}
+  .edge-label-bg {{ fill: rgba(245,245,245,0.6); }}
+  .edge-label {{ font-family: monospace; font-size: 14px; fill: #555; }}
+  .cardinality-bg {{ fill: rgba(240,240,240,0.6); }}
+  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }}
 </style>"#
         )
         .unwrap();
@@ -236,7 +238,8 @@ impl SvgRenderer {
         let (x2, y2) = layout.waypoints[layout.waypoints.len() - 1];
 
         let font_size = 15.0;
-        let margin = font_size * 0.5;
+        let half_font = font_size / 2.0;
+        let margin = 4.0; // Gap between entity border and text edge
 
         let from_symbol = cardinality_symbol(edge.from_cardinality);
         let to_symbol = cardinality_symbol(edge.to_cardinality);
@@ -245,28 +248,13 @@ impl SvgRenderer {
             // Self-referential: place cardinalities on the right side of loop
             let loop_x = layout.waypoints[1].0 + margin;
 
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                loop_x, y1, from_symbol
-            )
-            .unwrap();
-
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                loop_x, y2, to_symbol
-            )
-            .unwrap();
+            render_cardinality(svg, loop_x, y1, "start", from_symbol, font_size);
+            render_cardinality(svg, loop_x, y2, "start", to_symbol, font_size);
 
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
-                writeln!(
-                    svg,
-                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="start" dominant-baseline="middle">{}</text>"#,
-                    loop_x, mid_y, escape_xml(label)
-                )
-                .unwrap();
+                // Center label on the loop edge to avoid extending into adjacent entities
+                render_edge_label(svg, loop_x, mid_y, label);
             }
         } else {
             // For orthogonal edges, place cardinalities near first/last segments
@@ -276,20 +264,18 @@ impl SvgRenderer {
             let dx1 = p2x - p1x;
             let dy1 = p2y - p1y;
 
-            let from_anchor = if dy1.abs() > dx1.abs() {
-                if dy1 > 0.0 { "end" } else { "start" }
+            // Position cardinality so edge passes through center of background
+            // For vertical edges: x = edge x, offset y only
+            // For horizontal edges: y = edge y, offset x only
+            let (from_x, from_y) = if dy1.abs() > dx1.abs() {
+                // Vertical edge: keep x aligned with edge, offset y
+                (p1x, p1y + dy1.signum() * (margin + half_font))
             } else {
-                if dx1 > 0.0 { "start" } else { "end" }
+                // Horizontal edge: keep y aligned with edge, offset x
+                (p1x + dx1.signum() * (margin + half_font), p1y)
             };
-            let from_x = p1x + if dx1.abs() > 0.1 { dx1.signum() * margin } else { margin };
-            let from_y = p1y + if dy1.abs() > 0.1 { dy1.signum() * margin } else { 0.0 };
 
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="middle">{}</text>"#,
-                from_x, from_y, from_anchor, from_symbol
-            )
-            .unwrap();
+            render_cardinality(svg, from_x, from_y, "middle", from_symbol, font_size);
 
             // To cardinality: near the end point
             let n = layout.waypoints.len();
@@ -298,20 +284,16 @@ impl SvgRenderer {
             let dx2 = pnx - pn1x;
             let dy2 = pny - pn1y;
 
-            let to_anchor = if dy2.abs() > dx2.abs() {
-                if dy2 > 0.0 { "start" } else { "end" }
+            // Position cardinality so edge passes through center of background
+            let (to_x, to_y) = if dy2.abs() > dx2.abs() {
+                // Vertical edge: keep x aligned with edge, offset y
+                (pnx, pny - dy2.signum() * (margin + half_font))
             } else {
-                if dx2 > 0.0 { "end" } else { "start" }
+                // Horizontal edge: keep y aligned with edge, offset x
+                (pnx - dx2.signum() * (margin + half_font), pny)
             };
-            let to_x = pnx - if dx2.abs() > 0.1 { dx2.signum() * margin } else { margin };
-            let to_y = pny - if dy2.abs() > 0.1 { dy2.signum() * margin } else { 0.0 };
 
-            writeln!(
-                svg,
-                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="middle">{}</text>"#,
-                to_x, to_y, to_anchor, to_symbol
-            )
-            .unwrap();
+            render_cardinality(svg, to_x, to_y, "middle", to_symbol, font_size);
 
             // Label in the middle of the horizontal segment (if exists)
             if let Some(label) = &edge.label {
@@ -321,21 +303,11 @@ impl SvgRenderer {
                     let (hx2, hy2) = layout.waypoints[2];
                     let mid_x = (hx1 + hx2) / 2.0;
                     let mid_y = (hy1 + hy2) / 2.0;
-                    writeln!(
-                        svg,
-                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="alphabetic">{}</text>"#,
-                        mid_x, mid_y - 4.0, escape_xml(label)
-                    )
-                    .unwrap();
+                    render_edge_label(svg, mid_x, mid_y, label);
                 } else {
                     let mid_x = (x1 + x2) / 2.0;
                     let mid_y = (y1 + y2) / 2.0;
-                    writeln!(
-                        svg,
-                        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-                        mid_x, mid_y, escape_xml(label)
-                    )
-                    .unwrap();
+                    render_edge_label(svg, mid_x, mid_y, label);
                 }
             }
         }
@@ -349,6 +321,75 @@ fn cardinality_symbol(c: Cardinality) -> &'static str {
         Cardinality::Many => "*",
         Cardinality::OneOrMore => "1..*",
     }
+}
+
+/// Render edge label with semi-transparent background
+fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
+    let font_size = 14.0;
+    let char_width = font_size * 0.6;
+    let text_width = label.len() as f64 * char_width;
+    let text_height = font_size;
+    let padding = 3.0;
+
+    // Rect centered on (x, y)
+    let rect_x = x - text_width / 2.0 - padding;
+    let rect_y = y - text_height / 2.0 - padding;
+    let rect_w = text_width + padding * 2.0;
+    let rect_h = text_height + padding * 2.0;
+
+    // Background rect
+    writeln!(
+        svg,
+        r#"<rect class="edge-label-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="8" />"#,
+        rect_x, rect_y, rect_w, rect_h
+    )
+    .unwrap();
+
+    // Text centered at (x, y)
+    writeln!(
+        svg,
+        r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
+        x, y, escape_xml(label)
+    )
+    .unwrap();
+}
+
+/// Render cardinality label with semi-transparent background
+/// Text is always centered (text-anchor="middle") so edge passes through center
+fn render_cardinality(
+    svg: &mut String,
+    x: f64,
+    y: f64,
+    _anchor: &str, // Always use "middle"
+    symbol: &str,
+    font_size: f64,
+) {
+    let char_width = font_size * 0.6; // Approximate monospace char width
+    let text_width = symbol.len() as f64 * char_width;
+    let text_height = font_size;
+    let padding = 2.0;
+
+    // Rect centered on (x, y)
+    let rect_x = x - text_width / 2.0 - padding;
+    let rect_y = y - text_height / 2.0 - padding;
+    let rect_w = text_width + padding * 2.0;
+    let rect_h = text_height + padding * 2.0;
+
+    // Background rect
+    writeln!(
+        svg,
+        r#"<rect class="cardinality-bg" x="{:.1}" y="{:.1}" width="{:.1}" height="{:.1}" rx="8" />"#,
+        rect_x, rect_y, rect_w, rect_h
+    )
+    .unwrap();
+
+    // Text centered at (x, y)
+    writeln!(
+        svg,
+        r#"<text class="cardinality" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
+        x, y, symbol
+    )
+    .unwrap();
 }
 
 fn escape_xml(s: &str) -> String {

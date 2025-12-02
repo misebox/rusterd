@@ -36,6 +36,7 @@ pub struct LayoutEngine {
     node_gap_y: f64,
     channel_gap: f64,    // Space reserved for routing channels between levels
     lane_spacing: f64,   // Spacing between parallel edges in same channel
+    anchor_spacing: f64, // Spacing between edge anchors on entity edge
     corner_radius: f64,  // Radius for rounded corners
     entity_margin: f64,  // Minimum distance from entity edge to routing channel
 }
@@ -48,6 +49,7 @@ impl Default for LayoutEngine {
             node_gap_y: 30.0,     // Base vertical gap between levels
             channel_gap: 50.0,    // Base space for routing channels (will expand with edge count)
             lane_spacing: 24.0,   // Spacing between parallel edges (>= 1em)
+            anchor_spacing: 40.0, // Spacing for cardinality labels (~4 chars at 15px font)
             corner_radius: 8.0,   // Rounded corner radius
             entity_margin: 30.0,  // Minimum distance from entity edge to channel
         }
@@ -56,6 +58,33 @@ impl Default for LayoutEngine {
 
 impl LayoutEngine {
     pub fn layout(&self, ir: &GraphIR) -> Layout {
+        // Count edges per node per direction to calculate required anchor width
+        // Key: (node_id, going_down), Value: edge count
+        let mut edge_count_per_node: HashMap<(&str, bool), usize> = HashMap::new();
+
+        // Build node level lookup first (needed to determine edge direction)
+        let node_level_lookup: HashMap<&str, i64> = ir
+            .nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n.level.unwrap_or(0)))
+            .collect();
+
+        for edge in &ir.edges {
+            if edge.from == edge.to {
+                continue; // Skip self-ref
+            }
+            let from_level = *node_level_lookup.get(edge.from.as_str()).unwrap_or(&0);
+            let to_level = *node_level_lookup.get(edge.to.as_str()).unwrap_or(&0);
+            let going_down = to_level >= from_level;
+
+            *edge_count_per_node
+                .entry((edge.from.as_str(), going_down))
+                .or_insert(0) += 1;
+            *edge_count_per_node
+                .entry((edge.to.as_str(), !going_down))
+                .or_insert(0) += 1;
+        }
+
         let mut node_sizes: HashMap<String, (f64, f64)> = HashMap::new();
 
         for node in &ir.nodes {
@@ -64,8 +93,26 @@ impl LayoutEngine {
                 .iter()
                 .map(|c| (c.name.clone(), c.typ.clone()))
                 .collect();
-            let size = self.metrics.node_size(&node.label, &columns);
-            node_sizes.insert(node.id.clone(), size);
+            let (content_w, h) = self.metrics.node_size(&node.label, &columns);
+
+            // Calculate minimum width needed for edge anchors
+            let down_edges = *edge_count_per_node
+                .get(&(node.id.as_str(), true))
+                .unwrap_or(&0);
+            let up_edges = *edge_count_per_node
+                .get(&(node.id.as_str(), false))
+                .unwrap_or(&0);
+            let max_edges = down_edges.max(up_edges);
+
+            // Required width for anchors: (n-1) * spacing + margin on each side
+            let anchor_width = if max_edges > 1 {
+                (max_edges - 1) as f64 * self.anchor_spacing + self.anchor_spacing
+            } else {
+                0.0
+            };
+
+            let w = content_w.max(anchor_width);
+            node_sizes.insert(node.id.clone(), (w, h));
         }
 
         // Group nodes by level
@@ -73,6 +120,12 @@ impl LayoutEngine {
         for node in &ir.nodes {
             let level = node.level.unwrap_or(0);
             levels.entry(level).or_default().push(node);
+        }
+
+        // Sort nodes within each level by their order (from arrangement)
+        // Nodes without order go to the end
+        for nodes in levels.values_mut() {
+            nodes.sort_by_key(|n| n.order.unwrap_or(i64::MAX));
         }
 
         let mut level_keys: Vec<i64> = levels.keys().copied().collect();
@@ -453,8 +506,7 @@ impl LayoutEngine {
         if total <= 1 {
             cx
         } else {
-            let spacing = 24.0; // spacing between anchors
-            let offset = (position as f64 - (total - 1) as f64 / 2.0) * spacing;
+            let offset = (position as f64 - (total - 1) as f64 / 2.0) * self.anchor_spacing;
             cx + offset
         }
     }

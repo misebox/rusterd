@@ -13,9 +13,10 @@ pub enum Token {
     RParen,   // )
     LBracket, // [
     RBracket, // ]
-    Comma,    // ,
-    Colon,    // :
-    Eq,       // =
+    Comma,     // ,
+    Semicolon, // ;
+    Colon,     // :
+    Eq,        // =
     At,       // @
     Star,     // *
     Dot,      // .
@@ -129,6 +130,7 @@ impl<'a> Lexer<'a> {
             '[' => Token::LBracket,
             ']' => Token::RBracket,
             ',' => Token::Comma,
+            ';' => Token::Semicolon,
             ':' => Token::Colon,
             '=' => Token::Eq,
             '@' => Token::At,
@@ -238,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_symbols() {
-        let tokens = Lexer::new("-- -> : = @").tokenize().unwrap();
+        let tokens = Lexer::new("-- -> : = @ ;").tokenize().unwrap();
         assert_eq!(
             tokens,
             vec![
@@ -247,6 +249,7 @@ mod tests {
                 Token::Colon,
                 Token::Eq,
                 Token::At,
+                Token::Semicolon,
                 Token::Eof,
             ]
         );
