@@ -3,4 +3,3 @@
 dname=$(dirname $0)
 for f in examples/*.erd; do echo $f; ${dname}/svg $f; done
 
-cd examples/ ; python -m http.server 8888
