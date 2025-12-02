@@ -6,6 +6,8 @@ pub struct TextMetrics {
     pub padding_x: f64,
     pub padding_y: f64,
     pub header_padding: f64,
+    pub min_node_width: f64,
+    pub min_node_height: f64,
 }
 
 impl Default for TextMetrics {
@@ -16,6 +18,8 @@ impl Default for TextMetrics {
             padding_x: 12.0,
             padding_y: 8.0,
             header_padding: 4.0,
+            min_node_width: 100.0,
+            min_node_height: 60.0,
         }
     }
 }
@@ -34,7 +38,8 @@ impl TextMetrics {
             .map(|(name, typ)| self.text_width(name) + self.text_width(typ) + self.char_width * 2.0)
             .fold(0.0, f64::max);
 
-        let width = header_width.max(max_col_width) + self.padding_x * 2.0;
+        let content_width = header_width.max(max_col_width) + self.padding_x * 2.0;
+        let width = content_width.max(self.min_node_width);
 
         let header_height = self.line_height + self.header_padding * 2.0;
         let body_height = if columns.is_empty() {
@@ -43,7 +48,9 @@ impl TextMetrics {
             columns.len() as f64 * self.line_height + self.padding_y * 2.0
         };
 
-        (width, header_height + body_height)
+        let height = (header_height + body_height).max(self.min_node_height);
+
+        (width, height)
     }
 }
 

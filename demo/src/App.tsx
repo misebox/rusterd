@@ -51,8 +51,16 @@ view simple {
     include User, Order
 }`;
 
+const DETAIL_LEVELS = [
+  { value: "all", label: "All columns" },
+  { value: "pk_fk", label: "PK + FK only" },
+  { value: "pk", label: "PK only" },
+  { value: "tables", label: "Tables only" },
+];
+
 export default function App() {
   const [source, setSource] = createSignal(DEFAULT_ERD);
+  const [detail, setDetail] = createSignal("all");
   const [svg, setSvg] = createSignal("");
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
@@ -65,7 +73,7 @@ export default function App() {
   createEffect(() => {
     if (!ready()) return;
     try {
-      const result = erdToSvg(source());
+      const result = erdToSvg(source(), null, detail());
       setSvg(result);
       setError("");
     } catch (e) {
@@ -88,7 +96,18 @@ export default function App() {
           />
         </div>
         <div style={styles.previewPane}>
-          <h2 style={styles.paneTitle}>SVG Output</h2>
+          <div style={styles.previewHeader}>
+            <h2 style={styles.paneTitle}>SVG Output</h2>
+            <select
+              style={styles.select}
+              value={detail()}
+              onChange={(e) => setDetail(e.currentTarget.value)}
+            >
+              {DETAIL_LEVELS.map((level) => (
+                <option value={level.value}>{level.label}</option>
+              ))}
+            </select>
+          </div>
           {error() ? (
             <pre style={styles.error}>{error()}</pre>
           ) : (
@@ -128,9 +147,23 @@ const styles = {
     overflow: "auto",
   },
   paneTitle: {
-    margin: "0 0 10px 0",
+    margin: "0",
     "font-size": "14px",
     color: "#666",
+  },
+  previewHeader: {
+    display: "flex",
+    "justify-content": "space-between",
+    "align-items": "center",
+    "margin-bottom": "10px",
+  },
+  select: {
+    "font-family": "system-ui, sans-serif",
+    "font-size": "13px",
+    padding: "4px 8px",
+    border: "1px solid #ccc",
+    "border-radius": "4px",
+    background: "#fff",
   },
   textarea: {
     flex: "1",
