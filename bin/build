@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cargo build --release
+wasm-pack build --target web 2>&1
