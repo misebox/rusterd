@@ -37,8 +37,8 @@ impl Default for LayoutEngine {
     fn default() -> Self {
         Self {
             metrics: TextMetrics::default(),
-            node_gap_x: 80.0,
-            node_gap_y: 60.0,
+            node_gap_x: 100.0,
+            node_gap_y: 80.0,
         }
     }
 }

@@ -40,8 +40,8 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label {{ font-family: monospace; font-size: 11px; fill: #666; }}
-  .cardinality {{ font-family: monospace; font-size: 11px; fill: #333; }}
+  .edge-label {{ font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }}
+  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }}
 </style>"#
         )
         .unwrap();
@@ -189,7 +189,10 @@ impl SvgRenderer {
         .unwrap();
 
         // Cardinality markers
-        let offset = 15.0;
+        // Position text rect so its entity-side edge/corner is margin away from entity boundary
+        let font_size = 15.0;
+        let margin = font_size * 0.5; // 0.5em
+
         let dx = x2 - x1;
         let dy = y2 - y1;
         let len = (dx * dx + dy * dy).sqrt();
@@ -197,37 +200,43 @@ impl SvgRenderer {
             let ux = dx / len;
             let uy = dy / len;
 
-            // From cardinality
-            let from_x = x1 + ux * offset;
-            let from_y = y1 + uy * offset - 5.0;
+            let from_symbol = cardinality_symbol(edge.from_cardinality);
+            let to_symbol = cardinality_symbol(edge.to_cardinality);
+
+            // From side: text-anchor/baseline to make text expand away from entity
+            // Position = entity boundary + margin along edge direction
+            let from_anchor = if ux >= 0.0 { "start" } else { "end" };
+            let from_baseline = if uy >= 0.0 { "hanging" } else { "alphabetic" };
+            let from_x = x1 + ux * margin;
+            let from_y = y1 + uy * margin;
+
             writeln!(
                 svg,
-                r#"<text class="cardinality" x="{}" y="{}">{}</text>"#,
-                from_x,
-                from_y,
-                cardinality_symbol(edge.from_cardinality)
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
+                from_x, from_y, from_anchor, from_baseline, from_symbol
             )
             .unwrap();
 
-            // To cardinality
-            let to_x = x2 - ux * offset;
-            let to_y = y2 - uy * offset - 5.0;
+            // To side: opposite anchors (text expands toward from-entity, away from to-entity)
+            let to_anchor = if ux >= 0.0 { "end" } else { "start" };
+            let to_baseline = if uy >= 0.0 { "alphabetic" } else { "hanging" };
+            let to_x = x2 - ux * margin;
+            let to_y = y2 - uy * margin;
+
             writeln!(
                 svg,
-                r#"<text class="cardinality" x="{}" y="{}">{}</text>"#,
-                to_x,
-                to_y,
-                cardinality_symbol(edge.to_cardinality)
+                r#"<text class="cardinality" x="{}" y="{}" text-anchor="{}" dominant-baseline="{}">{}</text>"#,
+                to_x, to_y, to_anchor, to_baseline, to_symbol
             )
             .unwrap();
 
-            // Label
+            // Label at center of edge
             if let Some(label) = &edge.label {
                 let mid_x = (x1 + x2) / 2.0;
-                let mid_y = (y1 + y2) / 2.0 - 5.0;
+                let mid_y = (y1 + y2) / 2.0;
                 writeln!(
                     svg,
-                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle">{}</text>"#,
+                    r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
                     mid_x,
                     mid_y,
                     escape_xml(label)
