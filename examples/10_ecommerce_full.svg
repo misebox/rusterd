@@ -8,9 +8,9 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label-bg { fill: rgba(245,245,245,0.85); }
+  .edge-label-bg { fill: rgba(245,245,245,0.6); }
   .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
-  .cardinality-bg { fill: rgba(240,240,240,0.7); }
+  .cardinality-bg { fill: rgba(240,240,240,0.6); }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
 <path class="edge" d="M 576 142 L 534 142 Q 526 142 526 150 L 526 154 Q 526 162 518 162 L 476 162" />
@@ -192,8 +192,8 @@
 <text class="cardinality" x="229" y="83.19999999999999" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="222.5" y="131.3" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="229" y="140.8" text-anchor="middle" dominant-baseline="middle">*</text>
-<rect class="edge-label-bg" x="233.8" y="102.0" width="98.4" height="20.0" rx="2" />
-<text class="edge-label" x="283" y="112" text-anchor="middle" dominant-baseline="middle">subcategory</text>
+<rect class="edge-label-bg" x="179.8" y="102.0" width="98.4" height="20.0" rx="2" />
+<text class="edge-label" x="229" y="112" text-anchor="middle" dominant-baseline="middle">subcategory</text>
 <rect class="cardinality-bg" x="113.5" y="186.0" width="13.0" height="19.0" rx="2" />
 <text class="cardinality" x="120" y="195.5" text-anchor="middle" dominant-baseline="middle">1</text>
 <rect class="cardinality-bg" x="145.5" y="473.0" width="13.0" height="19.0" rx="2" />

@@ -8,9 +8,9 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label-bg { fill: rgba(245,245,245,0.85); }
+  .edge-label-bg { fill: rgba(245,245,245,0.6); }
   .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
-  .cardinality-bg { fill: rgba(240,240,240,0.7); }
+  .cardinality-bg { fill: rgba(240,240,240,0.6); }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
 </style>
 <path class="edge" d="M 140 204 L 140 243 Q 140 249 134 249 L 134 249 Q 128 249 128 255 L 128 294" />

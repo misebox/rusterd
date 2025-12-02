@@ -40,9 +40,9 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label-bg {{ fill: rgba(245,245,245,0.85); }}
+  .edge-label-bg {{ fill: rgba(245,245,245,0.6); }}
   .edge-label {{ font-family: monospace; font-size: 14px; fill: #555; }}
-  .cardinality-bg {{ fill: rgba(240,240,240,0.7); }}
+  .cardinality-bg {{ fill: rgba(240,240,240,0.6); }}
   .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }}
 </style>"#
         )
@@ -253,9 +253,8 @@ impl SvgRenderer {
 
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
-                // Position label further from entity to avoid overlap
-                let label_x = loop_x + label.len() as f64 * 4.0 + 10.0;
-                render_edge_label(svg, label_x, mid_y, label);
+                // Center label on the loop edge to avoid extending into adjacent entities
+                render_edge_label(svg, loop_x, mid_y, label);
             }
         } else {
             // For orthogonal edges, place cardinalities near first/last segments
