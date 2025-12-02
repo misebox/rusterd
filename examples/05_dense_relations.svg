@@ -11,15 +11,15 @@
   .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
-<path class="edge" d="M 52 124 L 52 161 Q 52 169 60 169 L 100 169 Q 108 169 108 177 L 108 294" />
-<path class="edge" d="M 76 124 L 76 181 Q 76 189 84 189 L 88 189 Q 96 189 96 197 L 96 548" />
+<path class="edge" d="M 52 124 L 52 241 Q 52 249 60 249 L 100 249 Q 108 249 108 257 L 108 294" />
+<path class="edge" d="M 76 124 L 76 221 Q 76 229 84 229 L 88 229 Q 96 229 96 237 L 96 548" />
 <path class="edge" d="M 100 124 L 100 201 Q 100 209 108 209 L 316 209 Q 324 209 324 217 L 324 548" />
-<path class="edge" d="M 124 124 L 124 221 Q 124 229 132 229 L 332 229 Q 340 229 340 237 L 340 294" />
-<path class="edge" d="M 148 124 L 148 241 Q 148 249 156 249 L 356 249 Q 364 249 364 257 L 364 294" />
-<path class="edge" d="M 84 378 L 84 435 Q 84 443 92 443 L 112 443 Q 120 443 120 451 L 120 548" />
-<path class="edge" d="M 108 378 L 108 455 Q 108 463 116 463 L 340 463 Q 348 463 348 471 L 348 548" />
-<path class="edge" d="M 132 378 L 132 475 Q 132 483 140 483 L 536 483 Q 544 483 544 491 L 544 548" />
-<path class="edge" d="M 588 378 L 588 495 Q 588 503 580 503 L 576 503 Q 568 503 568 511 L 568 548" />
+<path class="edge" d="M 124 124 L 124 181 Q 124 189 132 189 L 332 189 Q 340 189 340 197 L 340 294" />
+<path class="edge" d="M 148 124 L 148 161 Q 148 169 156 169 L 356 169 Q 364 169 364 177 L 364 294" />
+<path class="edge" d="M 84 378 L 84 495 Q 84 503 92 503 L 112 503 Q 120 503 120 511 L 120 548" />
+<path class="edge" d="M 108 378 L 108 475 Q 108 483 116 483 L 340 483 Q 348 483 348 491 L 348 548" />
+<path class="edge" d="M 132 378 L 132 455 Q 132 463 140 463 L 536 463 Q 544 463 544 471 L 544 548" />
+<path class="edge" d="M 588 378 L 588 435 Q 588 443 580 443 L 576 443 Q 568 443 568 451 L 568 548" />
 <rect class="entity-bg" x="40" y="40" width="120" height="84" rx="4" />
 <rect class="entity-header" x="40" y="40" width="120" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="120" height="4" />
@@ -82,19 +82,19 @@
 <rect class="entity-border" x="496" y="548" width="120" height="104" rx="4" />
 <text class="cardinality" x="59.5" y="131.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="100.5" y="286.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="80" y="165" text-anchor="middle" dominant-baseline="alphabetic">writes</text>
+<text class="edge-label" x="80" y="245" text-anchor="middle" dominant-baseline="alphabetic">writes</text>
 <text class="cardinality" x="83.5" y="131.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="88.5" y="540.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="86" y="185" text-anchor="middle" dominant-baseline="alphabetic">comments</text>
+<text class="edge-label" x="86" y="225" text-anchor="middle" dominant-baseline="alphabetic">comments</text>
 <text class="cardinality" x="107.5" y="131.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="316.5" y="540.5" text-anchor="start" dominant-baseline="middle">*</text>
 <text class="edge-label" x="212" y="205" text-anchor="middle" dominant-baseline="alphabetic">likes</text>
 <text class="cardinality" x="131.5" y="131.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="332.5" y="286.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="232" y="225" text-anchor="middle" dominant-baseline="alphabetic">follows</text>
+<text class="edge-label" x="232" y="185" text-anchor="middle" dominant-baseline="alphabetic">follows</text>
 <text class="cardinality" x="155.5" y="131.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="356.5" y="286.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="256" y="245" text-anchor="middle" dominant-baseline="alphabetic">followed by</text>
+<text class="edge-label" x="256" y="165" text-anchor="middle" dominant-baseline="alphabetic">followed by</text>
 <text class="cardinality" x="91.5" y="385.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="112.5" y="540.5" text-anchor="start" dominant-baseline="middle">*</text>
 <text class="cardinality" x="115.5" y="385.5" text-anchor="end" dominant-baseline="middle">1</text>

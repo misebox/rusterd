@@ -201,9 +201,58 @@ impl LayoutEngine {
             edges.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         }
 
-        // Track horizontal channel usage for lane assignment
-        // Key is just the channel level - all edges in same channel get different lanes
-        let mut channel_usage: HashMap<i64, usize> = HashMap::new();
+        // Pre-calculate lane assignments by sorting edges within each channel
+        // Edges starting from left should get earlier lanes (turn higher) to avoid crossings
+        let mut edge_lane_assignments: HashMap<usize, usize> = HashMap::new();
+        {
+            // Collect edges with their channel info and starting x position
+            let mut channel_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new(); // channel -> [(edge_idx, from_cx)]
+
+            for (idx, edge) in ir.edges.iter().enumerate() {
+                if edge.from == edge.to {
+                    continue;
+                }
+                let from_node = match node_positions.get(edge.from.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                if node_positions.get(edge.to.as_str()).is_none() {
+                    continue;
+                }
+
+                let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+                let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+
+                if from_level != to_level {
+                    let channel_level = from_level.min(to_level);
+                    let going_down = to_level >= from_level;
+
+                    // Get the actual from_cx for this edge
+                    let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
+                    let from_cx = if let Some(exits) = from_exits {
+                        let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
+                        self.distribute_anchor(from_node, pos, exits.len())
+                    } else {
+                        from_node.x + from_node.width / 2.0
+                    };
+
+                    channel_edges
+                        .entry(channel_level)
+                        .or_default()
+                        .push((idx, from_cx));
+                }
+            }
+
+            // Sort edges in each channel by from_cx DESCENDING (rightmost first)
+            // This prevents crossings: edges starting from right turn first (upper lane),
+            // so their horizontal segment doesn't block edges starting from left
+            for (_channel, edges) in channel_edges.iter_mut() {
+                edges.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                    edge_lane_assignments.insert(*edge_idx, lane);
+                }
+            }
+        }
 
         // Calculate orthogonal paths for each edge
         let layout_edges: Vec<LayoutEdge> = ir
@@ -254,12 +303,10 @@ impl LayoutEngine {
                     let to_total = to_exits.len();
                     let to_cx = self.distribute_anchor(to_node, to_pos, to_total);
 
-                    // Determine lane offset for this edge in the channel
-                    // Center lanes around channel midpoint
+                    // Determine lane offset using pre-calculated assignment
                     let channel_level = from_level.min(to_level);
                     let total_edges = *channel_edge_count.get(&channel_level).unwrap_or(&1);
-                    let lane = *channel_usage.get(&channel_level).unwrap_or(&0);
-                    channel_usage.insert(channel_level, lane + 1);
+                    let lane = *edge_lane_assignments.get(&idx).unwrap_or(&0);
                     // Center: lane 0 at -(total-1)/2 * spacing, lane n at (n - (total-1)/2) * spacing
                     let lane_offset = (lane as f64 - (total_edges - 1) as f64 / 2.0) * self.lane_spacing;
 

@@ -12,8 +12,8 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <path class="edge" d="M 104 144 L 104 181 Q 104 189 112 189 L 128 189 Q 136 189 136 197 L 136 234" />
-<path class="edge" d="M 136 358 L 136 395 Q 136 403 128 403 L 108 403 Q 100 403 100 411 L 100 468" />
-<path class="edge" d="M 400 338 L 400 415 Q 400 423 392 423 L 132 423 Q 124 423 124 431 L 124 468" />
+<path class="edge" d="M 136 358 L 136 415 Q 136 423 128 423 L 108 423 Q 100 423 100 431 L 100 468" />
+<path class="edge" d="M 400 338 L 400 395 Q 400 403 392 403 L 132 403 Q 124 403 124 411 L 124 468" />
 <rect class="entity-bg" x="40" y="40" width="128" height="104" rx="4" />
 <rect class="entity-header" x="40" y="40" width="128" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="128" height="4" />

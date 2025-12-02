@@ -12,20 +12,20 @@
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
 <path class="edge" d="M 576 142 L 534 142 Q 526 142 526 150 L 526 154 Q 526 162 518 162 L 476 162" />
-<path class="edge" d="M 708 244 L 708 341 Q 708 349 716 349 L 1060 349 Q 1068 349 1068 357 L 1068 474" />
+<path class="edge" d="M 708 244 L 708 321 Q 708 329 716 329 L 1060 329 Q 1068 329 1068 337 L 1068 474" />
 <path class="edge" d="M 660 244 L 660 361 Q 660 369 652 369 L 504 369 Q 496 369 496 377 L 496 474" />
-<path class="edge" d="M 684 244 L 684 381 Q 684 389 692 389 L 780 389 Q 788 389 788 397 L 788 474" />
+<path class="edge" d="M 684 244 L 684 341 Q 684 349 692 349 L 780 349 Q 788 349 788 357 L 788 474" />
 <path class="edge" d="M 200 83.19999999999999 L 217 83.19999999999999 Q 225 83.19999999999999 225 91.19999999999999 L 225 132.8 Q 225 140.8 217 140.8 L 200 140.8" />
-<path class="edge" d="M 120 184 L 120 401 Q 120 409 128 409 L 144 409 Q 152 409 152 417 L 152 474" />
-<path class="edge" d="M 116 718 L 116 783 L 116 783 L 116 928" />
-<path class="edge" d="M 164 718 L 164 795 Q 164 803 172 803 L 620 803 Q 628 803 628 811 L 628 928" />
-<path class="edge" d="M 140 718 L 140 815 Q 140 823 148 823 L 360 823 Q 368 823 368 831 L 368 928" />
-<path class="edge" d="M 188 718 L 188 750 Q 188 758 196 758 L 756 758 Q 764 758 764 750 L 764 678" />
-<path class="edge" d="M 1068 598 L 1068 855 Q 1068 863 1060 863 L 660 863 Q 652 863 652 871 L 652 928" />
-<path class="edge" d="M 460 738 L 460 875 Q 460 883 452 883 L 400 883 Q 392 883 392 891 L 392 928" />
-<path class="edge" d="M 484 738 L 484 895 Q 484 903 492 903 L 904 903 Q 912 903 912 911 L 912 928" />
-<path class="edge" d="M 376 284 L 376 421 Q 376 429 384 429 L 440 429 Q 448 429 448 437 L 448 474" />
-<path class="edge" d="M 400 284 L 400 441 Q 400 449 408 449 L 464 449 Q 472 449 472 457 L 472 474" />
+<path class="edge" d="M 120 184 L 120 421 Q 120 429 128 429 L 144 429 Q 152 429 152 437 L 152 474" />
+<path class="edge" d="M 116 718 L 116 883 L 116 883 L 116 928" />
+<path class="edge" d="M 164 718 L 164 835 Q 164 843 172 843 L 620 843 Q 628 843 628 851 L 628 928" />
+<path class="edge" d="M 140 718 L 140 855 Q 140 863 148 863 L 360 863 Q 368 863 368 871 L 368 928" />
+<path class="edge" d="M 188 718 L 188 790 Q 188 798 196 798 L 756 798 Q 764 798 764 790 L 764 678" />
+<path class="edge" d="M 1068 598 L 1068 775 Q 1068 783 1060 783 L 660 783 Q 652 783 652 791 L 652 928" />
+<path class="edge" d="M 460 738 L 460 815 Q 460 823 452 823 L 400 823 Q 392 823 392 831 L 392 928" />
+<path class="edge" d="M 484 738 L 484 795 Q 484 803 492 803 L 904 803 Q 912 803 912 811 L 912 928" />
+<path class="edge" d="M 376 284 L 376 401 Q 376 409 384 409 L 440 409 Q 448 409 448 417 L 448 474" />
+<path class="edge" d="M 400 284 L 400 381 Q 400 389 408 389 L 464 389 Q 472 389 472 397 L 472 474" />
 <rect class="entity-bg" x="40" y="40" width="160" height="144" rx="4" />
 <rect class="entity-header" x="40" y="40" width="160" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="160" height="4" />
@@ -199,8 +199,8 @@
 <text class="cardinality" x="904.5" y="920.5" text-anchor="start" dominant-baseline="middle">*</text>
 <text class="cardinality" x="383.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="440.5" y="466.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="412" y="425" text-anchor="middle" dominant-baseline="alphabetic">ships to</text>
+<text class="edge-label" x="412" y="405" text-anchor="middle" dominant-baseline="alphabetic">ships to</text>
 <text class="cardinality" x="407.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
 <text class="cardinality" x="464.5" y="466.5" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="436" y="445" text-anchor="middle" dominant-baseline="alphabetic">bills to</text>
+<text class="edge-label" x="436" y="385" text-anchor="middle" dominant-baseline="alphabetic">bills to</text>
 </svg>
