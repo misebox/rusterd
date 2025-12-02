@@ -15,10 +15,8 @@ pub struct LayoutNode {
 pub struct LayoutEdge {
     pub from: String,
     pub to: String,
-    pub from_point: (f64, f64),
-    pub to_point: (f64, f64),
+    pub waypoints: Vec<(f64, f64)>, // Orthogonal path points (start, turns, end)
     pub is_self_ref: bool,
-    pub control_points: Option<[(f64, f64); 2]>, // For self-referential curves
     pub edge_index: usize, // Index into GraphIR.edges
 }
 
@@ -28,12 +26,18 @@ pub struct Layout {
     pub edges: Vec<LayoutEdge>,
     pub width: f64,
     pub height: f64,
+    pub channel_gap: f64,      // Gap for routing channels between levels
+    pub corner_radius: f64,    // Radius for rounded corners
 }
 
 pub struct LayoutEngine {
     metrics: TextMetrics,
     node_gap_x: f64,
     node_gap_y: f64,
+    channel_gap: f64,    // Space reserved for routing channels between levels
+    lane_spacing: f64,   // Spacing between parallel edges in same channel
+    corner_radius: f64,  // Radius for rounded corners
+    entity_margin: f64,  // Minimum distance from entity edge to routing channel
 }
 
 impl Default for LayoutEngine {
@@ -41,7 +45,11 @@ impl Default for LayoutEngine {
         Self {
             metrics: TextMetrics::default(),
             node_gap_x: 100.0,
-            node_gap_y: 80.0,
+            node_gap_y: 30.0,     // Base vertical gap between levels
+            channel_gap: 50.0,    // Base space for routing channels (will expand with edge count)
+            lane_spacing: 24.0,   // Spacing between parallel edges (>= 1em)
+            corner_radius: 8.0,   // Rounded corner radius
+            entity_margin: 30.0,  // Minimum distance from entity edge to channel
         }
     }
 }
@@ -70,11 +78,48 @@ impl LayoutEngine {
         let mut level_keys: Vec<i64> = levels.keys().copied().collect();
         level_keys.sort();
 
+        // Create node -> level lookup
+        let node_level: HashMap<&str, i64> = ir
+            .nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n.level.unwrap_or(0)))
+            .collect();
+
+        // Count edges per channel (between adjacent levels)
+        let mut channel_edge_count: HashMap<i64, usize> = HashMap::new();
+        for edge in &ir.edges {
+            if edge.from == edge.to {
+                continue; // Skip self-ref
+            }
+            let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+            let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+            if from_level != to_level {
+                let channel_level = from_level.min(to_level);
+                *channel_edge_count.entry(channel_level).or_insert(0) += 1;
+            }
+        }
+
+        // Calculate dynamic channel gaps based on edge count
+        let mut dynamic_channel_gap: HashMap<i64, f64> = HashMap::new();
+        for (i, &level) in level_keys.iter().enumerate() {
+            if i < level_keys.len() - 1 {
+                let edge_count = *channel_edge_count.get(&level).unwrap_or(&0);
+                // Base gap + extra space for edges (centered around channel)
+                let needed_space = self.entity_margin * 2.0
+                    + (edge_count.saturating_sub(1) as f64) * self.lane_spacing;
+                let gap = needed_space.max(self.channel_gap);
+                dynamic_channel_gap.insert(level, gap);
+            }
+        }
+
+        // Place nodes with dynamic channel gaps between levels
         let mut layout_nodes = Vec::new();
+        let mut level_bottom_y: HashMap<i64, f64> = HashMap::new();
+        let mut channel_y: HashMap<i64, f64> = HashMap::new();
         let mut y: f64 = 40.0;
         let mut max_width: f64 = 0.0;
 
-        for level in level_keys {
+        for (i, &level) in level_keys.iter().enumerate() {
             let nodes_in_level = &levels[&level];
             let mut x: f64 = 40.0;
             let mut max_height: f64 = 0.0;
@@ -93,7 +138,19 @@ impl LayoutEngine {
             }
 
             max_width = max_width.max(x - self.node_gap_x + 40.0);
-            y += max_height + self.node_gap_y;
+            level_bottom_y.insert(level, y + max_height);
+
+            // Add dynamic channel gap after this level (except for last level)
+            if i < level_keys.len() - 1 {
+                let gap = *dynamic_channel_gap.get(&level).unwrap_or(&self.channel_gap);
+                // Center channel in the middle of the total space between levels
+                let total_space = self.node_gap_y + gap;
+                let channel_center = y + max_height + total_space / 2.0;
+                channel_y.insert(level, channel_center);
+                y += max_height + total_space;
+            } else {
+                y += max_height + self.node_gap_y;
+            }
         }
 
         let total_height = y - self.node_gap_y + 40.0;
@@ -104,13 +161,13 @@ impl LayoutEngine {
             .map(|n| (n.id.as_str(), n))
             .collect();
 
-        // Determine which side each edge connects to for each node
-        // Side: 0=top, 1=right, 2=bottom, 3=left
-        let mut node_side_edges: HashMap<(&str, u8), Vec<usize>> = HashMap::new();
+        // Group edges by source node and direction (down=true, up=false)
+        // to distribute exit points along the node edge
+        let mut node_exits: HashMap<(&str, bool), Vec<(usize, f64)>> = HashMap::new(); // (edge_idx, target_x)
 
         for (idx, edge) in ir.edges.iter().enumerate() {
             if edge.from == edge.to {
-                continue; // Skip self-ref for now
+                continue; // Skip self-ref
             }
             let from_node = match node_positions.get(edge.from.as_str()) {
                 Some(n) => n,
@@ -121,69 +178,121 @@ impl LayoutEngine {
                 None => continue,
             };
 
-            let from_side = self.get_edge_side(from_node, to_node);
-            let to_side = self.get_edge_side(to_node, from_node);
+            let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+            let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+            let going_down = to_level >= from_level;
+            let to_cx = to_node.x + to_node.width / 2.0;
 
-            node_side_edges
-                .entry((edge.from.as_str(), from_side))
+            node_exits
+                .entry((edge.from.as_str(), going_down))
                 .or_default()
-                .push(idx);
-            node_side_edges
-                .entry((edge.to.as_str(), to_side))
+                .push((idx, to_cx));
+
+            // Also track entry points on destination node
+            let from_cx = from_node.x + from_node.width / 2.0;
+            node_exits
+                .entry((edge.to.as_str(), !going_down))
                 .or_default()
-                .push(idx);
+                .push((idx, from_cx));
         }
 
-        // Sort edges on each side by direction to avoid crossings
-        for ((node_id, side), edge_indices) in node_side_edges.iter_mut() {
-            if node_positions.get(*node_id).is_none() {
-                continue;
+        // Sort edges in each group by target x position
+        for edges in node_exits.values_mut() {
+            edges.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        }
+
+        // Pre-calculate lane assignments by sorting edges within each channel
+        // Edges starting from left should get earlier lanes (turn higher) to avoid crossings
+        let mut edge_lane_assignments: HashMap<usize, usize> = HashMap::new();
+        // Separate lane assignments for same-level edges (routed above)
+        let mut same_level_lane_assignments: HashMap<usize, usize> = HashMap::new();
+        {
+            // Collect inter-level edges with their channel info and starting x position
+            let mut channel_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+            // Collect same-level edges per level
+            let mut same_level_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+
+            for (idx, edge) in ir.edges.iter().enumerate() {
+                if edge.from == edge.to {
+                    continue;
+                }
+                let from_node = match node_positions.get(edge.from.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                let to_node = match node_positions.get(edge.to.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+
+                let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+                let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+
+                if from_level != to_level {
+                    let channel_level = from_level.min(to_level);
+                    let going_down = to_level >= from_level;
+
+                    // Get the actual from_cx for this edge
+                    let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
+                    let from_cx = if let Some(exits) = from_exits {
+                        let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
+                        self.distribute_anchor(from_node, pos, exits.len())
+                    } else {
+                        from_node.x + from_node.width / 2.0
+                    };
+
+                    channel_edges
+                        .entry(channel_level)
+                        .or_default()
+                        .push((idx, from_cx));
+                } else {
+                    // Same-level edge - check if non-adjacent (needs above routing)
+                    let (left_node, right_node) = if from_node.x < to_node.x {
+                        (from_node, to_node)
+                    } else {
+                        (to_node, from_node)
+                    };
+                    let gap_between = right_node.x - (left_node.x + left_node.width);
+
+                    if gap_between > self.node_gap_x * 1.5 {
+                        // Non-adjacent same-level edge - needs lane assignment
+                        let from_cx = from_node.x + from_node.width / 2.0;
+                        same_level_edges
+                            .entry(from_level)
+                            .or_default()
+                            .push((idx, from_cx));
+                    }
+                }
             }
 
-            edge_indices.sort_by(|&a, &b| {
-                let edge_a = &ir.edges[a];
-                let edge_b = &ir.edges[b];
-
-                // Get the "other" node for each edge
-                let other_a = if edge_a.from == *node_id {
-                    node_positions.get(edge_a.to.as_str())
-                } else {
-                    node_positions.get(edge_a.from.as_str())
-                };
-                let other_b = if edge_b.from == *node_id {
-                    node_positions.get(edge_b.to.as_str())
-                } else {
-                    node_positions.get(edge_b.from.as_str())
-                };
-
-                let (other_a, other_b) = match (other_a, other_b) {
-                    (Some(a), Some(b)) => (a, b),
-                    _ => return std::cmp::Ordering::Equal,
-                };
-
-                let a_cx = other_a.x + other_a.width / 2.0;
-                let a_cy = other_a.y + other_a.height / 2.0;
-                let b_cx = other_b.x + other_b.width / 2.0;
-                let b_cy = other_b.y + other_b.height / 2.0;
-
-                // Sort based on side to avoid crossings
-                match side {
-                    0 | 2 => {
-                        // Top/Bottom: sort by x (left to right)
-                        a_cx.partial_cmp(&b_cx).unwrap_or(std::cmp::Ordering::Equal)
+            // Sort and assign lanes for inter-level edges
+            for (_channel, edges) in channel_edges.iter_mut() {
+                edges.sort_by(|a, b| {
+                    match b.1.partial_cmp(&a.1) {
+                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
+                        Some(ord) => ord,
                     }
-                    1 | 3 => {
-                        // Right/Left: sort by y (top to bottom)
-                        a_cy.partial_cmp(&b_cy).unwrap_or(std::cmp::Ordering::Equal)
-                    }
-                    _ => std::cmp::Ordering::Equal,
+                });
+                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                    edge_lane_assignments.insert(*edge_idx, lane);
                 }
-            });
+            }
+
+            // Sort and assign lanes for same-level edges
+            for (_level, edges) in same_level_edges.iter_mut() {
+                edges.sort_by(|a, b| {
+                    match b.1.partial_cmp(&a.1) {
+                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
+                        Some(ord) => ord,
+                    }
+                });
+                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                    same_level_lane_assignments.insert(*edge_idx, lane);
+                }
+            }
         }
 
-        // Calculate anchor positions for each edge
-        let anchor_spacing = 48.0; // ~4em for clear cardinality label separation
-
+        // Calculate orthogonal paths for each edge
         let layout_edges: Vec<LayoutEdge> = ir
             .edges
             .iter()
@@ -195,56 +304,133 @@ impl LayoutEngine {
                 let is_self_ref = edge.from == edge.to;
 
                 if is_self_ref {
-                    // Self-referential edge: loop on right side
+                    // Self-referential edge: orthogonal loop on right side
                     let x = from_node.x + from_node.width;
-                    let y_top = from_node.y + from_node.height * 0.25;
-                    let y_bottom = from_node.y + from_node.height * 0.75;
-                    let loop_size = 30.0;
+                    let y_top = from_node.y + from_node.height * 0.3;
+                    let y_bottom = from_node.y + from_node.height * 0.7;
+                    let loop_offset = 25.0;
+
+                    let waypoints = vec![
+                        (x, y_top),
+                        (x + loop_offset, y_top),
+                        (x + loop_offset, y_bottom),
+                        (x, y_bottom),
+                    ];
 
                     Some(LayoutEdge {
                         from: edge.from.clone(),
                         to: edge.to.clone(),
-                        from_point: (x, y_top),
-                        to_point: (x, y_bottom),
+                        waypoints,
                         is_self_ref: true,
-                        control_points: Some([
-                            (x + loop_size, y_top - loop_size * 0.5),
-                            (x + loop_size, y_bottom + loop_size * 0.5),
-                        ]),
                         edge_index: idx,
                     })
                 } else {
-                    let from_side = self.get_edge_side(from_node, to_node);
-                    let to_side = self.get_edge_side(to_node, from_node);
+                    let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+                    let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+                    let going_down = to_level >= from_level;
 
-                    let from_edges = node_side_edges.get(&(edge.from.as_str(), from_side))?;
-                    let to_edges = node_side_edges.get(&(edge.to.as_str(), to_side))?;
+                    // Get distributed exit point on source node
+                    let from_exits = node_exits.get(&(edge.from.as_str(), going_down))?;
+                    let from_pos = from_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
+                    let from_total = from_exits.len();
+                    let from_cx = self.distribute_anchor(from_node, from_pos, from_total);
 
-                    let from_pos = from_edges.iter().position(|&i| i == idx).unwrap_or(0);
-                    let to_pos = to_edges.iter().position(|&i| i == idx).unwrap_or(0);
+                    // Get distributed entry point on target node
+                    let to_exits = node_exits.get(&(edge.to.as_str(), !going_down))?;
+                    let to_pos = to_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
+                    let to_total = to_exits.len();
+                    let to_cx = self.distribute_anchor(to_node, to_pos, to_total);
 
-                    let from_point = self.anchor_on_side(
-                        from_node,
-                        from_side,
-                        from_pos,
-                        from_edges.len(),
-                        anchor_spacing,
-                    );
-                    let to_point = self.anchor_on_side(
-                        to_node,
-                        to_side,
-                        to_pos,
-                        to_edges.len(),
-                        anchor_spacing,
-                    );
+                    // Determine lane offset using pre-calculated assignment
+                    let channel_level = from_level.min(to_level);
+                    let total_edges = *channel_edge_count.get(&channel_level).unwrap_or(&1);
+                    let lane = *edge_lane_assignments.get(&idx).unwrap_or(&0);
+                    // Center: lane 0 at -(total-1)/2 * spacing, lane n at (n - (total-1)/2) * spacing
+                    let lane_offset = (lane as f64 - (total_edges - 1) as f64 / 2.0) * self.lane_spacing;
+
+                    let waypoints = if from_level == to_level {
+                        // Same level: check if entities are horizontally adjacent
+                        let (left_node, right_node) = if from_node.x < to_node.x {
+                            (from_node, to_node)
+                        } else {
+                            (to_node, from_node)
+                        };
+
+                        let gap_between = right_node.x - (left_node.x + left_node.width);
+
+                        if gap_between <= self.node_gap_x * 1.5 {
+                            // Adjacent entities: route directly between them via sides
+                            let mid_x = left_node.x + left_node.width + gap_between / 2.0;
+                            let from_y = from_node.y + from_node.height / 2.0;
+                            let to_y = to_node.y + to_node.height / 2.0;
+
+                            if from_node.x < to_node.x {
+                                // from is left, to is right
+                                vec![
+                                    (from_node.x + from_node.width, from_y),
+                                    (mid_x, from_y),
+                                    (mid_x, to_y),
+                                    (to_node.x, to_y),
+                                ]
+                            } else {
+                                // from is right, to is left
+                                vec![
+                                    (from_node.x, from_y),
+                                    (mid_x, from_y),
+                                    (mid_x, to_y),
+                                    (to_node.x + to_node.width, to_y),
+                                ]
+                            }
+                        } else {
+                            // Non-adjacent same-level: route ABOVE the level (separate from inter-level channel)
+                            let same_level_lane = *same_level_lane_assignments.get(&idx).unwrap_or(&0);
+                            // Lane 0 is closest to entity, higher lanes go further up
+                            let same_level_lane_offset = same_level_lane as f64 * self.lane_spacing;
+
+                            let min_top = from_node.y.min(to_node.y);
+                            let ch_y = min_top - self.entity_margin - same_level_lane_offset;
+
+                            vec![
+                                (from_cx, from_node.y),
+                                (from_cx, ch_y),
+                                (to_cx, ch_y),
+                                (to_cx, to_node.y),
+                            ]
+                        }
+                    } else {
+                        // Different levels: route through channel between levels
+                        let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
+                            (from_node, to_node, from_cx, to_cx)
+                        } else {
+                            (to_node, from_node, to_cx, from_cx)
+                        };
+
+                        let ch_y = *channel_y.get(&from_level.min(to_level))
+                            .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
+                            + lane_offset;
+
+                        if from_level < to_level {
+                            vec![
+                                (upper_cx, upper_node.y + upper_node.height),
+                                (upper_cx, ch_y),
+                                (lower_cx, ch_y),
+                                (lower_cx, lower_node.y),
+                            ]
+                        } else {
+                            vec![
+                                (lower_cx, lower_node.y + lower_node.height),
+                                (lower_cx, ch_y),
+                                (upper_cx, ch_y),
+                                (upper_cx, upper_node.y),
+                            ]
+                        }
+                    };
 
                     Some(LayoutEdge {
                         from: edge.from.clone(),
                         to: edge.to.clone(),
-                        from_point,
-                        to_point,
+                        waypoints,
                         is_self_ref: false,
-                        control_points: None,
                         edge_index: idx,
                     })
                 }
@@ -256,54 +442,20 @@ impl LayoutEngine {
             edges: layout_edges,
             width: max_width,
             height: total_height,
+            channel_gap: self.channel_gap,
+            corner_radius: self.corner_radius,
         }
     }
 
-    /// Determine which side of 'from' node the edge should connect to reach 'to' node
-    /// Returns: 0=top, 1=right, 2=bottom, 3=left
-    fn get_edge_side(&self, from: &LayoutNode, to: &LayoutNode) -> u8 {
-        let from_cx = from.x + from.width / 2.0;
-        let from_cy = from.y + from.height / 2.0;
-        let to_cx = to.x + to.width / 2.0;
-        let to_cy = to.y + to.height / 2.0;
-
-        let dx = to_cx - from_cx;
-        let dy = to_cy - from_cy;
-
-        // Favor vertical (top/bottom) when angle is close to diagonal
-        // This reduces horizontal edge crossings in hierarchical layouts
-        if dx.abs() > dy.abs() * 1.3 {
-            if dx > 0.0 { 1 } else { 3 } // right or left
-        } else {
-            if dy > 0.0 { 2 } else { 0 } // bottom or top
-        }
-    }
-
-    /// Calculate anchor point on a specific side of a node
-    /// Distributes multiple anchors evenly along the side
-    fn anchor_on_side(
-        &self,
-        node: &LayoutNode,
-        side: u8,
-        position: usize,
-        total: usize,
-        spacing: f64,
-    ) -> (f64, f64) {
-        let offset = if total > 1 {
-            (position as f64 - (total - 1) as f64 / 2.0) * spacing
-        } else {
-            0.0
-        };
-
+    /// Distribute anchor points along a node's horizontal edge
+    fn distribute_anchor(&self, node: &LayoutNode, position: usize, total: usize) -> f64 {
         let cx = node.x + node.width / 2.0;
-        let cy = node.y + node.height / 2.0;
-
-        match side {
-            0 => (cx + offset, node.y),                        // top
-            1 => (node.x + node.width, cy + offset),           // right
-            2 => (cx + offset, node.y + node.height),          // bottom
-            3 => (node.x, cy + offset),                        // left
-            _ => (cx, cy),
+        if total <= 1 {
+            cx
+        } else {
+            let spacing = 24.0; // spacing between anchors
+            let offset = (position as f64 - (total - 1) as f64 / 2.0) * spacing;
+            cx + offset
         }
     }
 }

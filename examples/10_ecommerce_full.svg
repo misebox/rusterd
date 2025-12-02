@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1204" height="932" viewBox="0 0 1204 932">
+<svg xmlns="http://www.w3.org/2000/svg" width="1204" height="1192" viewBox="0 0 1204 1192">
 <style>
   .entity-bg { fill: #fff; }
   .entity-header { fill: #e0e0e0; }
@@ -11,21 +11,21 @@
   .edge-label { font-family: monospace; font-size: 12px; fill: #666; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 4px; }
 </style>
-<line class="edge" x1="576" y1="142" x2="476" y2="162" />
-<line class="edge" x1="768" y1="142" x2="972" y2="426" />
-<line class="edge" x1="648" y1="244" x2="520" y2="364" />
-<line class="edge" x1="696" y1="244" x2="776" y2="364" />
-<path class="edge" d="M 200 76 C 230 61, 230 163, 200 148" />
-<line class="edge" x1="120" y1="184" x2="152" y2="364" />
-<line class="edge" x1="128" y1="608" x2="116" y2="708" />
-<line class="edge" x1="264" y1="510" x2="568" y2="770" />
-<line class="edge" x1="176" y1="608" x2="356" y2="708" />
-<line class="edge" x1="264" y1="462" x2="680" y2="466" />
-<line class="edge" x1="1068" y1="488" x2="640" y2="708" />
-<line class="edge" x1="472" y1="628" x2="404" y2="708" />
-<line class="edge" x1="580" y1="496" x2="812" y2="800" />
-<line class="edge" x1="364" y1="284" x2="424" y2="364" />
-<line class="edge" x1="412" y1="284" x2="472" y2="364" />
+<path class="edge" d="M 576 142 L 534 142 Q 526 142 526 150 L 526 154 Q 526 162 518 162 L 476 162" />
+<path class="edge" d="M 708 244 L 708 321 Q 708 329 716 329 L 1060 329 Q 1068 329 1068 337 L 1068 494" />
+<path class="edge" d="M 684 244 L 684 345 Q 684 353 692 353 L 780 353 Q 788 353 788 361 L 788 494" />
+<path class="edge" d="M 660 244 L 660 369 Q 660 377 652 377 L 480 377 Q 472 377 472 385 L 472 494" />
+<path class="edge" d="M 200 83.19999999999999 L 217 83.19999999999999 Q 225 83.19999999999999 225 91.19999999999999 L 225 132.8 Q 225 140.8 217 140.8 L 200 140.8" />
+<path class="edge" d="M 120 184 L 120 441 Q 120 449 128 449 L 144 449 Q 152 449 152 457 L 152 494" />
+<path class="edge" d="M 116 738 L 116 923 L 116 923 L 116 968" />
+<path class="edge" d="M 188 738 L 188 867 Q 188 875 196 875 L 920 875 Q 928 875 928 883 L 928 968" />
+<path class="edge" d="M 140 738 L 140 891 Q 140 899 148 899 L 360 899 Q 368 899 368 907 L 368 968" />
+<path class="edge" d="M 264 616 L 306 616 Q 314 616 314 608 L 314 604 Q 314 596 322 596 L 364 596" />
+<path class="edge" d="M 1068 618 L 1068 795 Q 1068 803 1060 803 L 960 803 Q 952 803 952 811 L 952 968" />
+<path class="edge" d="M 752 758 L 752 843 Q 752 851 744 851 L 400 851 Q 392 851 392 859 L 392 968" />
+<path class="edge" d="M 776 758 L 776 819 Q 776 827 768 827 L 676 827 Q 668 827 668 835 L 668 968" />
+<path class="edge" d="M 376 284 L 376 417 Q 376 425 384 425 L 732 425 Q 740 425 740 433 L 740 494" />
+<path class="edge" d="M 400 284 L 400 393 Q 400 401 408 401 L 756 401 Q 764 401 764 409 L 764 494" />
 <rect class="entity-bg" x="40" y="40" width="160" height="144" rx="4" />
 <rect class="entity-header" x="40" y="40" width="160" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="160" height="4" />
@@ -67,140 +67,140 @@
 <text class="column-text" x="588" y="210">  created_at: timestamp</text>
 <text class="column-text" x="588" y="230">  updated_at: timestamp</text>
 <rect class="entity-border" x="576" y="40" width="192" height="204" rx="4" />
-<rect class="entity-bg" x="40" y="364" width="224" height="244" rx="4" />
-<rect class="entity-header" x="40" y="364" width="224" height="28" rx="4" />
-<rect class="entity-header" x="40" y="388" width="224" height="4" />
-<text class="entity-name" x="152" y="383" text-anchor="middle">Product</text>
-<line x1="40" y1="392" x2="264" y2="392" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="52" y="414">◆ id: int</text>
-<text class="column-text fk" x="52" y="434">  category_id: int</text>
-<text class="column-text" x="52" y="454">  sku: string</text>
-<text class="column-text" x="52" y="474">  name: string</text>
-<text class="column-text" x="52" y="494">  description: text</text>
-<text class="column-text" x="52" y="514">  price: decimal</text>
-<text class="column-text" x="52" y="534">  compare_at_price: decimal</text>
-<text class="column-text" x="52" y="554">  cost: decimal</text>
-<text class="column-text" x="52" y="574">  quantity: int</text>
-<text class="column-text" x="52" y="594">  is_active: boolean</text>
-<rect class="entity-border" x="40" y="364" width="224" height="244" rx="4" />
-<rect class="entity-bg" x="364" y="364" width="216" height="264" rx="4" />
-<rect class="entity-header" x="364" y="364" width="216" height="28" rx="4" />
-<rect class="entity-header" x="364" y="388" width="216" height="4" />
-<text class="entity-name" x="472" y="383" text-anchor="middle">Order</text>
-<line x1="364" y1="392" x2="580" y2="392" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="376" y="414">◆ id: int</text>
-<text class="column-text fk" x="376" y="434">  customer_id: int</text>
-<text class="column-text fk" x="376" y="454">  shipping_address_id: int</text>
-<text class="column-text fk" x="376" y="474">  billing_address_id: int</text>
-<text class="column-text" x="376" y="494">  status: string</text>
-<text class="column-text" x="376" y="514">  subtotal: decimal</text>
-<text class="column-text" x="376" y="534">  tax: decimal</text>
-<text class="column-text" x="376" y="554">  shipping: decimal</text>
-<text class="column-text" x="376" y="574">  total: decimal</text>
-<text class="column-text" x="376" y="594">  notes: text</text>
-<text class="column-text" x="376" y="614">  created_at: timestamp</text>
-<rect class="entity-border" x="364" y="364" width="216" height="264" rx="4" />
-<rect class="entity-bg" x="680" y="364" width="192" height="204" rx="4" />
-<rect class="entity-header" x="680" y="364" width="192" height="28" rx="4" />
-<rect class="entity-header" x="680" y="388" width="192" height="4" />
-<text class="entity-name" x="776" y="383" text-anchor="middle">Review</text>
-<line x1="680" y1="392" x2="872" y2="392" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="692" y="414">◆ id: int</text>
-<text class="column-text fk" x="692" y="434">  product_id: int</text>
-<text class="column-text fk" x="692" y="454">  customer_id: int</text>
-<text class="column-text" x="692" y="474">  rating: int</text>
-<text class="column-text" x="692" y="494">  title: string</text>
-<text class="column-text" x="692" y="514">  body: text</text>
-<text class="column-text" x="692" y="534">  is_verified: boolean</text>
-<text class="column-text" x="692" y="554">  created_at: timestamp</text>
-<rect class="entity-border" x="680" y="364" width="192" height="204" rx="4" />
-<rect class="entity-bg" x="972" y="364" width="192" height="124" rx="4" />
-<rect class="entity-header" x="972" y="364" width="192" height="28" rx="4" />
-<rect class="entity-header" x="972" y="388" width="192" height="4" />
-<text class="entity-name" x="1068" y="383" text-anchor="middle">Cart</text>
-<line x1="972" y1="392" x2="1164" y2="392" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="984" y="414">◆ id: int</text>
-<text class="column-text fk" x="984" y="434">  customer_id: int</text>
-<text class="column-text" x="984" y="454">  created_at: timestamp</text>
-<text class="column-text" x="984" y="474">  updated_at: timestamp</text>
-<rect class="entity-border" x="972" y="364" width="192" height="124" rx="4" />
-<rect class="entity-bg" x="40" y="708" width="152" height="144" rx="4" />
-<rect class="entity-header" x="40" y="708" width="152" height="28" rx="4" />
-<rect class="entity-header" x="40" y="732" width="152" height="4" />
-<text class="entity-name" x="116" y="727" text-anchor="middle">ProductImage</text>
-<line x1="40" y1="736" x2="192" y2="736" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="52" y="758">◆ id: int</text>
-<text class="column-text fk" x="52" y="778">  product_id: int</text>
-<text class="column-text" x="52" y="798">  url: string</text>
-<text class="column-text" x="52" y="818">  alt_text: string</text>
-<text class="column-text" x="52" y="838">  position: int</text>
-<rect class="entity-border" x="40" y="708" width="152" height="144" rx="4" />
-<rect class="entity-bg" x="292" y="708" width="176" height="164" rx="4" />
-<rect class="entity-header" x="292" y="708" width="176" height="28" rx="4" />
-<rect class="entity-header" x="292" y="732" width="176" height="4" />
-<text class="entity-name" x="380" y="727" text-anchor="middle">OrderItem</text>
-<line x1="292" y1="736" x2="468" y2="736" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="304" y="758">◆ id: int</text>
-<text class="column-text fk" x="304" y="778">  order_id: int</text>
-<text class="column-text fk" x="304" y="798">  product_id: int</text>
-<text class="column-text" x="304" y="818">  quantity: int</text>
-<text class="column-text" x="304" y="838">  unit_price: decimal</text>
-<text class="column-text" x="304" y="858">  total: decimal</text>
-<rect class="entity-border" x="292" y="708" width="176" height="164" rx="4" />
-<rect class="entity-bg" x="568" y="708" width="144" height="124" rx="4" />
-<rect class="entity-header" x="568" y="708" width="144" height="28" rx="4" />
-<rect class="entity-header" x="568" y="732" width="144" height="4" />
-<text class="entity-name" x="640" y="727" text-anchor="middle">CartItem</text>
-<line x1="568" y1="736" x2="712" y2="736" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="580" y="758">◆ id: int</text>
-<text class="column-text fk" x="580" y="778">  cart_id: int</text>
-<text class="column-text fk" x="580" y="798">  product_id: int</text>
-<text class="column-text" x="580" y="818">  quantity: int</text>
-<rect class="entity-border" x="568" y="708" width="144" height="124" rx="4" />
-<rect class="entity-bg" x="812" y="708" width="200" height="184" rx="4" />
-<rect class="entity-header" x="812" y="708" width="200" height="28" rx="4" />
-<rect class="entity-header" x="812" y="732" width="200" height="4" />
-<text class="entity-name" x="912" y="727" text-anchor="middle">Payment</text>
-<line x1="812" y1="736" x2="1012" y2="736" stroke="#333" stroke-width="1" />
-<text class="column-text pk" x="824" y="758">◆ id: int</text>
-<text class="column-text fk" x="824" y="778">  order_id: int</text>
-<text class="column-text" x="824" y="798">  method: string</text>
-<text class="column-text" x="824" y="818">  status: string</text>
-<text class="column-text" x="824" y="838">  amount: decimal</text>
-<text class="column-text" x="824" y="858">  transaction_id: string</text>
-<text class="column-text" x="824" y="878">  created_at: timestamp</text>
-<rect class="entity-border" x="812" y="708" width="200" height="184" rx="4" />
-<text class="cardinality" x="568.6456449323181" y="143.47087101353637" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="483.3543550676819" y="160.52912898646363" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="772.3755023639495" y="148.09138564392967" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="967.6244976360505" y="419.9086143560703" text-anchor="end" dominant-baseline="alphabetic">0..1</text>
-<text class="cardinality" x="642.5284709689494" y="249.12955846660998" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="525.4715290310506" y="358.87044153339" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="700.1602514716892" y="250.24037720753384" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="771.8397485283108" y="357.7596227924662" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="237.5" y="76" text-anchor="start" dominant-baseline="middle">1</text>
-<text class="cardinality" x="237.5" y="148" text-anchor="start" dominant-baseline="middle">*</text>
-<text class="edge-label" x="237.5" y="112" text-anchor="start" dominant-baseline="middle">subcategory</text>
-<text class="cardinality" x="121.31275001038121" y="191.3842188083943" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="150.68724998961878" y="356.6157811916057" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="127.10641084536176" y="615.446576288652" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="116.89358915463824" y="700.553423711348" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="269.6997150213732" y="514.8747562682797" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="562.3002849786268" y="765.1252437317203" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="182.55617957091152" y="611.6423219838398" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="349.4438204290885" y="704.3576780161602" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="271.4996533154596" y="462.0721120511102" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="672.5003466845403" y="465.9278879488898" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="1061.3296172153014" y="491.42870143138714" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="646.6703827846986" y="704.5712985686129" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="467.14263684928346" y="633.7145448831959" text-anchor="end" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="408.85736315071654" y="702.2854551168041" text-anchor="start" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="584.5500498951264" y="501.9621343453381" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="807.4499501048736" y="794.0378656546619" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="cardinality" x="368.5" y="290" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="419.5" y="358" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="394" y="324" text-anchor="middle" dominant-baseline="middle">ships to</text>
-<text class="cardinality" x="416.5" y="290" text-anchor="start" dominant-baseline="hanging">1</text>
-<text class="cardinality" x="467.5" y="358" text-anchor="end" dominant-baseline="alphabetic">*</text>
-<text class="edge-label" x="442" y="324" text-anchor="middle" dominant-baseline="middle">bills to</text>
+<rect class="entity-bg" x="40" y="494" width="224" height="244" rx="4" />
+<rect class="entity-header" x="40" y="494" width="224" height="28" rx="4" />
+<rect class="entity-header" x="40" y="518" width="224" height="4" />
+<text class="entity-name" x="152" y="513" text-anchor="middle">Product</text>
+<line x1="40" y1="522" x2="264" y2="522" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="544">◆ id: int</text>
+<text class="column-text fk" x="52" y="564">  category_id: int</text>
+<text class="column-text" x="52" y="584">  sku: string</text>
+<text class="column-text" x="52" y="604">  name: string</text>
+<text class="column-text" x="52" y="624">  description: text</text>
+<text class="column-text" x="52" y="644">  price: decimal</text>
+<text class="column-text" x="52" y="664">  compare_at_price: decimal</text>
+<text class="column-text" x="52" y="684">  cost: decimal</text>
+<text class="column-text" x="52" y="704">  quantity: int</text>
+<text class="column-text" x="52" y="724">  is_active: boolean</text>
+<rect class="entity-border" x="40" y="494" width="224" height="244" rx="4" />
+<rect class="entity-bg" x="364" y="494" width="192" height="204" rx="4" />
+<rect class="entity-header" x="364" y="494" width="192" height="28" rx="4" />
+<rect class="entity-header" x="364" y="518" width="192" height="4" />
+<text class="entity-name" x="460" y="513" text-anchor="middle">Review</text>
+<line x1="364" y1="522" x2="556" y2="522" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="376" y="544">◆ id: int</text>
+<text class="column-text fk" x="376" y="564">  product_id: int</text>
+<text class="column-text fk" x="376" y="584">  customer_id: int</text>
+<text class="column-text" x="376" y="604">  rating: int</text>
+<text class="column-text" x="376" y="624">  title: string</text>
+<text class="column-text" x="376" y="644">  body: text</text>
+<text class="column-text" x="376" y="664">  is_verified: boolean</text>
+<text class="column-text" x="376" y="684">  created_at: timestamp</text>
+<rect class="entity-border" x="364" y="494" width="192" height="204" rx="4" />
+<rect class="entity-bg" x="656" y="494" width="216" height="264" rx="4" />
+<rect class="entity-header" x="656" y="494" width="216" height="28" rx="4" />
+<rect class="entity-header" x="656" y="518" width="216" height="4" />
+<text class="entity-name" x="764" y="513" text-anchor="middle">Order</text>
+<line x1="656" y1="522" x2="872" y2="522" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="668" y="544">◆ id: int</text>
+<text class="column-text fk" x="668" y="564">  customer_id: int</text>
+<text class="column-text fk" x="668" y="584">  shipping_address_id: int</text>
+<text class="column-text fk" x="668" y="604">  billing_address_id: int</text>
+<text class="column-text" x="668" y="624">  status: string</text>
+<text class="column-text" x="668" y="644">  subtotal: decimal</text>
+<text class="column-text" x="668" y="664">  tax: decimal</text>
+<text class="column-text" x="668" y="684">  shipping: decimal</text>
+<text class="column-text" x="668" y="704">  total: decimal</text>
+<text class="column-text" x="668" y="724">  notes: text</text>
+<text class="column-text" x="668" y="744">  created_at: timestamp</text>
+<rect class="entity-border" x="656" y="494" width="216" height="264" rx="4" />
+<rect class="entity-bg" x="972" y="494" width="192" height="124" rx="4" />
+<rect class="entity-header" x="972" y="494" width="192" height="28" rx="4" />
+<rect class="entity-header" x="972" y="518" width="192" height="4" />
+<text class="entity-name" x="1068" y="513" text-anchor="middle">Cart</text>
+<line x1="972" y1="522" x2="1164" y2="522" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="984" y="544">◆ id: int</text>
+<text class="column-text fk" x="984" y="564">  customer_id: int</text>
+<text class="column-text" x="984" y="584">  created_at: timestamp</text>
+<text class="column-text" x="984" y="604">  updated_at: timestamp</text>
+<rect class="entity-border" x="972" y="494" width="192" height="124" rx="4" />
+<rect class="entity-bg" x="40" y="968" width="152" height="144" rx="4" />
+<rect class="entity-header" x="40" y="968" width="152" height="28" rx="4" />
+<rect class="entity-header" x="40" y="992" width="152" height="4" />
+<text class="entity-name" x="116" y="987" text-anchor="middle">ProductImage</text>
+<line x1="40" y1="996" x2="192" y2="996" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="52" y="1018">◆ id: int</text>
+<text class="column-text fk" x="52" y="1038">  product_id: int</text>
+<text class="column-text" x="52" y="1058">  url: string</text>
+<text class="column-text" x="52" y="1078">  alt_text: string</text>
+<text class="column-text" x="52" y="1098">  position: int</text>
+<rect class="entity-border" x="40" y="968" width="152" height="144" rx="4" />
+<rect class="entity-bg" x="292" y="968" width="176" height="164" rx="4" />
+<rect class="entity-header" x="292" y="968" width="176" height="28" rx="4" />
+<rect class="entity-header" x="292" y="992" width="176" height="4" />
+<text class="entity-name" x="380" y="987" text-anchor="middle">OrderItem</text>
+<line x1="292" y1="996" x2="468" y2="996" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="304" y="1018">◆ id: int</text>
+<text class="column-text fk" x="304" y="1038">  order_id: int</text>
+<text class="column-text fk" x="304" y="1058">  product_id: int</text>
+<text class="column-text" x="304" y="1078">  quantity: int</text>
+<text class="column-text" x="304" y="1098">  unit_price: decimal</text>
+<text class="column-text" x="304" y="1118">  total: decimal</text>
+<rect class="entity-border" x="292" y="968" width="176" height="164" rx="4" />
+<rect class="entity-bg" x="568" y="968" width="200" height="184" rx="4" />
+<rect class="entity-header" x="568" y="968" width="200" height="28" rx="4" />
+<rect class="entity-header" x="568" y="992" width="200" height="4" />
+<text class="entity-name" x="668" y="987" text-anchor="middle">Payment</text>
+<line x1="568" y1="996" x2="768" y2="996" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="580" y="1018">◆ id: int</text>
+<text class="column-text fk" x="580" y="1038">  order_id: int</text>
+<text class="column-text" x="580" y="1058">  method: string</text>
+<text class="column-text" x="580" y="1078">  status: string</text>
+<text class="column-text" x="580" y="1098">  amount: decimal</text>
+<text class="column-text" x="580" y="1118">  transaction_id: string</text>
+<text class="column-text" x="580" y="1138">  created_at: timestamp</text>
+<rect class="entity-border" x="568" y="968" width="200" height="184" rx="4" />
+<rect class="entity-bg" x="868" y="968" width="144" height="124" rx="4" />
+<rect class="entity-header" x="868" y="968" width="144" height="28" rx="4" />
+<rect class="entity-header" x="868" y="992" width="144" height="4" />
+<text class="entity-name" x="940" y="987" text-anchor="middle">CartItem</text>
+<line x1="868" y1="996" x2="1012" y2="996" stroke="#333" stroke-width="1" />
+<text class="column-text pk" x="880" y="1018">◆ id: int</text>
+<text class="column-text fk" x="880" y="1038">  cart_id: int</text>
+<text class="column-text fk" x="880" y="1058">  product_id: int</text>
+<text class="column-text" x="880" y="1078">  quantity: int</text>
+<rect class="entity-border" x="868" y="968" width="144" height="124" rx="4" />
+<text class="cardinality" x="568.5" y="142" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="483.5" y="162" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="715.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="1060.5" y="486.5" text-anchor="start" dominant-baseline="middle">0..1</text>
+<text class="cardinality" x="691.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="780.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="667.5" y="251.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="464.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="232.5" y="83.19999999999999" text-anchor="start" dominant-baseline="middle">1</text>
+<text class="cardinality" x="232.5" y="140.8" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="edge-label" x="232.5" y="112" text-anchor="start" dominant-baseline="middle">subcategory</text>
+<text class="cardinality" x="127.5" y="191.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="144.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="123.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="108.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="195.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="920.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="147.5" y="745.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="360.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="271.5" y="616" text-anchor="start" dominant-baseline="middle">1</text>
+<text class="cardinality" x="356.5" y="596" text-anchor="end" dominant-baseline="middle">*</text>
+<text class="cardinality" x="1075.5" y="625.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="944.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="759.5" y="765.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="384.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="783.5" y="765.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="660.5" y="960.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="cardinality" x="383.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="732.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="edge-label" x="558" y="421" text-anchor="middle" dominant-baseline="alphabetic">ships to</text>
+<text class="cardinality" x="407.5" y="291.5" text-anchor="end" dominant-baseline="middle">1</text>
+<text class="cardinality" x="756.5" y="486.5" text-anchor="start" dominant-baseline="middle">*</text>
+<text class="edge-label" x="582" y="397" text-anchor="middle" dominant-baseline="alphabetic">bills to</text>
 </svg>
