@@ -5,3 +5,4 @@ tmp/
 *.swo
 .DS_Store
 examples/*.svg
+pkg/
