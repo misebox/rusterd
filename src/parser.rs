@@ -244,7 +244,40 @@ impl Parser {
 
     fn parse_default_value(&mut self) -> Result<String, ParseError> {
         match self.advance().clone() {
-            Token::Ident(s) => Ok(s),
+            Token::Ident(s) => {
+                // Check for function call: IDENT()
+                if *self.peek() == Token::LParen {
+                    self.advance(); // consume (
+                    let mut args = String::new();
+                    // Parse arguments until )
+                    loop {
+                        match self.peek() {
+                            Token::RParen => {
+                                self.advance();
+                                break;
+                            }
+                            Token::Eof => break,
+                            _ => {
+                                let tok = self.advance().clone();
+                                match tok {
+                                    Token::Ident(a) => args.push_str(&a),
+                                    Token::Num(n) => args.push_str(&n.to_string()),
+                                    Token::Str(st) => {
+                                        args.push('"');
+                                        args.push_str(&st);
+                                        args.push('"');
+                                    }
+                                    Token::Comma => args.push_str(", "),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    Ok(format!("{}({})", s, args))
+                } else {
+                    Ok(s)
+                }
+            }
             Token::Str(s) => Ok(format!("\"{}\"", s)),
             Token::Num(n) => Ok(n.to_string()),
             tok => Err(ParseError::Unexpected(tok, "default value")),

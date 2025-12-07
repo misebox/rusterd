@@ -4,6 +4,8 @@ pub mod layout;
 pub mod lexer;
 pub mod measure;
 pub mod parser;
+pub mod serializer;
+pub mod sql;
 pub mod svg;
 
 use wasm_bindgen::prelude::*;
@@ -13,9 +15,8 @@ use layout::LayoutEngine;
 use parser::Parser;
 use svg::SvgRenderer;
 
-/// Initialize panic hook for better error messages in WASM
 #[wasm_bindgen(start)]
-pub fn init() {
+fn init() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
 }
@@ -40,4 +41,42 @@ pub fn render_erd(
     let svg = SvgRenderer::default().render(&ir, &layout);
 
     Ok(svg)
+}
+
+/// Render ERD source to SVG data URI (for use with <img src={...}>)
+#[wasm_bindgen(js_name = "erdToDataUri")]
+pub fn render_erd_data_uri(
+    source: &str,
+    view: Option<String>,
+    detail: Option<String>,
+) -> Result<String, String> {
+    let svg = render_erd(source, view, detail)?;
+    Ok(format!(
+        "data:image/svg+xml,{}",
+        js_sys::encode_uri_component(&svg)
+    ))
+}
+
+/// Convert SQL dump to ERD notation
+#[wasm_bindgen(js_name = "sqlToErd")]
+pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, String> {
+    let dialect = dialect
+        .as_deref()
+        .and_then(sql::Dialect::from_str)
+        .unwrap_or(sql::Dialect::Auto);
+
+    let schema = sql::parse_sql(sql_source, dialect).map_err(|e| e.to_string())?;
+    Ok(serializer::serialize(&schema))
+}
+
+/// Convert SQL dump directly to SVG
+#[wasm_bindgen(js_name = "sqlToSvg")]
+pub fn sql_to_svg(
+    sql_source: &str,
+    dialect: Option<String>,
+    view: Option<String>,
+    detail: Option<String>,
+) -> Result<String, String> {
+    let erd = sql_to_erd(sql_source, dialect)?;
+    render_erd(&erd, view, detail)
 }
