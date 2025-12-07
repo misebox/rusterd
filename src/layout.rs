@@ -50,7 +50,7 @@ impl Default for LayoutEngine {
             channel_gap: 50.0,    // Base space for routing channels (will expand with edge count)
             lane_spacing: 24.0,   // Spacing between parallel edges (>= 1em)
             anchor_spacing: 40.0, // Spacing for cardinality labels (~4 chars at 15px font)
-            corner_radius: 8.0,   // Rounded corner radius
+            corner_radius: 32.0,  // Rounded corner radius
             entity_margin: 30.0,  // Minimum distance from entity edge to channel
         }
     }
@@ -193,7 +193,7 @@ impl LayoutEngine {
 
         // Analyze corridor requirements BEFORE node placement
         // For multi-level edges, determine which gap they pass through based on
-        // the destination's order within its level
+        // the positions of both source and destination nodes
         //
         // Key: gap_index (global), Value: list of edge indices
         let mut corridor_edges: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -212,14 +212,30 @@ impl LayoutEngine {
                 continue;
             }
 
-            // Determine gap index based on destination's order
-            // The edge goes toward the destination, so it passes through
-            // the gap to the LEFT of the destination's position
-            let dest_order = node_order.get(edge.to.as_str()).copied().unwrap_or(0);
-            // Gap index: if dest is at order N, the corridor is at gap N
-            // (gap 0 = before first node, gap 1 = between node 0 and 1, etc.)
-            // We use dest_order as the gap index (edge goes to the left of dest position)
-            let gap_index = dest_order;
+            // Determine gap index based on both source and destination positions
+            // Choose the corridor that is closest to both endpoints
+            let from_order = node_order.get(edge.from.as_str()).copied().unwrap_or(0);
+            let to_order = node_order.get(edge.to.as_str()).copied().unwrap_or(0);
+
+            // Gap index options:
+            // - Left of from: from_order
+            // - Right of from: from_order + 1
+            // - Left of to: to_order
+            // - Right of to: to_order + 1
+            //
+            // Choose the gap that minimizes horizontal distance
+            // If from is to the left of to, use the gap between them (min of right-of-from and left-of-to)
+            // If from is to the right of to, use the gap between them (min of left-of-from and right-of-to)
+            let gap_index = if from_order <= to_order {
+                // from is left of or same as to
+                // Use the gap that is right of from OR left of to, whichever is smaller gap index
+                // This means we go through the corridor closest to the from node
+                (from_order + 1).min(to_order)
+            } else {
+                // from is right of to
+                // Use the gap left of from OR right of to, whichever is larger gap index
+                from_order.max(to_order + 1)
+            };
 
             edge_gap_index.insert(idx, gap_index);
             corridor_edges.entry(gap_index).or_default().push(idx);
@@ -242,7 +258,9 @@ impl LayoutEngine {
 
         for (i, &level) in level_keys.iter().enumerate() {
             let nodes_in_level = &levels[&level];
-            let mut x: f64 = 40.0;
+            // Start X: margin + extra gap for gap_index 0 (left of first node)
+            let gap0_extra = *gap_extra_width.get(&0).unwrap_or(&0.0);
+            let mut x: f64 = 40.0 + gap0_extra;
             let mut max_height: f64 = 0.0;
 
             for (node_idx, node) in nodes_in_level.iter().enumerate() {
@@ -255,9 +273,10 @@ impl LayoutEngine {
                     height: h,
                 });
 
-                // Calculate gap after this node
-                // gap_index is global (applies to all levels at same horizontal position)
-                let extra_gap = *gap_extra_width.get(&node_idx).unwrap_or(&0.0);
+                // Calculate gap after this node (gap_index = node_idx + 1)
+                // gap_index 0 = before first node, gap_index 1 = after first node, etc.
+                let next_gap_idx = node_idx + 1;
+                let extra_gap = *gap_extra_width.get(&next_gap_idx).unwrap_or(&0.0);
                 let effective_gap_x = self.node_gap_x + extra_gap;
 
                 x += w + effective_gap_x;
@@ -291,7 +310,8 @@ impl LayoutEngine {
 
         // Group edges by source node and direction (down=true, up=false)
         // to distribute exit points along the node edge
-        let mut node_exits: HashMap<(&str, bool), Vec<(usize, f64)>> = HashMap::new(); // (edge_idx, target_x)
+        // For multi-level edges, use corridor X position for sorting to reduce crossings
+        let mut node_exits: HashMap<(&str, bool), Vec<(usize, f64)>> = HashMap::new(); // (edge_idx, sort_key_x)
 
         for (idx, edge) in ir.edges.iter().enumerate() {
             if edge.from == edge.to {
@@ -309,36 +329,112 @@ impl LayoutEngine {
             let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
             let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
             let going_down = to_level >= from_level;
-            let to_cx = to_node.x + to_node.width / 2.0;
+
+            // For multi-level edges, use corridor position as sort key
+            // For adjacent/same-level edges, use target center X
+            let is_multi_level = (to_level - from_level).abs() > 1;
+            let sort_key_x = if is_multi_level {
+                // Use corridor X position (calculated from gap_index)
+                if let Some(&gap_idx) = edge_gap_index.get(&idx) {
+                    self.find_gap_center_x(&layout_nodes, &levels, from_level + 1, gap_idx)
+                } else {
+                    to_node.x + to_node.width / 2.0
+                }
+            } else {
+                to_node.x + to_node.width / 2.0
+            };
 
             node_exits
                 .entry((edge.from.as_str(), going_down))
                 .or_default()
-                .push((idx, to_cx));
+                .push((idx, sort_key_x));
 
             // Also track entry points on destination node
-            let from_cx = from_node.x + from_node.width / 2.0;
+            // For multi-level edges, use corridor position; otherwise use source center X
+            let entry_sort_key_x = if is_multi_level {
+                if let Some(&gap_idx) = edge_gap_index.get(&idx) {
+                    self.find_gap_center_x(&layout_nodes, &levels, to_level - 1, gap_idx)
+                } else {
+                    from_node.x + from_node.width / 2.0
+                }
+            } else {
+                from_node.x + from_node.width / 2.0
+            };
+
             node_exits
                 .entry((edge.to.as_str(), !going_down))
                 .or_default()
-                .push((idx, from_cx));
+                .push((idx, entry_sort_key_x));
         }
 
-        // Sort edges in each group by target x position
+        // Sort edges in each group by sort key X position
         for edges in node_exits.values_mut() {
             edges.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        }
+
+        // Optimize anchor order by swapping pairs where anchor order differs from destination order
+        // This reduces edge crossings near the node
+        {
+            // For exits: compare anchor order with destination X order
+            for ((_node_id, going_down), edges) in node_exits.iter_mut() {
+                if edges.len() < 2 || !going_down {
+                    continue;
+                }
+
+                // Get destination X for each edge
+                let dest_positions: HashMap<usize, f64> = edges
+                    .iter()
+                    .filter_map(|(idx, _)| {
+                        let edge = &ir.edges[*idx];
+                        node_positions.get(edge.to.as_str()).map(|n| (*idx, n.x + n.width / 2.0))
+                    })
+                    .collect();
+
+                // Re-sort by destination X to minimize crossings
+                edges.sort_by(|a, b| {
+                    let dest_a = dest_positions.get(&a.0).copied().unwrap_or(a.1);
+                    let dest_b = dest_positions.get(&b.0).copied().unwrap_or(b.1);
+                    dest_a.partial_cmp(&dest_b).unwrap_or(std::cmp::Ordering::Equal)
+                });
+            }
+
+            // For entries: compare anchor order with source X order
+            for ((_node_id, going_down), edges) in node_exits.iter_mut() {
+                if edges.len() < 2 || *going_down {
+                    continue;
+                }
+
+                // Get source X for each edge
+                let source_positions: HashMap<usize, f64> = edges
+                    .iter()
+                    .filter_map(|(idx, _)| {
+                        let edge = &ir.edges[*idx];
+                        node_positions.get(edge.from.as_str()).map(|n| (*idx, n.x + n.width / 2.0))
+                    })
+                    .collect();
+
+                // Re-sort by source X to minimize crossings
+                edges.sort_by(|a, b| {
+                    let src_a = source_positions.get(&a.0).copied().unwrap_or(a.1);
+                    let src_b = source_positions.get(&b.0).copied().unwrap_or(b.1);
+                    src_a.partial_cmp(&src_b).unwrap_or(std::cmp::Ordering::Equal)
+                });
+            }
         }
 
         // Pre-calculate lane assignments by sorting edges within each channel
         // Key: (channel_level, edge_idx), Value: lane number within that channel
         // Each edge gets a unique lane in EACH channel it passes through
+        // Edges going UP use lower lanes (closer to upper entity)
+        // Edges going DOWN use higher lanes (closer to lower entity)
         let mut channel_lane_assignments: HashMap<(i64, usize), usize> = HashMap::new();
         // Separate lane assignments for same-level edges (routed above)
         let mut same_level_lane_assignments: HashMap<usize, usize> = HashMap::new();
         {
-            // Use the channel_edges_list we built earlier, but add X position for sorting
-            // For each channel, collect (edge_idx, sort_key_x) where sort_key_x determines lane order
-            let mut channel_edges_with_x: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+            // For each channel, collect edges with direction info
+            // (edge_idx, from_cx, is_going_up relative to this channel)
+            let mut channel_edges_with_info: HashMap<i64, Vec<(usize, f64, bool)>> = HashMap::new();
+
 
             for (&channel_level, edge_indices) in &channel_edges_list {
                 for &idx in edge_indices {
@@ -352,6 +448,12 @@ impl LayoutEngine {
                     let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
                     let going_down = to_level >= from_level;
 
+                    // Determine if this edge is going UP relative to this channel
+                    // Channel N is between level N and level N+1
+                    // If edge goes from level > channel_level to level <= channel_level, it's going UP through this channel
+                    // If edge goes from level <= channel_level to level > channel_level, it's going DOWN through this channel
+                    let is_going_up = to_level <= channel_level;
+
                     // Get the actual from_cx for this edge
                     let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
                     let from_cx = if let Some(exits) = from_exits {
@@ -361,23 +463,111 @@ impl LayoutEngine {
                         from_node.x + from_node.width / 2.0
                     };
 
-                    channel_edges_with_x
+                    channel_edges_with_info
                         .entry(channel_level)
                         .or_default()
-                        .push((idx, from_cx));
+                        .push((idx, from_cx, is_going_up));
                 }
             }
 
             // Sort and assign lanes for each channel
-            for (&channel_level, edges) in channel_edges_with_x.iter_mut() {
-                // Sort by from_cx (right to left) so left edges get higher lanes (turn earlier)
+            // Edges going to closer levels use inner lanes (closer to that level's entities)
+            // Within same level, edges to outer (left/right) nodes use inner lanes
+            for (&channel_level, edges) in channel_edges_with_info.iter_mut() {
                 edges.sort_by(|a, b| {
-                    match b.1.partial_cmp(&a.1) {
-                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
-                        Some(ord) => ord,
+                    let edge_a = &ir.edges[a.0];
+                    let edge_b = &ir.edges[b.0];
+                    let from_level_a = *node_level.get(edge_a.from.as_str()).unwrap_or(&0);
+                    let from_level_b = *node_level.get(edge_b.from.as_str()).unwrap_or(&0);
+                    let to_level_a = *node_level.get(edge_a.to.as_str()).unwrap_or(&0);
+                    let to_level_b = *node_level.get(edge_b.to.as_str()).unwrap_or(&0);
+                    let is_down_a = to_level_a > channel_level;
+                    let is_down_b = to_level_b > channel_level;
+
+                    // For multi-level edges, get the corridor X position
+                    let get_corridor_x = |edge_idx: usize| -> f64 {
+                        if let Some(&gap_idx) = edge_gap_index.get(&edge_idx) {
+                            // Find the gap center X at the intermediate level
+                            let intermediate_level = channel_level + 1;
+                            self.find_gap_center_x(&layout_nodes, &levels, intermediate_level, gap_idx)
+                        } else {
+                            // Single-level edge: use from_cx
+                            let edge = &ir.edges[edge_idx];
+                            node_positions
+                                .get(edge.from.as_str())
+                                .map(|n| n.x + n.width / 2.0)
+                                .unwrap_or(0.0)
+                        }
+                    };
+
+                    // Get destination X position
+                    let get_to_x = |edge: &crate::ir::Edge| -> f64 {
+                        node_positions
+                            .get(edge.to.as_str())
+                            .map(|n| n.x + n.width / 2.0)
+                            .unwrap_or(0.0)
+                    };
+
+                    // Primary: group by direction (down-going first, then up-going)
+                    match is_down_b.cmp(&is_down_a) {
+                        std::cmp::Ordering::Equal => {
+                            // Check if either edge spans multiple levels (uses corridor)
+                            let a_multi = (to_level_a - from_level_a).abs() > 1;
+                            let b_multi = (to_level_b - from_level_b).abs() > 1;
+
+                            if a_multi || b_multi {
+                                // At least one multi-level edge: sort by corridor X first
+                                let corridor_x_a = get_corridor_x(a.0);
+                                let corridor_x_b = get_corridor_x(b.0);
+
+                                // If corridors are different, sort by corridor X
+                                let corridor_diff = (corridor_x_a - corridor_x_b).abs();
+                                if corridor_diff > 1.0 {
+                                    if is_down_a {
+                                        corridor_x_a.partial_cmp(&corridor_x_b).unwrap_or(std::cmp::Ordering::Equal)
+                                    } else {
+                                        corridor_x_b.partial_cmp(&corridor_x_a).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                } else {
+                                    // Same corridor: sort by destination X
+                                    // For edges going down-right: left dest = inner lane
+                                    // For edges going down-left: right dest = inner lane (avoid crossing)
+                                    let to_x_a = get_to_x(edge_a);
+                                    let to_x_b = get_to_x(edge_b);
+
+                                    // If corridor is left of destinations, sort ascending (left first)
+                                    // If corridor is right of destinations, sort descending (right first)
+                                    let avg_to_x = (to_x_a + to_x_b) / 2.0;
+                                    if corridor_x_a < avg_to_x {
+                                        // Corridor is left of destinations: sort ascending by dest X
+                                        to_x_a.partial_cmp(&to_x_b).unwrap_or(std::cmp::Ordering::Equal)
+                                    } else {
+                                        // Corridor is right of destinations: sort descending by dest X
+                                        to_x_b.partial_cmp(&to_x_a).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                }
+                            } else {
+                                // Both single-level: sort by distance to target level, then by X
+                                let dist_cmp = if is_down_a {
+                                    to_level_a.cmp(&to_level_b)
+                                } else {
+                                    to_level_b.cmp(&to_level_a)
+                                };
+                                match dist_cmp {
+                                    std::cmp::Ordering::Equal => {
+                                        // Sort by destination X to avoid crossings
+                                        let to_x_a = get_to_x(edge_a);
+                                        let to_x_b = get_to_x(edge_b);
+                                        to_x_a.partial_cmp(&to_x_b).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                    ord => ord,
+                                }
+                            }
+                        }
+                        ord => ord,
                     }
                 });
-                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                for (lane, (edge_idx, _, _)) in edges.iter().enumerate() {
                     channel_lane_assignments.insert((channel_level, *edge_idx), lane);
                 }
             }
@@ -463,6 +653,98 @@ impl LayoutEngine {
             }
         }
 
+        // Optimize lane assignments to reduce crossings
+        // Two edges cross twice if they share a channel AND a corridor,
+        // AND their relative order is OPPOSITE in the channel vs corridor.
+        // (If same order in both, they don't cross; if opposite order, they cross twice)
+        // To fix: swap their lanes in ONE of the two (channel or corridor)
+        {
+            // Build reverse lookup: edge_idx -> list of channels it passes through
+            let mut edge_channels: HashMap<usize, Vec<i64>> = HashMap::new();
+            for (&(channel, edge_idx), _) in &channel_lane_assignments {
+                edge_channels.entry(edge_idx).or_default().push(channel);
+            }
+
+            // Build reverse lookup: edge_idx -> corridor gap_index (if multi-level)
+            let mut edge_corridor: HashMap<usize, usize> = HashMap::new();
+            for (&(gap_idx, edge_idx), _) in &corridor_lane_assignments {
+                edge_corridor.insert(edge_idx, gap_idx);
+            }
+
+            // Find pairs that share both channel(s) and corridor with OPPOSITE relative order
+            let mut swap_candidates: Vec<(usize, usize, i64)> = Vec::new(); // (edge1, edge2, shared_channel)
+
+            let edge_indices: Vec<usize> = edge_channels.keys().copied().collect();
+            for i in 0..edge_indices.len() {
+                for j in (i + 1)..edge_indices.len() {
+                    let e1 = edge_indices[i];
+                    let e2 = edge_indices[j];
+
+                    // Check if both are in the same corridor
+                    let gap1 = edge_corridor.get(&e1);
+                    let gap2 = edge_corridor.get(&e2);
+                    if gap1.is_none() || gap2.is_none() || gap1 != gap2 {
+                        continue;
+                    }
+                    let gap_idx = *gap1.unwrap();
+
+                    // Get corridor lanes
+                    let corridor_lane1 = corridor_lane_assignments.get(&(gap_idx, e1)).copied();
+                    let corridor_lane2 = corridor_lane_assignments.get(&(gap_idx, e2)).copied();
+                    if corridor_lane1.is_none() || corridor_lane2.is_none() {
+                        continue;
+                    }
+                    let cl1 = corridor_lane1.unwrap();
+                    let cl2 = corridor_lane2.unwrap();
+                    // Corridor order: e1 < e2 in corridor if cl1 < cl2
+                    let e1_before_e2_in_corridor = cl1 < cl2;
+
+                    // Check if they share any channel with OPPOSITE relative order
+                    let channels1 = edge_channels.get(&e1).map(|v| v.as_slice()).unwrap_or(&[]);
+                    let channels2 = edge_channels.get(&e2).map(|v| v.as_slice()).unwrap_or(&[]);
+
+                    for &ch in channels1 {
+                        if channels2.contains(&ch) {
+                            // Get channel lanes
+                            let ch_lane1 = channel_lane_assignments.get(&(ch, e1)).copied();
+                            let ch_lane2 = channel_lane_assignments.get(&(ch, e2)).copied();
+                            if let (Some(chl1), Some(chl2)) = (ch_lane1, ch_lane2) {
+                                let e1_before_e2_in_channel = chl1 < chl2;
+
+                                // If orders are OPPOSITE, they will cross twice
+                                if e1_before_e2_in_corridor != e1_before_e2_in_channel {
+                                    swap_candidates.push((e1, e2, ch));
+                                    break; // One shared channel is enough
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // For each candidate pair, swap their channel lanes
+            // Track which edges have been swapped to avoid undoing swaps
+            let mut swapped_edges: std::collections::HashSet<usize> = std::collections::HashSet::new();
+
+            for &(e1, e2, channel) in &swap_candidates {
+                // Skip if either edge has already been involved in a swap
+                if swapped_edges.contains(&e1) || swapped_edges.contains(&e2) {
+                    continue;
+                }
+
+                let lane1 = channel_lane_assignments.get(&(channel, e1)).copied();
+                let lane2 = channel_lane_assignments.get(&(channel, e2)).copied();
+
+                if let (Some(l1), Some(l2)) = (lane1, lane2) {
+                    // Swap lanes in the channel to match corridor order
+                    channel_lane_assignments.insert((channel, e1), l2);
+                    channel_lane_assignments.insert((channel, e2), l1);
+                    swapped_edges.insert(e1);
+                    swapped_edges.insert(e2);
+                }
+            }
+        }
+
         // Calculate orthogonal paths for each edge
         let layout_edges: Vec<LayoutEdge> = ir
             .edges
@@ -518,6 +800,7 @@ impl LayoutEngine {
                     let lane = *channel_lane_assignments.get(&(channel_level, idx)).unwrap_or(&0);
                     // Center: lane 0 at -(total-1)/2 * spacing, lane n at (n - (total-1)/2) * spacing
                     let lane_offset = (lane as f64 - (total_edges - 1) as f64 / 2.0) * self.lane_spacing;
+
 
                     let waypoints = if from_level == to_level {
                         // Same level: check if entities are horizontally adjacent
@@ -577,30 +860,52 @@ impl LayoutEngine {
 
                         if max_level - min_level == 1 {
                             // Adjacent levels: simple routing through single channel
-                            let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
-                                (from_node, to_node, from_cx, to_cx)
-                            } else {
-                                (to_node, from_node, to_cx, from_cx)
-                            };
+                            // If from_cx and to_cx are close enough, route directly (no horizontal segment)
+                            let direct_threshold = 1.0; // Threshold for "close enough" to go straight
 
-                            let ch_y = *channel_y.get(&min_level)
-                                .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
-                                + lane_offset;
-
-                            if going_down {
-                                vec![
-                                    (upper_cx, upper_node.y + upper_node.height),
-                                    (upper_cx, ch_y),
-                                    (lower_cx, ch_y),
-                                    (lower_cx, lower_node.y),
-                                ]
+                            if (from_cx - to_cx).abs() < direct_threshold {
+                                // Direct vertical connection
+                                if going_down {
+                                    vec![
+                                        (from_cx, from_node.y + from_node.height),
+                                        (to_cx, to_node.y),
+                                    ]
+                                } else {
+                                    vec![
+                                        (from_cx, from_node.y),
+                                        (to_cx, to_node.y + to_node.height),
+                                    ]
+                                }
                             } else {
-                                vec![
-                                    (lower_cx, lower_node.y + lower_node.height),
-                                    (lower_cx, ch_y),
-                                    (upper_cx, ch_y),
-                                    (upper_cx, upper_node.y),
-                                ]
+                                // Need horizontal routing through channel
+                                let upper_node = if from_level < to_level {
+                                    from_node
+                                } else {
+                                    to_node
+                                };
+
+                                let ch_y = *channel_y.get(&min_level)
+                                    .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
+                                    + lane_offset;
+
+                                // Waypoints always go from -> to
+                                if going_down {
+                                    // from is upper, to is lower
+                                    vec![
+                                        (from_cx, from_node.y + from_node.height),
+                                        (from_cx, ch_y),
+                                        (to_cx, ch_y),
+                                        (to_cx, to_node.y),
+                                    ]
+                                } else {
+                                    // from is lower, to is upper
+                                    vec![
+                                        (from_cx, from_node.y),
+                                        (from_cx, ch_y),
+                                        (to_cx, ch_y),
+                                        (to_cx, to_node.y + to_node.height),
+                                    ]
+                                }
                             }
                         } else {
                             // Multi-level edge: route through intermediate channels
@@ -621,11 +926,11 @@ impl LayoutEngine {
                                 .max(1);
 
                             // Calculate base corridor X using the gap_index
-                            // Find the center of the gap at the first intermediate level
+                            // Use the SOURCE level for gap calculation since gap_index is based on source node's order
                             let base_corridor_x = self.find_gap_center_x(
                                 &layout_nodes,
                                 &levels,
-                                min_level + 1,
+                                from_level,
                                 gap_index,
                             );
 
@@ -739,6 +1044,193 @@ impl LayoutEngine {
             channel_gap: self.channel_gap,
             corner_radius: self.corner_radius,
         }
+    }
+
+    /// Detect edge crossings and return pairs that cross an even number of times
+    /// Returns: Vec<(edge_idx1, edge_idx2)> - pairs that cross an even number of times
+    #[allow(dead_code)]
+    fn detect_crossings(&self, edges: &[LayoutEdge]) -> Vec<(usize, usize)> {
+        // Extract horizontal and vertical segments from each edge
+        // Segment: ((x1, y1), (x2, y2), edge_index, segment_index)
+        let mut h_segments: Vec<(f64, f64, f64, usize, &str, &str)> = Vec::new(); // (y, x_min, x_max, edge_idx, from, to)
+        let mut v_segments: Vec<(f64, f64, f64, usize, &str, &str)> = Vec::new(); // (x, y_min, y_max, edge_idx, from, to)
+
+        for edge in edges {
+            if edge.is_self_ref {
+                continue;
+            }
+            let waypoints = &edge.waypoints;
+            for i in 0..waypoints.len().saturating_sub(1) {
+                let (x1, y1) = waypoints[i];
+                let (x2, y2) = waypoints[i + 1];
+
+                if (y1 - y2).abs() < 0.1 {
+                    // Horizontal segment
+                    let x_min = x1.min(x2);
+                    let x_max = x1.max(x2);
+                    if x_max - x_min > 1.0 {
+                        h_segments.push((y1, x_min, x_max, edge.edge_index, &edge.from, &edge.to));
+                    }
+                } else if (x1 - x2).abs() < 0.1 {
+                    // Vertical segment
+                    let y_min = y1.min(y2);
+                    let y_max = y1.max(y2);
+                    if y_max - y_min > 1.0 {
+                        v_segments.push((x1, y_min, y_max, edge.edge_index, &edge.from, &edge.to));
+                    }
+                }
+            }
+        }
+
+        // Check all pairs of horizontal and vertical segments for crossings
+        // Count crossings per edge pair: ((edge1, edge2), count)
+        let mut crossing_counts: HashMap<(usize, usize), usize> = HashMap::new();
+
+        for &(h_y, h_x_min, h_x_max, h_idx, _, _) in &h_segments {
+            for &(v_x, v_y_min, v_y_max, v_idx, _, _) in &v_segments {
+                // Skip if same edge
+                if h_idx == v_idx {
+                    continue;
+                }
+
+                // Check if they cross
+                // v_x must be within h_x range (exclusive of endpoints)
+                // h_y must be within v_y range (exclusive of endpoints)
+                let margin = 1.0;
+                if v_x > h_x_min + margin && v_x < h_x_max - margin
+                    && h_y > v_y_min + margin && h_y < v_y_max - margin
+                {
+                    // Normalize pair order for consistent counting
+                    let pair = if h_idx < v_idx {
+                        (h_idx, v_idx)
+                    } else {
+                        (v_idx, h_idx)
+                    };
+                    *crossing_counts.entry(pair).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Return pairs that cross an even number of times (candidates for lane swap optimization)
+        crossing_counts
+            .into_iter()
+            .filter(|(_, count)| *count % 2 == 0)
+            .map(|((idx1, idx2), _)| (idx1, idx2))
+            .collect()
+    }
+
+    /// Detect anchor swap candidates - pairs of edges from/to the same node
+    /// where swapping their anchor positions would reduce crossings.
+    ///
+    /// Returns: Vec<(node_id, edge_idx1, edge_idx2, is_exit)>
+    /// - node_id: the node where both edges connect
+    /// - edge_idx1, edge_idx2: the two edges that should swap anchors
+    /// - is_exit: true if these are exit anchors, false if entry anchors
+    #[allow(dead_code)]
+    fn detect_anchor_swap_candidates<'a>(
+        &self,
+        edges: &'a [LayoutEdge],
+        _ir_edges: &[crate::ir::Edge],
+    ) -> Vec<(&'a str, usize, usize, bool)> {
+        let mut candidates: Vec<(&str, usize, usize, bool)> = Vec::new();
+
+        // Group edges by their source node (exits) and target node (entries)
+        let mut exits_by_node: HashMap<&str, Vec<&LayoutEdge>> = HashMap::new();
+        let mut entries_by_node: HashMap<&str, Vec<&LayoutEdge>> = HashMap::new();
+
+        for edge in edges {
+            if edge.is_self_ref {
+                continue;
+            }
+            exits_by_node.entry(&edge.from).or_default().push(edge);
+            entries_by_node.entry(&edge.to).or_default().push(edge);
+        }
+
+        // Check exits: for each node, find pairs where anchor order differs from route direction
+        for (node_id, node_edges) in &exits_by_node {
+            if node_edges.len() < 2 {
+                continue;
+            }
+
+            // Get anchor X positions and destination X position
+            // We compare anchor order with destination order to detect crossings
+            let mut edge_info: Vec<(usize, f64, f64, &str)> = Vec::new(); // (edge_idx, anchor_x, dest_x, to)
+            for edge in node_edges {
+                if edge.waypoints.len() >= 2 {
+                    let anchor_x = edge.waypoints[0].0;
+                    // Use final destination X position
+                    let dest_x = edge.waypoints.last().unwrap().0;
+                    edge_info.push((edge.edge_index, anchor_x, dest_x, &edge.to));
+                }
+            }
+
+            // Check all pairs
+            for i in 0..edge_info.len() {
+                for j in (i + 1)..edge_info.len() {
+                    let (idx1, anchor1, route1, _) = edge_info[i];
+                    let (idx2, anchor2, route2, _) = edge_info[j];
+
+                    // Skip if anchors are at same position (can't compare order)
+                    if (anchor1 - anchor2).abs() < 1.0 {
+                        continue;
+                    }
+                    // Skip if routes are at same position
+                    if (route1 - route2).abs() < 1.0 {
+                        continue;
+                    }
+
+                    // Check if anchor order differs from route order
+                    let anchor_order = anchor1 < anchor2; // true if edge1 anchor is left of edge2
+                    let route_order = route1 < route2; // true if edge1 routes left of edge2
+
+                    if anchor_order != route_order {
+                        // Swapping would help reduce crossing
+                        candidates.push((node_id, idx1, idx2, true));
+                    }
+                }
+            }
+        }
+
+        // Check entries: similar logic for entry anchors
+        for (node_id, node_edges) in &entries_by_node {
+            if node_edges.len() < 2 {
+                continue;
+            }
+
+            // Get anchor X positions and source X position
+            let mut edge_info: Vec<(usize, f64, f64)> = Vec::new();
+            for edge in node_edges {
+                if edge.waypoints.len() >= 2 {
+                    let anchor_x = edge.waypoints.last().unwrap().0;
+                    // Use source (first waypoint) X position
+                    let source_x = edge.waypoints[0].0;
+                    edge_info.push((edge.edge_index, anchor_x, source_x));
+                }
+            }
+
+            for i in 0..edge_info.len() {
+                for j in (i + 1)..edge_info.len() {
+                    let (idx1, anchor1, source1) = edge_info[i];
+                    let (idx2, anchor2, source2) = edge_info[j];
+
+                    if (anchor1 - anchor2).abs() < 1.0 {
+                        continue;
+                    }
+                    if (source1 - source2).abs() < 1.0 {
+                        continue;
+                    }
+
+                    let anchor_order = anchor1 < anchor2;
+                    let source_order = source1 < source2;
+
+                    if anchor_order != source_order {
+                        candidates.push((node_id, idx1, idx2, false));
+                    }
+                }
+            }
+        }
+
+        candidates
     }
 
     /// Distribute anchor points along a node's horizontal edge

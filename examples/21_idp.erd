@@ -1,0 +1,186 @@
+entity __drizzle_migrations {
+    id int not null
+    hash text not null
+    created_at bigint
+}
+
+entity admin_passkeys {
+    id uuid not null default gen_random_uuid()
+    admin_id uuid not null
+    name charactervarying not null
+    credential_id text not null
+    credential_public_key text not null
+    counter charactervarying not null
+    transports json
+    created_at timestampwithouttimezone not null default now()
+    last_used_at timestampwithouttimezone
+}
+
+entity admins {
+    id uuid not null default gen_random_uuid()
+    email charactervarying not null
+    password_hash charactervarying not null
+    verified boolean not null default false
+    verified_at timestampwithouttimezone
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+    password_failed_count int not null default 0
+    last_password_failed_at timestampwithtimezone
+    password_locked_until timestampwithtimezone
+}
+
+entity audit_logs {
+    id uuid not null default gen_random_uuid()
+    tenant_id uuid
+    user_id uuid
+    admin_id uuid
+    client_app_id uuid
+    event_type charactervarying not null
+    ip_address charactervarying
+    user_agent text
+    metadata json
+    created_at timestampwithtimezone not null default now()
+}
+
+entity auth_methods {
+    id uuid not null default gen_random_uuid()
+    auth_policy_id uuid not null
+    method_type charactervarying not null
+    enabled boolean not null default true
+    priority int not null default 0
+    config json
+    created_at timestampwithouttimezone not null default now()
+}
+
+entity auth_policies {
+    id uuid not null default gen_random_uuid()
+    tenant_id uuid not null
+    description text
+    password_min_length int not null default 8
+    password_max_length int not null default 128
+    password_require_uppercase boolean not null default false
+    password_require_lowercase boolean not null default false
+    password_require_numbers boolean not null default false
+    password_require_special boolean not null default false
+    token_access_ttl int not null default 3600
+    token_refresh_ttl int not null default 604800
+    token_rotation_enabled boolean not null default true
+    security_max_login_attempts int not null default 5
+    security_lockout_duration int not null default 900
+    security_email_verification_required boolean not null default true
+    security_mfa_required boolean not null default false
+    registration_self_allowed boolean not null default true
+    registration_invite_only boolean not null default false
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+    user_identifier_type charactervarying not null default email
+}
+
+entity client_app_redirect_uris {
+    id uuid not null default gen_random_uuid()
+    client_app_id uuid not null
+    uri charactervarying not null
+    created_at timestampwithouttimezone not null default now()
+}
+
+entity client_apps {
+    id uuid not null default gen_random_uuid()
+    tenant_id uuid not null
+    name charactervarying not null
+    client_id charactervarying not null
+    client_secret charactervarying not null
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+    description text
+    default_redirect_uri charactervarying not null
+    callback_uri charactervarying not null
+}
+
+entity tenants {
+    id uuid not null default gen_random_uuid()
+    name charactervarying not null
+    description text
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+}
+
+entity user_emails {
+    id uuid not null default gen_random_uuid()
+    user_id uuid not null
+    email charactervarying not null
+    verified boolean not null default false
+    verified_at timestampwithtimezone
+    created_at timestampwithouttimezone not null default now()
+}
+
+entity user_passkeys {
+    id uuid not null default gen_random_uuid()
+    user_id uuid not null
+    name charactervarying not null
+    credential_id text not null
+    credential_public_key text not null
+    counter charactervarying not null
+    transports json
+    created_at timestampwithouttimezone not null default now()
+    last_used_at timestampwithouttimezone
+}
+
+entity user_passwords {
+    id uuid not null default gen_random_uuid()
+    user_id uuid not null
+    password_hash charactervarying not null
+    password_failed_count int not null default 0
+    last_password_failed_at timestampwithtimezone
+    password_locked_until timestampwithtimezone
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+}
+
+entity user_refresh_tokens {
+    id uuid not null default gen_random_uuid()
+    user_id uuid not null
+    tenant_id uuid not null
+    client_app_id uuid not null
+    token_hash charactervarying not null
+    expires_at timestampwithtimezone not null
+    revoked_at timestampwithtimezone
+    created_at timestampwithtimezone not null default now()
+}
+
+entity users {
+    id uuid not null default gen_random_uuid()
+    tenant_id uuid not null
+    metadata json
+    created_at timestampwithouttimezone not null default now()
+    updated_at timestampwithouttimezone not null default now()
+    disabled_at timestampwithtimezone
+    deleted_at timestampwithtimezone
+    identifier charactervarying not null
+    username charactervarying
+}
+
+rel {
+    admins 1 -- * admin_passkeys
+    admins 1 -- * audit_logs
+    client_apps 1 -- * audit_logs
+    tenants 1 -- * audit_logs
+    users 1 -- * audit_logs
+    auth_policies 1 -- * auth_methods
+    tenants 1 -- * auth_policies
+    client_apps 1 -- * client_app_redirect_uris
+    tenants 1 -- * client_apps
+    users 1 -- * user_emails
+    users 1 -- * user_passkeys
+    users 1 -- * user_passwords
+    client_apps 1 -- * user_refresh_tokens
+    tenants 1 -- * user_refresh_tokens
+    users 1 -- * user_refresh_tokens
+    tenants 1 -- * users
+}
+
+@hint.arrangement = {
+    __drizzle_migrations admins audit_logs tenants
+    admin_passkeys auth_policies client_apps users
+    auth_methods client_app_redirect_uris
+    user_refresh_tokens user_emails user_passkeys user_passwords
+}
