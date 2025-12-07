@@ -555,10 +555,25 @@ impl LayoutEngine {
                                 };
                                 match dist_cmp {
                                     std::cmp::Ordering::Equal => {
-                                        // Sort by destination X to avoid crossings
+                                        // Sort by destination X relative to source position
+                                        // Edges going to nodes on the same side as source should use outer lanes
                                         let to_x_a = get_to_x(edge_a);
                                         let to_x_b = get_to_x(edge_b);
-                                        to_x_a.partial_cmp(&to_x_b).unwrap_or(std::cmp::Ordering::Equal)
+                                        let from_x_a = node_positions
+                                            .get(edge_a.from.as_str())
+                                            .map(|n| n.x + n.width / 2.0)
+                                            .unwrap_or(0.0);
+
+                                        // If source is on the right side, sort descending (right dest = outer lane = higher number)
+                                        // If source is on the left side, sort ascending (left dest = outer lane = higher number)
+                                        let avg_to_x = (to_x_a + to_x_b) / 2.0;
+                                        if from_x_a > avg_to_x {
+                                            // Source is right of destinations: right dest should be outer (higher lane)
+                                            to_x_b.partial_cmp(&to_x_a).unwrap_or(std::cmp::Ordering::Equal)
+                                        } else {
+                                            // Source is left of destinations: left dest should be outer (higher lane)
+                                            to_x_a.partial_cmp(&to_x_b).unwrap_or(std::cmp::Ordering::Equal)
+                                        }
                                     }
                                     ord => ord,
                                 }
@@ -745,6 +760,97 @@ impl LayoutEngine {
             }
         }
 
+        // Pre-calculate safe corridor assignments for multi-level edges
+        // Key: edge_idx, Value: (corridor_x, lane, total_lanes)
+        let mut multi_level_corridor_x: HashMap<usize, f64> = HashMap::new();
+        {
+            // Group multi-level edges by their safe corridor
+            // Key: (min_level, max_level, corridor_index), Value: list of edge indices
+            let mut corridor_groups: HashMap<(i64, i64, usize), Vec<usize>> = HashMap::new();
+
+            for (idx, edge) in ir.edges.iter().enumerate() {
+                if edge.from == edge.to {
+                    continue;
+                }
+                let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+                let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+
+                // Only multi-level edges (spanning more than 1 level)
+                if (to_level - from_level).abs() <= 1 {
+                    continue;
+                }
+
+                let min_level = from_level.min(to_level);
+                let max_level = from_level.max(to_level);
+
+                // Find safe corridors for this edge
+                let safe_corridors = self.find_safe_corridor_x(&layout_nodes, &levels, min_level, max_level);
+
+                // Choose the best corridor (closest to midpoint of from and to)
+                let from_node = match node_positions.get(edge.from.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                let to_node = match node_positions.get(edge.to.as_str()) {
+                    Some(n) => n,
+                    None => continue,
+                };
+                let target_x = (from_node.x + from_node.width / 2.0 + to_node.x + to_node.width / 2.0) / 2.0;
+
+                let best_corridor_idx = safe_corridors
+                    .iter()
+                    .enumerate()
+                    .min_by(|(_, a), (_, b)| {
+                        let center_a = (a.0 + a.1.min(5000.0)) / 2.0;
+                        let center_b = (b.0 + b.1.min(5000.0)) / 2.0;
+                        let dist_a = (center_a - target_x).abs();
+                        let dist_b = (center_b - target_x).abs();
+                        dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+
+                corridor_groups
+                    .entry((min_level, max_level, best_corridor_idx))
+                    .or_default()
+                    .push(idx);
+            }
+
+            // Assign lanes within each corridor group
+            for ((min_level, max_level, corridor_idx), edge_indices) in &corridor_groups {
+                let safe_corridors = self.find_safe_corridor_x(&layout_nodes, &levels, *min_level, *max_level);
+                let (corridor_left, corridor_right) = safe_corridors
+                    .get(*corridor_idx)
+                    .copied()
+                    .unwrap_or((40.0, 200.0));
+
+                let total_lanes = edge_indices.len();
+                let corridor_center = (corridor_left + corridor_right) / 2.0;
+
+                // Sort edges by from_cx for consistent lane assignment
+                let mut edges_sorted: Vec<(usize, f64)> = edge_indices
+                    .iter()
+                    .filter_map(|&idx| {
+                        let edge = &ir.edges[idx];
+                        let from_node = node_positions.get(edge.from.as_str())?;
+                        Some((idx, from_node.x + from_node.width / 2.0))
+                    })
+                    .collect();
+                edges_sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                // Assign corridor X for each edge
+                for (lane, (edge_idx, _)) in edges_sorted.iter().enumerate() {
+                    let lane_offset = if total_lanes > 1 {
+                        (lane as f64 - (total_lanes - 1) as f64 / 2.0) * self.lane_spacing
+                    } else {
+                        0.0
+                    };
+                    let corridor_x = corridor_center + lane_offset;
+                    multi_level_corridor_x.insert(*edge_idx, corridor_x);
+                }
+            }
+        }
+
         // Calculate orthogonal paths for each edge
         let layout_edges: Vec<LayoutEdge> = ir
             .edges
@@ -836,19 +942,34 @@ impl LayoutEngine {
                                 ]
                             }
                         } else {
-                            // Non-adjacent same-level: route ABOVE the level (separate from inter-level channel)
+                            // Non-adjacent same-level: need to route around intermediate entities
+                            // Use a corridor between from and to nodes
                             let same_level_lane = *same_level_lane_assignments.get(&idx).unwrap_or(&0);
-                            // Lane 0 is closest to entity, higher lanes go further up
                             let same_level_lane_offset = same_level_lane as f64 * self.lane_spacing;
 
-                            let min_top = from_node.y.min(to_node.y);
-                            let ch_y = min_top - self.entity_margin - same_level_lane_offset;
+                            // Find a corridor between from and to
+                            let from_order = node_order.get(edge.from.as_str()).copied().unwrap_or(0);
+                            let to_order = node_order.get(edge.to.as_str()).copied().unwrap_or(0);
+                            let corridor_gap = if from_order < to_order {
+                                from_order + 1  // Right of from
+                            } else {
+                                to_order + 1    // Right of to
+                            };
+
+                            // Get corridor X from the actual gap position at this level
+                            let corridor_x = self.find_gap_center_x(&layout_nodes, &levels, from_level, corridor_gap)
+                                + same_level_lane_offset;
+
+                            // Use the channel below this level
+                            let ch_y = *channel_y.get(&from_level)
+                                .unwrap_or(&(from_node.y + from_node.height + self.channel_gap / 2.0));
 
                             vec![
-                                (from_cx, from_node.y),
+                                (from_cx, from_node.y + from_node.height),
                                 (from_cx, ch_y),
-                                (to_cx, ch_y),
-                                (to_cx, to_node.y),
+                                (corridor_x, ch_y),
+                                (corridor_x, to_node.y + to_node.height),
+                                (to_cx, to_node.y + to_node.height),
                             ]
                         }
                     } else {
@@ -908,40 +1029,23 @@ impl LayoutEngine {
                                 }
                             }
                         } else {
-                            // Multi-level edge: route through intermediate channels
-                            // Use the pre-calculated gap index for this edge
-                            let gap_index = edge_gap_index.get(&idx).copied().unwrap_or(0);
-
-                            // Get lane assignment for this edge in this corridor
-                            let corridor_lane = corridor_lane_assignments
-                                .get(&(gap_index, idx))
+                            // Multi-level edge: use pre-calculated corridor X
+                            let corridor_x = multi_level_corridor_x
+                                .get(&idx)
                                 .copied()
-                                .unwrap_or(0);
-
-                            // Get total edges in this corridor for centering
-                            let total_in_corridor = corridor_total_edges
-                                .get(&gap_index)
-                                .copied()
-                                .unwrap_or(1)
-                                .max(1);
-
-                            // Calculate base corridor X using the gap_index
-                            // Use the SOURCE level for gap calculation since gap_index is based on source node's order
-                            let base_corridor_x = self.find_gap_center_x(
-                                &layout_nodes,
-                                &levels,
-                                from_level,
-                                gap_index,
-                            );
-
-                            // Calculate lane offset within corridor
-                            let corridor_lane_offset = if total_in_corridor > 1 {
-                                (corridor_lane as f64 - (total_in_corridor - 1) as f64 / 2.0) * self.lane_spacing
-                            } else {
-                                0.0
-                            };
-
-                            let corridor_x = base_corridor_x + corridor_lane_offset;
+                                .unwrap_or_else(|| {
+                                    // Fallback: calculate on the fly
+                                    let safe_corridors = self.find_safe_corridor_x(
+                                        &layout_nodes,
+                                        &levels,
+                                        min_level,
+                                        max_level,
+                                    );
+                                    safe_corridors
+                                        .first()
+                                        .map(|(l, r)| (l + r) / 2.0)
+                                        .unwrap_or(100.0)
+                                });
 
                             // Helper to get lane offset for a specific channel
                             let get_channel_lane_offset = |ch_level: i64| -> f64 {
@@ -1242,6 +1346,82 @@ impl LayoutEngine {
             let offset = (position as f64 - (total - 1) as f64 / 2.0) * self.anchor_spacing;
             cx + offset
         }
+    }
+
+    /// Find a corridor X position that doesn't intersect any entity across all levels from min_level to max_level.
+    /// Returns the center X of the safe corridor.
+    fn find_safe_corridor_x(
+        &self,
+        layout_nodes: &[LayoutNode],
+        levels: &HashMap<i64, Vec<&Node>>,
+        min_level: i64,
+        max_level: i64,
+    ) -> Vec<(f64, f64)> {
+        // Build a lookup from node id to layout position
+        let node_positions: HashMap<&str, &LayoutNode> = layout_nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n))
+            .collect();
+
+        // Collect all entity boundaries across all levels between min_level and max_level (exclusive)
+        // We only need to avoid entities at intermediate levels
+        let mut all_boundaries: Vec<(f64, f64)> = Vec::new();
+
+        for level in (min_level + 1)..max_level {
+            if let Some(nodes_at_level) = levels.get(&level) {
+                for node in nodes_at_level {
+                    if let Some(layout_node) = node_positions.get(node.id.as_str()) {
+                        all_boundaries.push((layout_node.x - self.entity_margin, layout_node.x + layout_node.width + self.entity_margin));
+                    }
+                }
+            }
+        }
+
+        // Sort boundaries by left edge
+        all_boundaries.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Merge overlapping boundaries
+        let mut merged: Vec<(f64, f64)> = Vec::new();
+        for (left, right) in all_boundaries {
+            if let Some(last) = merged.last_mut() {
+                if left <= last.1 {
+                    last.1 = last.1.max(right);
+                } else {
+                    merged.push((left, right));
+                }
+            } else {
+                merged.push((left, right));
+            }
+        }
+
+        // Find gaps between merged boundaries
+        let mut gaps: Vec<(f64, f64)> = Vec::new();
+
+        // Gap before first entity
+        if let Some(&(first_left, _)) = merged.first() {
+            if first_left > 40.0 {
+                gaps.push((40.0, first_left));
+            }
+        } else {
+            // No entities at intermediate levels - entire width is available
+            gaps.push((40.0, 10000.0));
+        }
+
+        // Gaps between entities
+        for i in 0..merged.len().saturating_sub(1) {
+            let gap_left = merged[i].1;
+            let gap_right = merged[i + 1].0;
+            if gap_right > gap_left {
+                gaps.push((gap_left, gap_right));
+            }
+        }
+
+        // Gap after last entity
+        if let Some(&(_, last_right)) = merged.last() {
+            gaps.push((last_right, 10000.0));
+        }
+
+        gaps
     }
 
     /// Find the center X coordinate of a specific gap at a given level.
