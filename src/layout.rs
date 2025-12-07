@@ -242,7 +242,9 @@ impl LayoutEngine {
 
         for (i, &level) in level_keys.iter().enumerate() {
             let nodes_in_level = &levels[&level];
-            let mut x: f64 = 40.0;
+            // Start X: margin + extra gap for gap_index 0 (left of first node)
+            let gap0_extra = *gap_extra_width.get(&0).unwrap_or(&0.0);
+            let mut x: f64 = 40.0 + gap0_extra;
             let mut max_height: f64 = 0.0;
 
             for (node_idx, node) in nodes_in_level.iter().enumerate() {
@@ -255,9 +257,10 @@ impl LayoutEngine {
                     height: h,
                 });
 
-                // Calculate gap after this node
-                // gap_index is global (applies to all levels at same horizontal position)
-                let extra_gap = *gap_extra_width.get(&node_idx).unwrap_or(&0.0);
+                // Calculate gap after this node (gap_index = node_idx + 1)
+                // gap_index 0 = before first node, gap_index 1 = after first node, etc.
+                let next_gap_idx = node_idx + 1;
+                let extra_gap = *gap_extra_width.get(&next_gap_idx).unwrap_or(&0.0);
                 let effective_gap_x = self.node_gap_x + extra_gap;
 
                 x += w + effective_gap_x;
@@ -731,6 +734,9 @@ impl LayoutEngine {
             })
             .collect();
 
+        // Debug: Detect edge crossings (orthogonal intersections)
+        self.detect_crossings(&layout_edges);
+
         Layout {
             nodes: layout_nodes,
             edges: layout_edges,
@@ -738,6 +744,75 @@ impl LayoutEngine {
             height: total_height,
             channel_gap: self.channel_gap,
             corner_radius: self.corner_radius,
+        }
+    }
+
+    /// Detect and log edge crossings (where a horizontal segment crosses a vertical segment)
+    fn detect_crossings(&self, edges: &[LayoutEdge]) {
+        // Extract horizontal and vertical segments from each edge
+        // Segment: ((x1, y1), (x2, y2), edge_index, segment_index)
+        let mut h_segments: Vec<(f64, f64, f64, usize, &str, &str)> = Vec::new(); // (y, x_min, x_max, edge_idx, from, to)
+        let mut v_segments: Vec<(f64, f64, f64, usize, &str, &str)> = Vec::new(); // (x, y_min, y_max, edge_idx, from, to)
+
+        for edge in edges {
+            if edge.is_self_ref {
+                continue;
+            }
+            let waypoints = &edge.waypoints;
+            for i in 0..waypoints.len().saturating_sub(1) {
+                let (x1, y1) = waypoints[i];
+                let (x2, y2) = waypoints[i + 1];
+
+                if (y1 - y2).abs() < 0.1 {
+                    // Horizontal segment
+                    let x_min = x1.min(x2);
+                    let x_max = x1.max(x2);
+                    if x_max - x_min > 1.0 {
+                        h_segments.push((y1, x_min, x_max, edge.edge_index, &edge.from, &edge.to));
+                    }
+                } else if (x1 - x2).abs() < 0.1 {
+                    // Vertical segment
+                    let y_min = y1.min(y2);
+                    let y_max = y1.max(y2);
+                    if y_max - y_min > 1.0 {
+                        v_segments.push((x1, y_min, y_max, edge.edge_index, &edge.from, &edge.to));
+                    }
+                }
+            }
+        }
+
+        // Check all pairs of horizontal and vertical segments for crossings
+        let mut crossings: Vec<(usize, usize, &str, &str, &str, &str)> = Vec::new();
+
+        for &(h_y, h_x_min, h_x_max, h_idx, h_from, h_to) in &h_segments {
+            for &(v_x, v_y_min, v_y_max, v_idx, v_from, v_to) in &v_segments {
+                // Skip if same edge
+                if h_idx == v_idx {
+                    continue;
+                }
+
+                // Check if they cross
+                // v_x must be within h_x range (exclusive of endpoints)
+                // h_y must be within v_y range (exclusive of endpoints)
+                let margin = 1.0;
+                if v_x > h_x_min + margin && v_x < h_x_max - margin
+                    && h_y > v_y_min + margin && h_y < v_y_max - margin
+                {
+                    // Avoid duplicate pairs
+                    if h_idx < v_idx {
+                        crossings.push((h_idx, v_idx, h_from, h_to, v_from, v_to));
+                    }
+                }
+            }
+        }
+
+        // Log crossings
+        if !crossings.is_empty() {
+            eprintln!("[DEBUG] Edge crossings detected: {} total", crossings.len());
+            for (idx1, idx2, from1, to1, from2, to2) in &crossings {
+                eprintln!("  Cross: edge[{}] ({}->{}) x edge[{}] ({}->{})",
+                    idx1, from1, to1, idx2, from2, to2);
+            }
         }
     }
 
