@@ -451,31 +451,114 @@ impl LayoutEngine {
                             ]
                         }
                     } else {
-                        // Different levels: route through channel between levels
-                        let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
-                            (from_node, to_node, from_cx, to_cx)
-                        } else {
-                            (to_node, from_node, to_cx, from_cx)
-                        };
+                        // Different levels: route through channels between levels
+                        // For multi-level edges, we need to route through each intermediate channel
+                        let min_level = from_level.min(to_level);
+                        let max_level = from_level.max(to_level);
+                        let going_down = to_level > from_level;
 
-                        let ch_y = *channel_y.get(&from_level.min(to_level))
-                            .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
-                            + lane_offset;
+                        if max_level - min_level == 1 {
+                            // Adjacent levels: simple routing through single channel
+                            let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
+                                (from_node, to_node, from_cx, to_cx)
+                            } else {
+                                (to_node, from_node, to_cx, from_cx)
+                            };
 
-                        if from_level < to_level {
-                            vec![
-                                (upper_cx, upper_node.y + upper_node.height),
-                                (upper_cx, ch_y),
-                                (lower_cx, ch_y),
-                                (lower_cx, lower_node.y),
-                            ]
+                            let ch_y = *channel_y.get(&min_level)
+                                .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
+                                + lane_offset;
+
+                            if going_down {
+                                vec![
+                                    (upper_cx, upper_node.y + upper_node.height),
+                                    (upper_cx, ch_y),
+                                    (lower_cx, ch_y),
+                                    (lower_cx, lower_node.y),
+                                ]
+                            } else {
+                                vec![
+                                    (lower_cx, lower_node.y + lower_node.height),
+                                    (lower_cx, ch_y),
+                                    (upper_cx, ch_y),
+                                    (upper_cx, upper_node.y),
+                                ]
+                            }
                         } else {
-                            vec![
-                                (lower_cx, lower_node.y + lower_node.height),
-                                (lower_cx, ch_y),
-                                (upper_cx, ch_y),
-                                (upper_cx, upper_node.y),
-                            ]
+                            // Multi-level edge: route through intermediate channels
+                            // Find a clear vertical corridor between entities
+                            let corridor_x = self.find_corridor_x(
+                                &layout_nodes,
+                                &levels,
+                                &level_keys,
+                                min_level,
+                                max_level,
+                                from_cx,
+                                to_cx,
+                            );
+
+                            let mut waypoints = Vec::new();
+
+                            if going_down {
+                                // Start from source (upper)
+                                waypoints.push((from_cx, from_node.y + from_node.height));
+
+                                // First channel: move to corridor
+                                let first_ch_y = *channel_y.get(&from_level)
+                                    .unwrap_or(&(from_node.y + from_node.height + self.channel_gap / 2.0))
+                                    + lane_offset;
+                                waypoints.push((from_cx, first_ch_y));
+                                waypoints.push((corridor_x, first_ch_y));
+
+                                // Go down through intermediate channels
+                                for level in (from_level + 1)..to_level {
+                                    let ch_y = *channel_y.get(&level)
+                                        .unwrap_or(&(first_ch_y + self.channel_gap))
+                                        + lane_offset;
+                                    waypoints.push((corridor_x, ch_y));
+                                }
+
+                                // Last channel: move to destination
+                                let last_ch_y = *channel_y.get(&(to_level - 1))
+                                    .unwrap_or(&(to_node.y - self.channel_gap / 2.0))
+                                    + lane_offset;
+                                // Only add if different from last point
+                                if waypoints.last().map(|(_, y)| *y) != Some(last_ch_y) {
+                                    waypoints.push((corridor_x, last_ch_y));
+                                }
+                                waypoints.push((to_cx, last_ch_y));
+                                waypoints.push((to_cx, to_node.y));
+                            } else {
+                                // Going up: start from source (lower)
+                                waypoints.push((from_cx, from_node.y));
+
+                                // First channel (above source)
+                                let first_ch_y = *channel_y.get(&(from_level - 1))
+                                    .unwrap_or(&(from_node.y - self.channel_gap / 2.0))
+                                    + lane_offset;
+                                waypoints.push((from_cx, first_ch_y));
+                                waypoints.push((corridor_x, first_ch_y));
+
+                                // Go up through intermediate channels
+                                for level in (to_level..(from_level - 1)).rev() {
+                                    let ch_y = *channel_y.get(&level)
+                                        .unwrap_or(&(first_ch_y - self.channel_gap))
+                                        + lane_offset;
+                                    waypoints.push((corridor_x, ch_y));
+                                }
+
+                                // Last channel: move to destination
+                                let last_ch_y = *channel_y.get(&to_level)
+                                    .unwrap_or(&(to_node.y + to_node.height + self.channel_gap / 2.0))
+                                    + lane_offset;
+                                if waypoints.last().map(|(_, y)| *y) != Some(last_ch_y) {
+                                    waypoints.push((corridor_x, last_ch_y));
+                                }
+                                waypoints.push((to_cx, last_ch_y));
+                                waypoints.push((to_cx, to_node.y + to_node.height));
+                            }
+
+                            waypoints
                         }
                     };
 
@@ -509,6 +592,124 @@ impl LayoutEngine {
             let offset = (position as f64 - (total - 1) as f64 / 2.0) * self.anchor_spacing;
             cx + offset
         }
+    }
+
+    /// Find a clear vertical corridor X position that passes between entities
+    /// in intermediate levels (min_level+1 to max_level-1).
+    fn find_corridor_x(
+        &self,
+        layout_nodes: &[LayoutNode],
+        levels: &HashMap<i64, Vec<&Node>>,
+        level_keys: &[i64],
+        min_level: i64,
+        max_level: i64,
+        from_x: f64,
+        to_x: f64,
+    ) -> f64 {
+        // Collect all entity boundaries in intermediate levels
+        let mut blocked_ranges: Vec<(f64, f64)> = Vec::new();
+
+        // Get layout node positions for intermediate levels
+        let node_positions: HashMap<&str, &LayoutNode> = layout_nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n))
+            .collect();
+
+        for &level in level_keys {
+            if level <= min_level || level >= max_level {
+                continue;
+            }
+            if let Some(nodes) = levels.get(&level) {
+                for node in nodes {
+                    if let Some(layout_node) = node_positions.get(node.id.as_str()) {
+                        // Add margin around each entity
+                        let left = layout_node.x - self.entity_margin;
+                        let right = layout_node.x + layout_node.width + self.entity_margin;
+                        blocked_ranges.push((left, right));
+                    }
+                }
+            }
+        }
+
+        if blocked_ranges.is_empty() {
+            // No intermediate entities, use midpoint
+            return (from_x + to_x) / 2.0;
+        }
+
+        // Sort blocked ranges by left edge
+        blocked_ranges.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Merge overlapping ranges
+        let mut merged: Vec<(f64, f64)> = Vec::new();
+        for (left, right) in blocked_ranges {
+            if let Some(last) = merged.last_mut() {
+                if left <= last.1 {
+                    last.1 = last.1.max(right);
+                } else {
+                    merged.push((left, right));
+                }
+            } else {
+                merged.push((left, right));
+            }
+        }
+
+        // Find gaps between blocked ranges
+        let mut gaps: Vec<(f64, f64)> = Vec::new();
+
+        // Gap before first blocked range (from left edge of diagram)
+        if let Some(&(first_left, _)) = merged.first() {
+            if first_left > 0.0 {
+                gaps.push((0.0, first_left));
+            }
+        }
+
+        // Gaps between blocked ranges
+        for i in 0..merged.len().saturating_sub(1) {
+            let gap_left = merged[i].1;
+            let gap_right = merged[i + 1].0;
+            if gap_right > gap_left {
+                gaps.push((gap_left, gap_right));
+            }
+        }
+
+        // Gap after last blocked range (to right edge)
+        if let Some(&(_, last_right)) = merged.last() {
+            gaps.push((last_right, f64::MAX));
+        }
+
+        // Find the best gap - prefer one that's closest to the midpoint of from_x and to_x
+        let target_x = (from_x + to_x) / 2.0;
+
+        let mut best_x = target_x;
+        let mut best_distance = f64::MAX;
+
+        for (gap_left, gap_right) in gaps {
+            // Find the point in this gap closest to target_x
+            let gap_center = (gap_left + gap_right.min(10000.0)) / 2.0;
+            let closest_in_gap = target_x.max(gap_left + self.lane_spacing).min(gap_right - self.lane_spacing);
+
+            // If target is within the gap, use it directly
+            if target_x >= gap_left + self.lane_spacing && target_x <= gap_right - self.lane_spacing {
+                return target_x;
+            }
+
+            let distance = (closest_in_gap - target_x).abs();
+            if distance < best_distance {
+                best_distance = distance;
+                best_x = closest_in_gap;
+            }
+
+            // Also consider gap center as a candidate
+            if gap_right < f64::MAX {
+                let center_distance = (gap_center - target_x).abs();
+                if center_distance < best_distance {
+                    best_distance = center_distance;
+                    best_x = gap_center;
+                }
+            }
+        }
+
+        best_x
     }
 }
 
