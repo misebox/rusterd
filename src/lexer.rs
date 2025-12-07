@@ -23,6 +23,7 @@ pub enum Token {
     Arrow,    // ->
     Dash,     // --
     DotDot,   // ..
+    Newline,  // \n (preserved in certain contexts)
 
     Eof,
 }
@@ -39,18 +40,29 @@ pub enum LexError {
 
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
+    preserve_newlines: bool,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             chars: input.chars().peekable(),
+            preserve_newlines: false,
         }
+    }
+
+    /// Enable newline preservation (for arrangement blocks).
+    pub fn set_preserve_newlines(&mut self, preserve: bool) {
+        self.preserve_newlines = preserve;
     }
 
     fn skip_whitespace_and_comments(&mut self) {
         loop {
             match self.chars.peek() {
+                Some('\n') if self.preserve_newlines => {
+                    // Don't skip newlines when preserving
+                    break;
+                }
                 Some(c) if c.is_whitespace() => {
                     self.chars.next();
                 }
@@ -123,6 +135,7 @@ impl<'a> Lexer<'a> {
         };
 
         let tok = match c {
+            '\n' if self.preserve_newlines => Token::Newline,
             '{' => Token::LBrace,
             '}' => Token::RBrace,
             '(' => Token::LParen,
