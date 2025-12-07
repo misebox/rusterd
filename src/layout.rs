@@ -466,6 +466,98 @@ impl LayoutEngine {
             }
         }
 
+        // Optimize lane assignments to reduce crossings
+        // Two edges cross twice if they share a channel AND a corridor,
+        // AND their relative order is OPPOSITE in the channel vs corridor.
+        // (If same order in both, they don't cross; if opposite order, they cross twice)
+        // To fix: swap their lanes in ONE of the two (channel or corridor)
+        {
+            // Build reverse lookup: edge_idx -> list of channels it passes through
+            let mut edge_channels: HashMap<usize, Vec<i64>> = HashMap::new();
+            for (&(channel, edge_idx), _) in &channel_lane_assignments {
+                edge_channels.entry(edge_idx).or_default().push(channel);
+            }
+
+            // Build reverse lookup: edge_idx -> corridor gap_index (if multi-level)
+            let mut edge_corridor: HashMap<usize, usize> = HashMap::new();
+            for (&(gap_idx, edge_idx), _) in &corridor_lane_assignments {
+                edge_corridor.insert(edge_idx, gap_idx);
+            }
+
+            // Find pairs that share both channel(s) and corridor with OPPOSITE relative order
+            let mut swap_candidates: Vec<(usize, usize, i64)> = Vec::new(); // (edge1, edge2, shared_channel)
+
+            let edge_indices: Vec<usize> = edge_channels.keys().copied().collect();
+            for i in 0..edge_indices.len() {
+                for j in (i + 1)..edge_indices.len() {
+                    let e1 = edge_indices[i];
+                    let e2 = edge_indices[j];
+
+                    // Check if both are in the same corridor
+                    let gap1 = edge_corridor.get(&e1);
+                    let gap2 = edge_corridor.get(&e2);
+                    if gap1.is_none() || gap2.is_none() || gap1 != gap2 {
+                        continue;
+                    }
+                    let gap_idx = *gap1.unwrap();
+
+                    // Get corridor lanes
+                    let corridor_lane1 = corridor_lane_assignments.get(&(gap_idx, e1)).copied();
+                    let corridor_lane2 = corridor_lane_assignments.get(&(gap_idx, e2)).copied();
+                    if corridor_lane1.is_none() || corridor_lane2.is_none() {
+                        continue;
+                    }
+                    let cl1 = corridor_lane1.unwrap();
+                    let cl2 = corridor_lane2.unwrap();
+                    // Corridor order: e1 < e2 in corridor if cl1 < cl2
+                    let e1_before_e2_in_corridor = cl1 < cl2;
+
+                    // Check if they share any channel with OPPOSITE relative order
+                    let channels1 = edge_channels.get(&e1).map(|v| v.as_slice()).unwrap_or(&[]);
+                    let channels2 = edge_channels.get(&e2).map(|v| v.as_slice()).unwrap_or(&[]);
+
+                    for &ch in channels1 {
+                        if channels2.contains(&ch) {
+                            // Get channel lanes
+                            let ch_lane1 = channel_lane_assignments.get(&(ch, e1)).copied();
+                            let ch_lane2 = channel_lane_assignments.get(&(ch, e2)).copied();
+                            if let (Some(chl1), Some(chl2)) = (ch_lane1, ch_lane2) {
+                                let e1_before_e2_in_channel = chl1 < chl2;
+
+                                // If orders are OPPOSITE, they will cross twice
+                                if e1_before_e2_in_corridor != e1_before_e2_in_channel {
+                                    swap_candidates.push((e1, e2, ch));
+                                    break; // One shared channel is enough
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // For each candidate pair, swap their channel lanes
+            // Track which edges have been swapped to avoid undoing swaps
+            let mut swapped_edges: std::collections::HashSet<usize> = std::collections::HashSet::new();
+
+            for &(e1, e2, channel) in &swap_candidates {
+                // Skip if either edge has already been involved in a swap
+                if swapped_edges.contains(&e1) || swapped_edges.contains(&e2) {
+                    continue;
+                }
+
+                let lane1 = channel_lane_assignments.get(&(channel, e1)).copied();
+                let lane2 = channel_lane_assignments.get(&(channel, e2)).copied();
+
+                if let (Some(l1), Some(l2)) = (lane1, lane2) {
+                    // Swap lanes in the channel to match corridor order
+                    channel_lane_assignments.insert((channel, e1), l2);
+                    channel_lane_assignments.insert((channel, e2), l1);
+                    swapped_edges.insert(e1);
+                    swapped_edges.insert(e2);
+                }
+            }
+        }
+
         // Calculate orthogonal paths for each edge
         let layout_edges: Vec<LayoutEdge> = ir
             .edges
@@ -735,7 +827,7 @@ impl LayoutEngine {
             .collect();
 
         // Debug: Detect edge crossings (orthogonal intersections)
-        self.detect_crossings(&layout_edges);
+        let _twice_crossing_pairs = self.detect_crossings(&layout_edges);
 
         Layout {
             nodes: layout_nodes,
@@ -747,8 +839,9 @@ impl LayoutEngine {
         }
     }
 
-    /// Detect and log edge crossings (where a horizontal segment crosses a vertical segment)
-    fn detect_crossings(&self, edges: &[LayoutEdge]) {
+    /// Detect edge crossings and return pairs that cross exactly 2 times
+    /// Returns: Vec<(edge_idx1, edge_idx2)> - pairs that cross exactly twice
+    fn detect_crossings(&self, edges: &[LayoutEdge]) -> Vec<(usize, usize)> {
         // Extract horizontal and vertical segments from each edge
         // Segment: ((x1, y1), (x2, y2), edge_index, segment_index)
         let mut h_segments: Vec<(f64, f64, f64, usize, &str, &str)> = Vec::new(); // (y, x_min, x_max, edge_idx, from, to)
@@ -782,10 +875,11 @@ impl LayoutEngine {
         }
 
         // Check all pairs of horizontal and vertical segments for crossings
-        let mut crossings: Vec<(usize, usize, &str, &str, &str, &str)> = Vec::new();
+        // Count crossings per edge pair: ((edge1, edge2), count)
+        let mut crossing_counts: HashMap<(usize, usize), usize> = HashMap::new();
 
-        for &(h_y, h_x_min, h_x_max, h_idx, h_from, h_to) in &h_segments {
-            for &(v_x, v_y_min, v_y_max, v_idx, v_from, v_to) in &v_segments {
+        for &(h_y, h_x_min, h_x_max, h_idx, _, _) in &h_segments {
+            for &(v_x, v_y_min, v_y_max, v_idx, _, _) in &v_segments {
                 // Skip if same edge
                 if h_idx == v_idx {
                     continue;
@@ -798,22 +892,23 @@ impl LayoutEngine {
                 if v_x > h_x_min + margin && v_x < h_x_max - margin
                     && h_y > v_y_min + margin && h_y < v_y_max - margin
                 {
-                    // Avoid duplicate pairs
-                    if h_idx < v_idx {
-                        crossings.push((h_idx, v_idx, h_from, h_to, v_from, v_to));
-                    }
+                    // Normalize pair order for consistent counting
+                    let pair = if h_idx < v_idx {
+                        (h_idx, v_idx)
+                    } else {
+                        (v_idx, h_idx)
+                    };
+                    *crossing_counts.entry(pair).or_insert(0) += 1;
                 }
             }
         }
 
-        // Log crossings
-        if !crossings.is_empty() {
-            eprintln!("[DEBUG] Edge crossings detected: {} total", crossings.len());
-            for (idx1, idx2, from1, to1, from2, to2) in &crossings {
-                eprintln!("  Cross: edge[{}] ({}->{}) x edge[{}] ({}->{})",
-                    idx1, from1, to1, idx2, from2, to2);
-            }
-        }
+        // Return pairs that cross an even number of times (candidates for lane swap optimization)
+        crossing_counts
+            .into_iter()
+            .filter(|(_, count)| *count % 2 == 0)
+            .map(|((idx1, idx2), _)| (idx1, idx2))
+            .collect()
     }
 
     /// Distribute anchor points along a node's horizontal edge
