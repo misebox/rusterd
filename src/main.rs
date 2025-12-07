@@ -6,7 +6,7 @@ use rusterd::sql::{parse_sql, Dialect};
 use rusterd::svg::SvgRenderer;
 use std::env;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::process;
 
 fn read_input(path: &str) -> Result<String, String> {
@@ -143,7 +143,14 @@ fn run_render(program: &str, args: &[String]) {
                 process::exit(1);
             }
         }
-        None => print!("{}", svg),
+        None => {
+            if let Err(e) = io::stdout().write_all(svg.as_bytes()) {
+                if e.kind() != io::ErrorKind::BrokenPipe {
+                    eprintln!("Failed to write to stdout: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
     }
 }
 
@@ -219,6 +226,13 @@ fn run_convert(program: &str, args: &[String]) {
                 process::exit(1);
             }
         }
-        None => print!("{}", erd),
+        None => {
+            if let Err(e) = io::stdout().write_all(erd.as_bytes()) {
+                if e.kind() != io::ErrorKind::BrokenPipe {
+                    eprintln!("Failed to write to stdout: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
     }
 }

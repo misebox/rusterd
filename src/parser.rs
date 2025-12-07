@@ -28,15 +28,6 @@ impl Parser {
         self.tokens.get(self.pos).unwrap_or(&Token::Eof)
     }
 
-    /// Peek, skipping any newlines.
-    fn peek_skip_newlines(&self) -> &Token {
-        let mut p = self.pos;
-        while let Some(Token::Newline) = self.tokens.get(p) {
-            p += 1;
-        }
-        self.tokens.get(p).unwrap_or(&Token::Eof)
-    }
-
     fn advance(&mut self) -> &Token {
         let tok = self.tokens.get(self.pos).unwrap_or(&Token::Eof);
         self.pos += 1;
