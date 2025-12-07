@@ -18,7 +18,9 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(input: &str) -> Result<Self, ParseError> {
-        let tokens = Lexer::new(input).tokenize()?;
+        let mut lexer = Lexer::new(input);
+        lexer.set_preserve_newlines(true);
+        let tokens = lexer.tokenize()?;
         Ok(Self { tokens, pos: 0 })
     }
 
@@ -30,6 +32,13 @@ impl Parser {
         let tok = self.tokens.get(self.pos).unwrap_or(&Token::Eof);
         self.pos += 1;
         tok
+    }
+
+    /// Skip all newline tokens.
+    fn skip_newlines(&mut self) {
+        while self.peek() == &Token::Newline {
+            self.pos += 1;
+        }
     }
 
     fn expect_ident(&mut self) -> Result<String, ParseError> {
@@ -58,7 +67,12 @@ impl Parser {
         let mut views = Vec::new();
         let mut arrangement = None;
 
-        while *self.peek() != Token::Eof {
+        loop {
+            self.skip_newlines();
+            if *self.peek() == Token::Eof {
+                break;
+            }
+
             if *self.peek() == Token::At {
                 // Could be @hint.arrangement at top level
                 if self.try_parse_arrangement()? {
@@ -132,19 +146,22 @@ impl Parser {
     }
 
     /// Parse arrangement block: { Entity1 Entity2; Entity3 Entity4; ... }
+    /// Rows can be separated by semicolons or newlines.
     fn parse_arrangement_block(&mut self) -> Result<Vec<Vec<String>>, ParseError> {
+        self.skip_newlines();
         self.expect(Token::LBrace)?;
 
         let mut rows: Vec<Vec<String>> = Vec::new();
         let mut current_row: Vec<String> = Vec::new();
 
-        while *self.peek() != Token::RBrace {
+        loop {
             match self.peek().clone() {
+                Token::RBrace => break,
                 Token::Ident(name) => {
                     self.advance();
                     current_row.push(name);
                 }
-                Token::Semicolon => {
+                Token::Semicolon | Token::Newline => {
                     self.advance();
                     if !current_row.is_empty() {
                         rows.push(current_row);
@@ -152,7 +169,7 @@ impl Parser {
                     }
                 }
                 tok => {
-                    return Err(ParseError::Unexpected(tok, "entity name or semicolon"));
+                    return Err(ParseError::Unexpected(tok, "entity name, semicolon, or newline"));
                 }
             }
         }
@@ -167,14 +184,20 @@ impl Parser {
     }
 
     fn parse_entity(&mut self) -> Result<Entity, ParseError> {
+        self.skip_newlines();
         let name = self.expect_ident()?;
+        self.skip_newlines();
         self.expect(Token::LBrace)?;
 
         let mut columns = Vec::new();
         let mut constraints = Vec::new();
         let mut hints = Vec::new();
 
-        while *self.peek() != Token::RBrace {
+        loop {
+            self.skip_newlines();
+            if *self.peek() == Token::RBrace {
+                break;
+            }
             if *self.peek() == Token::At {
                 hints.push(self.parse_hint()?);
             } else if self.check_ident("primary_key") {
@@ -207,6 +230,10 @@ impl Parser {
         let mut modifiers = Vec::new();
 
         loop {
+            // End of column definition on newline or closing brace
+            if matches!(self.peek(), Token::Newline | Token::RBrace | Token::Eof) {
+                break;
+            }
             if self.check_ident("pk") {
                 self.advance();
                 modifiers.push(ColumnModifier::Pk);
@@ -244,7 +271,40 @@ impl Parser {
 
     fn parse_default_value(&mut self) -> Result<String, ParseError> {
         match self.advance().clone() {
-            Token::Ident(s) => Ok(s),
+            Token::Ident(s) => {
+                // Check for function call: IDENT()
+                if *self.peek() == Token::LParen {
+                    self.advance(); // consume (
+                    let mut args = String::new();
+                    // Parse arguments until )
+                    loop {
+                        match self.peek() {
+                            Token::RParen => {
+                                self.advance();
+                                break;
+                            }
+                            Token::Eof => break,
+                            _ => {
+                                let tok = self.advance().clone();
+                                match tok {
+                                    Token::Ident(a) => args.push_str(&a),
+                                    Token::Num(n) => args.push_str(&n.to_string()),
+                                    Token::Str(st) => {
+                                        args.push('"');
+                                        args.push_str(&st);
+                                        args.push('"');
+                                    }
+                                    Token::Comma => args.push_str(", "),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    Ok(format!("{}({})", s, args))
+                } else {
+                    Ok(s)
+                }
+            }
             Token::Str(s) => Ok(format!("\"{}\"", s)),
             Token::Num(n) => Ok(n.to_string()),
             tok => Err(ParseError::Unexpected(tok, "default value")),
@@ -350,10 +410,15 @@ impl Parser {
     }
 
     fn parse_rel_block(&mut self) -> Result<Vec<Relationship>, ParseError> {
+        self.skip_newlines();
         self.expect(Token::LBrace)?;
         let mut rels = Vec::new();
 
-        while *self.peek() != Token::RBrace {
+        loop {
+            self.skip_newlines();
+            if *self.peek() == Token::RBrace {
+                break;
+            }
             rels.push(self.parse_relationship()?);
         }
 
@@ -362,6 +427,7 @@ impl Parser {
     }
 
     fn parse_relationship(&mut self) -> Result<Relationship, ParseError> {
+        self.skip_newlines();
         let left = self.expect_ident()?;
         let left_cardinality = self.parse_cardinality()?;
         self.expect(Token::Dash)?;
@@ -423,12 +489,18 @@ impl Parser {
     }
 
     fn parse_view(&mut self) -> Result<View, ParseError> {
+        self.skip_newlines();
         let name = self.expect_ident()?;
+        self.skip_newlines();
         self.expect(Token::LBrace)?;
 
         let mut includes = Vec::new();
 
-        while *self.peek() != Token::RBrace {
+        loop {
+            self.skip_newlines();
+            if *self.peek() == Token::RBrace {
+                break;
+            }
             if self.check_ident("include") {
                 self.advance();
                 includes.extend(self.parse_ident_list()?);

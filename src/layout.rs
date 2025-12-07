@@ -139,18 +139,35 @@ impl LayoutEngine {
             .collect();
 
         // Count edges per channel (between adjacent levels)
-        let mut channel_edge_count: HashMap<i64, usize> = HashMap::new();
-        for edge in &ir.edges {
+        // This includes ALL edges that pass through each channel, not just edges
+        // that start/end at adjacent levels
+        // Key: channel_level, Value: list of edge indices that pass through this channel
+        let mut channel_edges_list: HashMap<i64, Vec<usize>> = HashMap::new();
+
+        for (idx, edge) in ir.edges.iter().enumerate() {
             if edge.from == edge.to {
                 continue; // Skip self-ref
             }
             let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
             let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-            if from_level != to_level {
-                let channel_level = from_level.min(to_level);
-                *channel_edge_count.entry(channel_level).or_insert(0) += 1;
+            if from_level == to_level {
+                continue; // Same level edges don't use channels
+            }
+
+            let min_level = from_level.min(to_level);
+            let max_level = from_level.max(to_level);
+
+            // Edge passes through ALL channels from min_level to max_level-1
+            for channel_level in min_level..max_level {
+                channel_edges_list.entry(channel_level).or_default().push(idx);
             }
         }
+
+        // Convert to count for gap calculation
+        let channel_edge_count: HashMap<i64, usize> = channel_edges_list
+            .iter()
+            .map(|(&k, v)| (k, v.len()))
+            .collect();
 
         // Calculate dynamic channel gaps based on edge count
         let mut dynamic_channel_gap: HashMap<i64, f64> = HashMap::new();
@@ -165,7 +182,58 @@ impl LayoutEngine {
             }
         }
 
-        // Place nodes with dynamic channel gaps between levels
+        // Build node order lookup: node_id -> order within level
+        // This is used to determine which gap a multi-level edge passes through
+        let mut node_order: HashMap<&str, usize> = HashMap::new();
+        for nodes_in_level in levels.values() {
+            for (idx, node) in nodes_in_level.iter().enumerate() {
+                node_order.insert(node.id.as_str(), idx);
+            }
+        }
+
+        // Analyze corridor requirements BEFORE node placement
+        // For multi-level edges, determine which gap they pass through based on
+        // the destination's order within its level
+        //
+        // Key: gap_index (global), Value: list of edge indices
+        let mut corridor_edges: HashMap<usize, Vec<usize>> = HashMap::new();
+        // Key: edge_index, Value: gap_index
+        let mut edge_gap_index: HashMap<usize, usize> = HashMap::new();
+
+        for (idx, edge) in ir.edges.iter().enumerate() {
+            if edge.from == edge.to {
+                continue;
+            }
+            let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+            let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+
+            // Only multi-level edges need corridor routing
+            if (to_level - from_level).abs() <= 1 {
+                continue;
+            }
+
+            // Determine gap index based on destination's order
+            // The edge goes toward the destination, so it passes through
+            // the gap to the LEFT of the destination's position
+            let dest_order = node_order.get(edge.to.as_str()).copied().unwrap_or(0);
+            // Gap index: if dest is at order N, the corridor is at gap N
+            // (gap 0 = before first node, gap 1 = between node 0 and 1, etc.)
+            // We use dest_order as the gap index (edge goes to the left of dest position)
+            let gap_index = dest_order;
+
+            edge_gap_index.insert(idx, gap_index);
+            corridor_edges.entry(gap_index).or_default().push(idx);
+        }
+
+        // Calculate required extra width for each gap
+        // Key: gap_index, Value: extra width needed
+        let mut gap_extra_width: HashMap<usize, f64> = HashMap::new();
+        for (&gap_idx, edges) in &corridor_edges {
+            let extra = edges.len() as f64 * self.lane_spacing;
+            gap_extra_width.insert(gap_idx, extra);
+        }
+
+        // Now place nodes with the calculated gap widths (single pass)
         let mut layout_nodes = Vec::new();
         let mut level_bottom_y: HashMap<i64, f64> = HashMap::new();
         let mut channel_y: HashMap<i64, f64> = HashMap::new();
@@ -177,7 +245,7 @@ impl LayoutEngine {
             let mut x: f64 = 40.0;
             let mut max_height: f64 = 0.0;
 
-            for node in nodes_in_level {
+            for (node_idx, node) in nodes_in_level.iter().enumerate() {
                 let (w, h) = node_sizes[&node.id];
                 layout_nodes.push(LayoutNode {
                     id: node.id.clone(),
@@ -186,10 +254,17 @@ impl LayoutEngine {
                     width: w,
                     height: h,
                 });
-                x += w + self.node_gap_x;
+
+                // Calculate gap after this node
+                // gap_index is global (applies to all levels at same horizontal position)
+                let extra_gap = *gap_extra_width.get(&node_idx).unwrap_or(&0.0);
+                let effective_gap_x = self.node_gap_x + extra_gap;
+
+                x += w + effective_gap_x;
                 max_height = max_height.max(h);
             }
 
+            // Recalculate max_width accounting for variable gaps
             max_width = max_width.max(x - self.node_gap_x + 40.0);
             level_bottom_y.insert(level, y + max_height);
 
@@ -255,16 +330,60 @@ impl LayoutEngine {
         }
 
         // Pre-calculate lane assignments by sorting edges within each channel
-        // Edges starting from left should get earlier lanes (turn higher) to avoid crossings
-        let mut edge_lane_assignments: HashMap<usize, usize> = HashMap::new();
+        // Key: (channel_level, edge_idx), Value: lane number within that channel
+        // Each edge gets a unique lane in EACH channel it passes through
+        let mut channel_lane_assignments: HashMap<(i64, usize), usize> = HashMap::new();
         // Separate lane assignments for same-level edges (routed above)
         let mut same_level_lane_assignments: HashMap<usize, usize> = HashMap::new();
         {
-            // Collect inter-level edges with their channel info and starting x position
-            let mut channel_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+            // Use the channel_edges_list we built earlier, but add X position for sorting
+            // For each channel, collect (edge_idx, sort_key_x) where sort_key_x determines lane order
+            let mut channel_edges_with_x: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
+
+            for (&channel_level, edge_indices) in &channel_edges_list {
+                for &idx in edge_indices {
+                    let edge = &ir.edges[idx];
+                    let from_node = match node_positions.get(edge.from.as_str()) {
+                        Some(n) => n,
+                        None => continue,
+                    };
+
+                    let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+                    let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+                    let going_down = to_level >= from_level;
+
+                    // Get the actual from_cx for this edge
+                    let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
+                    let from_cx = if let Some(exits) = from_exits {
+                        let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
+                        self.distribute_anchor(from_node, pos, exits.len())
+                    } else {
+                        from_node.x + from_node.width / 2.0
+                    };
+
+                    channel_edges_with_x
+                        .entry(channel_level)
+                        .or_default()
+                        .push((idx, from_cx));
+                }
+            }
+
+            // Sort and assign lanes for each channel
+            for (&channel_level, edges) in channel_edges_with_x.iter_mut() {
+                // Sort by from_cx (right to left) so left edges get higher lanes (turn earlier)
+                edges.sort_by(|a, b| {
+                    match b.1.partial_cmp(&a.1) {
+                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
+                        Some(ord) => ord,
+                    }
+                });
+                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
+                    channel_lane_assignments.insert((channel_level, *edge_idx), lane);
+                }
+            }
+
             // Collect same-level edges per level
             let mut same_level_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
-
             for (idx, edge) in ir.edges.iter().enumerate() {
                 if edge.from == edge.to {
                     continue;
@@ -281,24 +400,7 @@ impl LayoutEngine {
                 let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
                 let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
 
-                if from_level != to_level {
-                    let channel_level = from_level.min(to_level);
-                    let going_down = to_level >= from_level;
-
-                    // Get the actual from_cx for this edge
-                    let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
-                    let from_cx = if let Some(exits) = from_exits {
-                        let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
-                        self.distribute_anchor(from_node, pos, exits.len())
-                    } else {
-                        from_node.x + from_node.width / 2.0
-                    };
-
-                    channel_edges
-                        .entry(channel_level)
-                        .or_default()
-                        .push((idx, from_cx));
-                } else {
+                if from_level == to_level {
                     // Same-level edge - check if non-adjacent (needs above routing)
                     let (left_node, right_node) = if from_node.x < to_node.x {
                         (from_node, to_node)
@@ -318,19 +420,6 @@ impl LayoutEngine {
                 }
             }
 
-            // Sort and assign lanes for inter-level edges
-            for (_channel, edges) in channel_edges.iter_mut() {
-                edges.sort_by(|a, b| {
-                    match b.1.partial_cmp(&a.1) {
-                        Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
-                        Some(ord) => ord,
-                    }
-                });
-                for (lane, (edge_idx, _)) in edges.iter().enumerate() {
-                    edge_lane_assignments.insert(*edge_idx, lane);
-                }
-            }
-
             // Sort and assign lanes for same-level edges
             for (_level, edges) in same_level_edges.iter_mut() {
                 edges.sort_by(|a, b| {
@@ -341,6 +430,35 @@ impl LayoutEngine {
                 });
                 for (lane, (edge_idx, _)) in edges.iter().enumerate() {
                     same_level_lane_assignments.insert(*edge_idx, lane);
+                }
+            }
+        }
+
+        // Pre-calculate corridor lane assignments for multi-level edges
+        // Key: (gap_index, edge_idx), Value: lane within that corridor
+        let mut corridor_lane_assignments: HashMap<(usize, usize), usize> = HashMap::new();
+        // Key: gap_index, Value: total edge count in that corridor
+        let mut corridor_total_edges: HashMap<usize, usize> = HashMap::new();
+        {
+            // For each corridor, sort edges by their from_cx for lane assignment
+            for (&gap_idx, edge_indices) in &corridor_edges {
+                // Get from_cx for each edge to sort them
+                let mut edges_with_x: Vec<(usize, f64)> = edge_indices
+                    .iter()
+                    .filter_map(|&idx| {
+                        let edge = &ir.edges[idx];
+                        let from_node = node_positions.get(edge.from.as_str())?;
+                        let from_cx = from_node.x + from_node.width / 2.0;
+                        Some((idx, from_cx))
+                    })
+                    .collect();
+
+                // Sort by from_cx to avoid crossings
+                edges_with_x.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                corridor_total_edges.insert(gap_idx, edges_with_x.len());
+                for (lane, (edge_idx, _)) in edges_with_x.iter().enumerate() {
+                    corridor_lane_assignments.insert((gap_idx, *edge_idx), lane);
                 }
             }
         }
@@ -394,10 +512,10 @@ impl LayoutEngine {
                     let to_total = to_exits.len();
                     let to_cx = self.distribute_anchor(to_node, to_pos, to_total);
 
-                    // Determine lane offset using pre-calculated assignment
+                    // Determine lane offset using pre-calculated channel-specific assignment
                     let channel_level = from_level.min(to_level);
                     let total_edges = *channel_edge_count.get(&channel_level).unwrap_or(&1);
-                    let lane = *edge_lane_assignments.get(&idx).unwrap_or(&0);
+                    let lane = *channel_lane_assignments.get(&(channel_level, idx)).unwrap_or(&0);
                     // Center: lane 0 at -(total-1)/2 * spacing, lane n at (n - (total-1)/2) * spacing
                     let lane_offset = (lane as f64 - (total_edges - 1) as f64 / 2.0) * self.lane_spacing;
 
@@ -451,31 +569,154 @@ impl LayoutEngine {
                             ]
                         }
                     } else {
-                        // Different levels: route through channel between levels
-                        let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
-                            (from_node, to_node, from_cx, to_cx)
-                        } else {
-                            (to_node, from_node, to_cx, from_cx)
-                        };
+                        // Different levels: route through channels between levels
+                        // For multi-level edges, we need to route through each intermediate channel
+                        let min_level = from_level.min(to_level);
+                        let max_level = from_level.max(to_level);
+                        let going_down = to_level > from_level;
 
-                        let ch_y = *channel_y.get(&from_level.min(to_level))
-                            .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
-                            + lane_offset;
+                        if max_level - min_level == 1 {
+                            // Adjacent levels: simple routing through single channel
+                            let (upper_node, lower_node, upper_cx, lower_cx) = if from_level < to_level {
+                                (from_node, to_node, from_cx, to_cx)
+                            } else {
+                                (to_node, from_node, to_cx, from_cx)
+                            };
 
-                        if from_level < to_level {
-                            vec![
-                                (upper_cx, upper_node.y + upper_node.height),
-                                (upper_cx, ch_y),
-                                (lower_cx, ch_y),
-                                (lower_cx, lower_node.y),
-                            ]
+                            let ch_y = *channel_y.get(&min_level)
+                                .unwrap_or(&(upper_node.y + upper_node.height + self.channel_gap / 2.0))
+                                + lane_offset;
+
+                            if going_down {
+                                vec![
+                                    (upper_cx, upper_node.y + upper_node.height),
+                                    (upper_cx, ch_y),
+                                    (lower_cx, ch_y),
+                                    (lower_cx, lower_node.y),
+                                ]
+                            } else {
+                                vec![
+                                    (lower_cx, lower_node.y + lower_node.height),
+                                    (lower_cx, ch_y),
+                                    (upper_cx, ch_y),
+                                    (upper_cx, upper_node.y),
+                                ]
+                            }
                         } else {
-                            vec![
-                                (lower_cx, lower_node.y + lower_node.height),
-                                (lower_cx, ch_y),
-                                (upper_cx, ch_y),
-                                (upper_cx, upper_node.y),
-                            ]
+                            // Multi-level edge: route through intermediate channels
+                            // Use the pre-calculated gap index for this edge
+                            let gap_index = edge_gap_index.get(&idx).copied().unwrap_or(0);
+
+                            // Get lane assignment for this edge in this corridor
+                            let corridor_lane = corridor_lane_assignments
+                                .get(&(gap_index, idx))
+                                .copied()
+                                .unwrap_or(0);
+
+                            // Get total edges in this corridor for centering
+                            let total_in_corridor = corridor_total_edges
+                                .get(&gap_index)
+                                .copied()
+                                .unwrap_or(1)
+                                .max(1);
+
+                            // Calculate base corridor X using the gap_index
+                            // Find the center of the gap at the first intermediate level
+                            let base_corridor_x = self.find_gap_center_x(
+                                &layout_nodes,
+                                &levels,
+                                min_level + 1,
+                                gap_index,
+                            );
+
+                            // Calculate lane offset within corridor
+                            let corridor_lane_offset = if total_in_corridor > 1 {
+                                (corridor_lane as f64 - (total_in_corridor - 1) as f64 / 2.0) * self.lane_spacing
+                            } else {
+                                0.0
+                            };
+
+                            let corridor_x = base_corridor_x + corridor_lane_offset;
+
+                            // Helper to get lane offset for a specific channel
+                            let get_channel_lane_offset = |ch_level: i64| -> f64 {
+                                let ch_total = *channel_edge_count.get(&ch_level).unwrap_or(&1);
+                                let ch_lane = *channel_lane_assignments.get(&(ch_level, idx)).unwrap_or(&0);
+                                (ch_lane as f64 - (ch_total - 1) as f64 / 2.0) * self.lane_spacing
+                            };
+
+                            let mut waypoints = Vec::new();
+
+                            if going_down {
+                                // Start from source (upper)
+                                waypoints.push((from_cx, from_node.y + from_node.height));
+
+                                // First channel: move to corridor
+                                let first_ch_level = from_level;
+                                let first_lane_offset = get_channel_lane_offset(first_ch_level);
+                                let first_ch_y = *channel_y.get(&first_ch_level)
+                                    .unwrap_or(&(from_node.y + from_node.height + self.channel_gap / 2.0))
+                                    + first_lane_offset;
+                                waypoints.push((from_cx, first_ch_y));
+                                waypoints.push((corridor_x, first_ch_y));
+
+                                // Go down through intermediate channels
+                                for level in (from_level + 1)..to_level {
+                                    let ch_lane_offset = get_channel_lane_offset(level);
+                                    let ch_y = *channel_y.get(&level)
+                                        .unwrap_or(&(first_ch_y + self.channel_gap))
+                                        + ch_lane_offset;
+                                    waypoints.push((corridor_x, ch_y));
+                                }
+
+                                // Last channel: move to destination
+                                let last_ch_level = to_level - 1;
+                                let last_lane_offset = get_channel_lane_offset(last_ch_level);
+                                let last_ch_y = *channel_y.get(&last_ch_level)
+                                    .unwrap_or(&(to_node.y - self.channel_gap / 2.0))
+                                    + last_lane_offset;
+                                // Only add if different from last point
+                                if waypoints.last().map(|(_, y)| *y) != Some(last_ch_y) {
+                                    waypoints.push((corridor_x, last_ch_y));
+                                }
+                                waypoints.push((to_cx, last_ch_y));
+                                waypoints.push((to_cx, to_node.y));
+                            } else {
+                                // Going up: start from source (lower)
+                                waypoints.push((from_cx, from_node.y));
+
+                                // First channel (above source)
+                                let first_ch_level = from_level - 1;
+                                let first_lane_offset = get_channel_lane_offset(first_ch_level);
+                                let first_ch_y = *channel_y.get(&first_ch_level)
+                                    .unwrap_or(&(from_node.y - self.channel_gap / 2.0))
+                                    + first_lane_offset;
+                                waypoints.push((from_cx, first_ch_y));
+                                waypoints.push((corridor_x, first_ch_y));
+
+                                // Go up through intermediate channels
+                                for level in (to_level..(from_level - 1)).rev() {
+                                    let ch_lane_offset = get_channel_lane_offset(level);
+                                    let ch_y = *channel_y.get(&level)
+                                        .unwrap_or(&(first_ch_y - self.channel_gap))
+                                        + ch_lane_offset;
+                                    waypoints.push((corridor_x, ch_y));
+                                }
+
+                                // Last channel: move to destination
+                                let last_ch_level = to_level;
+                                let last_lane_offset = get_channel_lane_offset(last_ch_level);
+                                let last_ch_y = *channel_y.get(&last_ch_level)
+                                    .unwrap_or(&(to_node.y + to_node.height + self.channel_gap / 2.0))
+                                    + last_lane_offset;
+                                if waypoints.last().map(|(_, y)| *y) != Some(last_ch_y) {
+                                    waypoints.push((corridor_x, last_ch_y));
+                                }
+                                waypoints.push((to_cx, last_ch_y));
+                                waypoints.push((to_cx, to_node.y + to_node.height));
+                            }
+
+                            waypoints
                         }
                     };
 
@@ -509,6 +750,75 @@ impl LayoutEngine {
             let offset = (position as f64 - (total - 1) as f64 / 2.0) * self.anchor_spacing;
             cx + offset
         }
+    }
+
+    /// Find the center X coordinate of a specific gap at a given level.
+    /// gap_index: 0 = before first entity, 1 = between first and second, etc.
+    fn find_gap_center_x(
+        &self,
+        layout_nodes: &[LayoutNode],
+        levels: &HashMap<i64, Vec<&Node>>,
+        level: i64,
+        gap_index: usize,
+    ) -> f64 {
+        // Get nodes at this level
+        let nodes_at_level = match levels.get(&level) {
+            Some(nodes) => nodes,
+            None => return 100.0, // Default fallback
+        };
+
+        // Build a lookup from node id to layout position
+        let node_positions: HashMap<&str, &LayoutNode> = layout_nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n))
+            .collect();
+
+        // Build list of entity boundaries at this level
+        let mut boundaries: Vec<(f64, f64)> = Vec::new(); // (left_x, right_x)
+
+        for node in nodes_at_level {
+            if let Some(layout_node) = node_positions.get(node.id.as_str()) {
+                boundaries.push((layout_node.x, layout_node.x + layout_node.width));
+            }
+        }
+
+        // Sort by left edge
+        boundaries.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        if boundaries.is_empty() {
+            return 100.0; // Default fallback
+        }
+
+        // Find the center of the specified gap
+        if gap_index == 0 && !boundaries.is_empty() {
+            // Gap before first entity - use midpoint between left margin and first entity
+            let first_left = boundaries[0].0;
+            return (40.0 + first_left) / 2.0;
+        }
+
+        if gap_index >= boundaries.len() {
+            // Gap after last entity
+            if let Some(&(_, last_right)) = boundaries.last() {
+                return last_right + self.entity_margin + 50.0;
+            }
+        }
+
+        // Gap between entities at index gap_index-1 and gap_index
+        if gap_index > 0 && gap_index < boundaries.len() {
+            let left_entity_right = boundaries[gap_index - 1].1;
+            let right_entity_left = boundaries[gap_index].0;
+            return (left_entity_right + right_entity_left) / 2.0;
+        }
+
+        // Fallback: gap between entity at gap_index and next
+        if gap_index < boundaries.len().saturating_sub(1) {
+            let left_entity_right = boundaries[gap_index].1;
+            let right_entity_left = boundaries[gap_index + 1].0;
+            return (left_entity_right + right_entity_left) / 2.0;
+        }
+
+        // Default fallback
+        100.0
     }
 }
 
