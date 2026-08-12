@@ -75,7 +75,6 @@ pub fn place_nodes(
     base_channel_gap: f64,
 ) -> NodePlacement {
     let mut layout_nodes = Vec::new();
-    let mut level_bottom_y: HashMap<i64, f64> = HashMap::new();
     let mut channel_y: HashMap<i64, f64> = HashMap::new();
     let mut y: f64 = 40.0;
     let mut max_width: f64 = 0.0;
@@ -105,7 +104,6 @@ pub fn place_nodes(
         }
 
         max_width = max_width.max(x - node_gap_x + 40.0);
-        level_bottom_y.insert(level, y + max_height);
 
         if i < level_keys.len() - 1 {
             let gap = *dynamic_channel_gap.get(&level).unwrap_or(&base_channel_gap);
@@ -122,7 +120,6 @@ pub fn place_nodes(
 
     NodePlacement {
         layout_nodes,
-        level_bottom_y,
         channel_y,
         max_width,
         total_height,

@@ -10,6 +10,7 @@ mod engine;
 mod lanes;
 mod placement;
 mod routing;
+mod straighten;
 mod types;
 mod waypoints;
 

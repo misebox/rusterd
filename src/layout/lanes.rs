@@ -20,11 +20,8 @@ pub fn assign_channel_lanes<'a>(
     levels: &HashMap<i64, Vec<&'a Node>>,
     anchor_spacing: f64,
     entity_margin: f64,
-    node_gap_x: f64,
-    lane_spacing: f64,
-) -> (HashMap<(i64, usize), usize>, HashMap<usize, usize>) {
+) -> HashMap<(i64, usize), usize> {
     let mut channel_lane_assignments: HashMap<(i64, usize), usize> = HashMap::new();
-    let mut same_level_lane_assignments: HashMap<usize, usize> = HashMap::new();
 
     // Collect channel edges with info
     let mut channel_edges_with_info: HashMap<i64, Vec<(usize, f64, bool)>> = HashMap::new();
@@ -75,73 +72,7 @@ pub fn assign_channel_lanes<'a>(
         }
     }
 
-    // Same-level edges
-    assign_same_level_lanes(
-        ir,
-        node_positions,
-        node_level,
-        node_gap_x,
-        lane_spacing,
-        &mut same_level_lane_assignments,
-    );
-
-    (channel_lane_assignments, same_level_lane_assignments)
-}
-
-/// Assign lanes for same-level non-adjacent edges.
-fn assign_same_level_lanes(
-    ir: &GraphIR,
-    node_positions: &HashMap<&str, &LayoutNode>,
-    node_level: &HashMap<&str, i64>,
-    node_gap_x: f64,
-    _lane_spacing: f64,
-    same_level_lane_assignments: &mut HashMap<usize, usize>,
-) {
-    let mut same_level_edges: HashMap<i64, Vec<(usize, f64)>> = HashMap::new();
-
-    for (idx, edge) in ir.edges.iter().enumerate() {
-        if edge.from == edge.to {
-            continue;
-        }
-        let from_node = match node_positions.get(edge.from.as_str()) {
-            Some(n) => *n,
-            None => continue,
-        };
-        let to_node = match node_positions.get(edge.to.as_str()) {
-            Some(n) => *n,
-            None => continue,
-        };
-
-        let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
-        let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-
-        if from_level == to_level {
-            let (left_node, right_node) = if from_node.x < to_node.x {
-                (from_node, to_node)
-            } else {
-                (to_node, from_node)
-            };
-            let gap_between = right_node.x - (left_node.x + left_node.width);
-
-            if gap_between > node_gap_x * 1.5 {
-                let from_cx = from_node.x + from_node.width / 2.0;
-                same_level_edges
-                    .entry(from_level)
-                    .or_default()
-                    .push((idx, from_cx));
-            }
-        }
-    }
-
-    for (_level, edges) in same_level_edges.iter_mut() {
-        edges.sort_by(|a, b| match b.1.partial_cmp(&a.1) {
-            Some(std::cmp::Ordering::Equal) | None => a.0.cmp(&b.0),
-            Some(ord) => ord,
-        });
-        for (lane, (edge_idx, _)) in edges.iter().enumerate() {
-            same_level_lane_assignments.insert(*edge_idx, lane);
-        }
-    }
+    channel_lane_assignments
 }
 
 /// Sort channel edges for lane assignment.
@@ -252,37 +183,6 @@ pub fn sort_channel_edges<'a>(
             ord => ord,
         }
     });
-}
-
-/// Assign lanes for edges in corridors.
-pub fn assign_corridor_lanes(
-    corridor_edges: &HashMap<usize, Vec<usize>>,
-    ir: &GraphIR,
-    node_positions: &HashMap<&str, &LayoutNode>,
-) -> (HashMap<(usize, usize), usize>, HashMap<usize, usize>) {
-    let mut corridor_lane_assignments: HashMap<(usize, usize), usize> = HashMap::new();
-    let mut corridor_total_edges: HashMap<usize, usize> = HashMap::new();
-
-    for (&gap_idx, edge_indices) in corridor_edges {
-        let mut edges_with_x: Vec<(usize, f64)> = edge_indices
-            .iter()
-            .filter_map(|&idx| {
-                let edge = &ir.edges[idx];
-                let from_node = node_positions.get(edge.from.as_str())?;
-                let from_cx = from_node.x + from_node.width / 2.0;
-                Some((idx, from_cx))
-            })
-            .collect();
-
-        edges_with_x.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-
-        corridor_total_edges.insert(gap_idx, edges_with_x.len());
-        for (lane, (edge_idx, _)) in edges_with_x.iter().enumerate() {
-            corridor_lane_assignments.insert((gap_idx, *edge_idx), lane);
-        }
-    }
-
-    (corridor_lane_assignments, corridor_total_edges)
 }
 
 /// Calculate corridor X positions for multi-level edges.

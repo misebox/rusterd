@@ -8,8 +8,9 @@ use super::analysis::{
     calculate_dynamic_channel_gaps, count_edges_per_node,
 };
 use super::anchors::calculate_edge_anchors;
-use super::lanes::{assign_channel_lanes, assign_corridor_lanes, calculate_multi_level_corridor_x};
+use super::lanes::{assign_channel_lanes, calculate_multi_level_corridor_x};
 use super::placement::{build_node_positions, calculate_node_sizes, group_nodes_by_level, place_nodes};
+use super::straighten::straighten_edges;
 use super::types::Layout;
 use super::waypoints::route_edges;
 
@@ -23,6 +24,8 @@ pub struct LayoutEngine {
     pub(crate) anchor_spacing: f64,
     pub(crate) corner_radius: f64,
     pub(crate) entity_margin: f64,
+    /// Longest detour absorbed by the straightening pass
+    pub(crate) jog_tolerance: f64,
 }
 
 impl Default for LayoutEngine {
@@ -36,6 +39,7 @@ impl Default for LayoutEngine {
             anchor_spacing: 40.0,
             corner_radius: 32.0,
             entity_margin: 30.0,
+            jog_tolerance: 20.0,
         }
     }
 }
@@ -99,7 +103,7 @@ impl LayoutEngine {
         );
 
         // Phase 7: Lane assignments
-        let (channel_lane_assignments, same_level_lane_assignments) = assign_channel_lanes(
+        let channel_lane_assignments = assign_channel_lanes(
             ir,
             &channel_edges_list,
             &node_positions,
@@ -110,14 +114,6 @@ impl LayoutEngine {
             &levels,
             self.anchor_spacing,
             self.entity_margin,
-            self.node_gap_x,
-            self.lane_spacing,
-        );
-
-        let (_corridor_lane_assignments, _corridor_total_edges) = assign_corridor_lanes(
-            &corridor_analysis.corridor_edges,
-            ir,
-            &node_positions,
         );
 
         // Phase 8: Multi-level corridor X calculation
@@ -132,15 +128,13 @@ impl LayoutEngine {
         );
 
         // Phase 9: Edge routing
-        let layout_edges = route_edges(
+        let mut layout_edges = route_edges(
             ir,
             &node_positions,
             &node_level,
             &node_exits,
-            &node_order,
             &channel_edge_count,
             &channel_lane_assignments,
-            &same_level_lane_assignments,
             &node_placement,
             &levels,
             &multi_level_corridor_x,
@@ -149,6 +143,17 @@ impl LayoutEngine {
             self.channel_gap,
             self.node_gap_x,
             self.entity_margin,
+        );
+
+        // Phase 10: Straighten paths that only jog by a few pixels
+        straighten_edges(
+            &mut layout_edges,
+            &node_positions,
+            self.jog_tolerance,
+            // Anchors are distributed one `anchor_spacing` apart; sliding one
+            // must not crowd its neighbour (their cardinality labels need the
+            // same room).
+            self.anchor_spacing,
         );
 
         Layout {

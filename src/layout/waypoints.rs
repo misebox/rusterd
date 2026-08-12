@@ -3,7 +3,7 @@
 use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
-use super::corridor::{find_gap_center_x, find_safe_corridors};
+use super::corridor::find_safe_corridors;
 use super::routing::{
     calculate_lane_offset, distribute_anchor, route_adjacent_level_direct,
     route_adjacent_level_with_channel, route_same_level_adjacent, route_self_ref,
@@ -17,10 +17,8 @@ pub fn route_edges<'a>(
     node_positions: &HashMap<&str, &LayoutNode>,
     node_level: &HashMap<&str, i64>,
     node_exits: &HashMap<(&str, bool), Vec<(usize, f64)>>,
-    node_order: &HashMap<&str, usize>,
     channel_edge_count: &HashMap<i64, usize>,
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
-    same_level_lane_assignments: &HashMap<usize, usize>,
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
     multi_level_corridor_x: &HashMap<usize, f64>,
@@ -61,17 +59,14 @@ pub fn route_edges<'a>(
 
             let waypoints = calculate_waypoints(
                 idx,
-                edge,
                 from_node,
                 to_node,
                 from_cx,
                 to_cx,
                 from_level,
                 to_level,
-                node_order,
                 channel_edge_count,
                 channel_lane_assignments,
-                same_level_lane_assignments,
                 node_placement,
                 levels,
                 multi_level_corridor_x,
@@ -96,17 +91,14 @@ pub fn route_edges<'a>(
 #[allow(clippy::too_many_arguments)]
 fn calculate_waypoints<'a>(
     idx: usize,
-    edge: &crate::ir::Edge,
     from_node: &LayoutNode,
     to_node: &LayoutNode,
     from_cx: f64,
     to_cx: f64,
     from_level: i64,
     to_level: i64,
-    node_order: &HashMap<&str, usize>,
     channel_edge_count: &HashMap<i64, usize>,
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
-    same_level_lane_assignments: &HashMap<usize, usize>,
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
     multi_level_corridor_x: &HashMap<usize, f64>,
@@ -124,21 +116,15 @@ fn calculate_waypoints<'a>(
 
     if from_level == to_level {
         route_same_level(
-            idx,
-            edge,
             from_node,
             to_node,
             from_cx,
             to_cx,
             from_level,
-            node_order,
-            same_level_lane_assignments,
+            lane_offset,
             node_placement,
-            levels,
-            lane_spacing,
             channel_gap,
             node_gap_x,
-            entity_margin,
         )
     } else {
         let min_level = from_level.min(to_level);
@@ -183,23 +169,21 @@ fn calculate_waypoints<'a>(
 }
 
 /// Route same-level edges.
+///
+/// Neighbours are joined side to side; anything further apart detours through
+/// the channel below the level, where the lane assignment keeps it clear of the
+/// edges crossing that channel.
 #[allow(clippy::too_many_arguments)]
-fn route_same_level<'a>(
-    idx: usize,
-    edge: &crate::ir::Edge,
+fn route_same_level(
     from_node: &LayoutNode,
     to_node: &LayoutNode,
     from_cx: f64,
     to_cx: f64,
     from_level: i64,
-    node_order: &HashMap<&str, usize>,
-    same_level_lane_assignments: &HashMap<usize, usize>,
+    lane_offset: f64,
     node_placement: &NodePlacement,
-    levels: &HashMap<i64, Vec<&'a Node>>,
-    lane_spacing: f64,
     channel_gap: f64,
     node_gap_x: f64,
-    entity_margin: f64,
 ) -> Vec<(f64, f64)> {
     let (left_node, right_node) = if from_node.x < to_node.x {
         (from_node, to_node)
@@ -209,40 +193,21 @@ fn route_same_level<'a>(
     let gap_between = right_node.x - (left_node.x + left_node.width);
 
     if gap_between <= node_gap_x * 1.5 {
-        route_same_level_adjacent(from_node, to_node)
-    } else {
-        let same_level_lane = *same_level_lane_assignments.get(&idx).unwrap_or(&0);
-        let same_level_lane_offset = same_level_lane as f64 * lane_spacing;
-
-        let from_order = node_order.get(edge.from.as_str()).copied().unwrap_or(0);
-        let to_order = node_order.get(edge.to.as_str()).copied().unwrap_or(0);
-        let corridor_gap = if from_order < to_order {
-            from_order + 1
-        } else {
-            to_order + 1
-        };
-
-        let corridor_x = find_gap_center_x(
-            &node_placement.layout_nodes,
-            levels,
-            from_level,
-            corridor_gap,
-            entity_margin,
-        ) + same_level_lane_offset;
-
-        let ch_y = *node_placement
-            .channel_y
-            .get(&from_level)
-            .unwrap_or(&(from_node.y + from_node.height + channel_gap / 2.0));
-
-        vec![
-            (from_cx, from_node.y + from_node.height),
-            (from_cx, ch_y),
-            (corridor_x, ch_y),
-            (corridor_x, to_node.y + to_node.height),
-            (to_cx, to_node.y + to_node.height),
-        ]
+        return route_same_level_adjacent(from_node, to_node);
     }
+
+    let ch_y = *node_placement
+        .channel_y
+        .get(&from_level)
+        .unwrap_or(&(from_node.y + from_node.height + channel_gap / 2.0))
+        + lane_offset;
+
+    vec![
+        (from_cx, from_node.y + from_node.height),
+        (from_cx, ch_y),
+        (to_cx, ch_y),
+        (to_cx, to_node.y + to_node.height),
+    ]
 }
 
 /// Route adjacent-level edges.

@@ -40,6 +40,9 @@ pub fn count_edges_per_node<'a>(
 
 /// Analyze which edges pass through which channels.
 /// Channel N is between level N and level N+1.
+///
+/// Same-level edges are counted too: they detour through the channel below
+/// their own level, so they share its lanes and its reserved height.
 pub fn analyze_channel_edges(
     ir: &GraphIR,
     node_level: &HashMap<&str, i64>,
@@ -52,12 +55,14 @@ pub fn analyze_channel_edges(
         }
         let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
         let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-        if from_level == to_level {
-            continue;
-        }
 
         let min_level = from_level.min(to_level);
         let max_level = from_level.max(to_level);
+
+        if min_level == max_level {
+            channel_edges.entry(min_level).or_default().push(idx);
+            continue;
+        }
 
         for channel_level in min_level..max_level {
             channel_edges.entry(channel_level).or_default().push(idx);
@@ -152,7 +157,6 @@ pub fn analyze_corridors(
     }
 
     CorridorAnalysis {
-        corridor_edges,
         edge_gap_index,
         gap_extra_width,
     }
