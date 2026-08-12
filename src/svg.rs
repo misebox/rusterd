@@ -4,17 +4,11 @@ use crate::layout::{Layout, LayoutEdge, LayoutNode};
 use crate::measure::TextMetrics;
 use std::collections::HashMap;
 use std::fmt::Write;
+use unicode_width::UnicodeWidthStr;
 
+#[derive(Default)]
 pub struct SvgRenderer {
     metrics: TextMetrics,
-}
-
-impl Default for SvgRenderer {
-    fn default() -> Self {
-        Self {
-            metrics: TextMetrics::default(),
-        }
-    }
 }
 
 impl SvgRenderer {
@@ -187,10 +181,10 @@ impl SvgRenderer {
 
         for (i, &(x, y)) in layout.waypoints.iter().enumerate() {
             if i == 0 {
-                path.push_str(&format!("M {} {}", x, y));
+                path.push_str(&format!("M {} {}", num(x), num(y)));
             } else if i == layout.waypoints.len() - 1 {
                 // Last point: just line to it
-                path.push_str(&format!(" L {} {}", x, y));
+                path.push_str(&format!(" L {} {}", num(x), num(y)));
             } else {
                 // Middle point: add rounded corner
                 let (px, py) = layout.waypoints[i - 1];
@@ -219,9 +213,17 @@ impl SvgRenderer {
                     let ay = y + (dy2 / len2) * effective_r;
 
                     // Draw line to before corner, then arc to after corner
-                    path.push_str(&format!(" L {} {} Q {} {} {} {}", bx, by, x, y, ax, ay));
+                    path.push_str(&format!(
+                        " L {} {} Q {} {} {} {}",
+                        num(bx),
+                        num(by),
+                        num(x),
+                        num(y),
+                        num(ax),
+                        num(ay)
+                    ));
                 } else {
-                    path.push_str(&format!(" L {} {}", x, y));
+                    path.push_str(&format!(" L {} {}", num(x), num(y)));
                 }
             }
         }
@@ -295,20 +297,11 @@ impl SvgRenderer {
 
             render_cardinality(svg, to_x, to_y, "middle", to_symbol, font_size);
 
-            // Label in the middle of the horizontal segment (if exists)
+            // Label on the longest horizontal run, where it has the most room
             if let Some(label) = &edge.label {
-                // Find the horizontal segment (usually waypoints[1] to waypoints[2])
-                if layout.waypoints.len() >= 4 {
-                    let (hx1, hy1) = layout.waypoints[1];
-                    let (hx2, hy2) = layout.waypoints[2];
-                    let mid_x = (hx1 + hx2) / 2.0;
-                    let mid_y = (hy1 + hy2) / 2.0;
-                    render_edge_label(svg, mid_x, mid_y, label);
-                } else {
-                    let mid_x = (x1 + x2) / 2.0;
-                    let mid_y = (y1 + y2) / 2.0;
-                    render_edge_label(svg, mid_x, mid_y, label);
-                }
+                let (mid_x, mid_y) = longest_horizontal_midpoint(&layout.waypoints)
+                    .unwrap_or(((x1 + x2) / 2.0, (y1 + y2) / 2.0));
+                render_edge_label(svg, mid_x, mid_y, label);
             }
         }
     }
@@ -323,11 +316,37 @@ fn cardinality_symbol(c: Cardinality) -> &'static str {
     }
 }
 
+/// Format a coordinate with at most one decimal place.
+fn num(v: f64) -> String {
+    let rounded = (v * 10.0).round() / 10.0;
+    if rounded.fract() == 0.0 {
+        format!("{}", rounded.trunc())
+    } else {
+        format!("{:.1}", rounded)
+    }
+}
+
+/// Midpoint of the longest horizontal segment, if the path has one.
+fn longest_horizontal_midpoint(waypoints: &[(f64, f64)]) -> Option<(f64, f64)> {
+    waypoints
+        .windows(2)
+        .filter(|seg| (seg[0].1 - seg[1].1).abs() < 0.5)
+        .max_by(|a, b| {
+            let len = |s: &[(f64, f64)]| (s[1].0 - s[0].0).abs();
+            len(a).partial_cmp(&len(b)).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map(|seg| ((seg[0].0 + seg[1].0) / 2.0, seg[0].1))
+}
+
+/// Width of a monospace string in pixels, counting full-width characters twice.
+fn monospace_width(text: &str, font_size: f64) -> f64 {
+    UnicodeWidthStr::width(text) as f64 * font_size * 0.6
+}
+
 /// Render edge label with semi-transparent background
 fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
     let font_size = 14.0;
-    let char_width = font_size * 0.6;
-    let text_width = label.len() as f64 * char_width;
+    let text_width = monospace_width(label, font_size);
     let text_height = font_size;
     let padding = 3.0;
 
@@ -349,7 +368,9 @@ fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
     writeln!(
         svg,
         r#"<text class="edge-label" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-        x, y, escape_xml(label)
+        num(x),
+        num(y),
+        escape_xml(label)
     )
     .unwrap();
 }
@@ -364,8 +385,7 @@ fn render_cardinality(
     symbol: &str,
     font_size: f64,
 ) {
-    let char_width = font_size * 0.6; // Approximate monospace char width
-    let text_width = symbol.len() as f64 * char_width;
+    let text_width = monospace_width(symbol, font_size);
     let text_height = font_size;
     let padding = 2.0;
 
@@ -387,7 +407,9 @@ fn render_cardinality(
     writeln!(
         svg,
         r#"<text class="cardinality" x="{}" y="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-        x, y, symbol
+        num(x),
+        num(y),
+        symbol
     )
     .unwrap();
 }
