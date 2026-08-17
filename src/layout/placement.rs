@@ -64,11 +64,13 @@ pub fn group_nodes_by_level(ir: &GraphIR) -> (HashMap<i64, Vec<&Node>>, Vec<i64>
 }
 
 /// Place nodes with calculated gap widths.
+#[allow(clippy::too_many_arguments)]
 pub fn place_nodes(
     levels: &HashMap<i64, Vec<&Node>>,
     level_keys: &[i64],
     node_sizes: &HashMap<String, (f64, f64)>,
     gap_extra_width: &HashMap<usize, f64>,
+    self_ref_reserve: &HashMap<&str, f64>,
     dynamic_channel_gap: &HashMap<i64, f64>,
     node_gap_x: f64,
     node_gap_y: f64,
@@ -97,7 +99,10 @@ pub fn place_nodes(
 
             let next_gap_idx = node_idx + 1;
             let extra_gap = *gap_extra_width.get(&next_gap_idx).unwrap_or(&0.0);
-            let effective_gap_x = node_gap_x + extra_gap;
+            // Self-reference loops hang off the right border and need room of
+            // their own, whether the next thing is an entity or the SVG edge.
+            let reserve = *self_ref_reserve.get(node.id.as_str()).unwrap_or(&0.0);
+            let effective_gap_x = node_gap_x + extra_gap + reserve;
 
             x += w + effective_gap_x;
             max_height = max_height.max(h);

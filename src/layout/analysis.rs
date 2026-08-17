@@ -3,9 +3,51 @@
 #![allow(dead_code)]
 
 use crate::ir::GraphIR;
+use crate::measure::TextMetrics;
 use std::collections::HashMap;
 
+use super::routing::SELF_REF_LOOP_OFFSET;
 use super::types::CorridorAnalysis;
+
+/// Width the cardinality pills of a self-reference occupy beyond the loop.
+const SELF_REF_CARDINALITY_WIDTH: f64 = 32.0;
+
+/// Space kept between the outermost self-reference decoration and whatever
+/// comes next to the right.
+const SELF_REF_CLEARANCE: f64 = 12.0;
+
+/// Horizontal space each node's self-references need to the right of its
+/// border: the nested loops plus the widest label or cardinality pill on them.
+pub fn calculate_self_ref_reserve<'a>(
+    ir: &'a GraphIR,
+    metrics: &TextMetrics,
+    lane_spacing: f64,
+) -> HashMap<&'a str, f64> {
+    let mut loops: HashMap<&str, (usize, f64)> = HashMap::new();
+
+    for edge in &ir.edges {
+        if edge.from != edge.to {
+            continue;
+        }
+        let label_width = edge
+            .label
+            .as_deref()
+            .map(|l| metrics.text_width(l))
+            .unwrap_or(0.0);
+        let entry = loops.entry(edge.from.as_str()).or_insert((0, 0.0));
+        entry.0 += 1;
+        entry.1 = entry.1.max(label_width);
+    }
+
+    loops
+        .into_iter()
+        .map(|(id, (count, label_width))| {
+            let outermost = SELF_REF_LOOP_OFFSET + (count - 1) as f64 * lane_spacing;
+            let decorations = label_width.max(SELF_REF_CARDINALITY_WIDTH) + SELF_REF_CLEARANCE;
+            (id, outermost + decorations)
+        })
+        .collect()
+}
 
 /// Build node level lookup: node_id -> level.
 pub fn build_node_level_lookup(ir: &GraphIR) -> HashMap<&str, i64> {

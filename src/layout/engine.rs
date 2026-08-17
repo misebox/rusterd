@@ -5,7 +5,7 @@ use crate::measure::TextMetrics;
 
 use super::analysis::{
     analyze_channel_edges, analyze_corridors, build_node_level_lookup, build_node_order,
-    calculate_dynamic_channel_gaps, count_edges_per_node,
+    calculate_dynamic_channel_gaps, calculate_self_ref_reserve, count_edges_per_node,
 };
 use super::anchors::calculate_edge_anchors;
 use super::lanes::{assign_channel_lanes, calculate_multi_level_corridor_x};
@@ -36,7 +36,9 @@ impl Default for LayoutEngine {
             node_gap_y: 30.0,
             channel_gap: 50.0,
             lane_spacing: 24.0,
-            anchor_spacing: 40.0,
+            // Wide enough for two cardinality pills (`1..*` is the widest) to
+            // sit side by side on one entity border.
+            anchor_spacing: 56.0,
             corner_radius: 32.0,
             entity_margin: 30.0,
             jog_tolerance: 20.0,
@@ -77,11 +79,14 @@ impl LayoutEngine {
             self.anchor_spacing,
         );
 
+        let self_ref_reserve = calculate_self_ref_reserve(ir, &self.metrics, self.lane_spacing);
+
         let node_placement = place_nodes(
             &levels,
             &level_keys,
             &node_sizes,
             &corridor_analysis.gap_extra_width,
+            &self_ref_reserve,
             &dynamic_channel_gap,
             self.node_gap_x,
             self.node_gap_y,

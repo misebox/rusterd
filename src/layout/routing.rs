@@ -12,21 +12,28 @@ pub fn calculate_lane_offset(lane: usize, total: usize, lane_spacing: f64) -> f6
     }
 }
 
+/// Distance from the entity border to the first self-reference loop.
+pub const SELF_REF_LOOP_OFFSET: f64 = 25.0;
+
+/// Shortest vertical distance between the two ends of a self-reference loop.
+const SELF_REF_MIN_SPAN: f64 = 56.0;
+
 /// Generate waypoints for a self-referential edge.
 ///
 /// The two ends carry a cardinality label each, so they need enough vertical
-/// separation for both pills to sit clear of one another.
-pub fn route_self_ref(node: &LayoutNode) -> Vec<(f64, f64)> {
-    let min_span = 56.0;
+/// separation for both pills to sit clear of one another. `loop_index` counts
+/// the self-references already routed on this node, so several of them nest
+/// instead of landing on the same path.
+pub fn route_self_ref(node: &LayoutNode, loop_index: usize, lane_spacing: f64) -> Vec<(f64, f64)> {
     let span = (node.height * 0.6)
-        .max(min_span)
+        .max(SELF_REF_MIN_SPAN)
         .min((node.height - 24.0).max(24.0));
 
     let x = node.x + node.width;
     let center_y = node.y + node.height / 2.0;
     let y_top = center_y - span / 2.0;
     let y_bottom = center_y + span / 2.0;
-    let loop_offset = 25.0;
+    let loop_offset = SELF_REF_LOOP_OFFSET + loop_index as f64 * lane_spacing;
 
     vec![
         (x, y_top),

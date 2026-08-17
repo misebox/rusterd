@@ -28,6 +28,9 @@ pub fn route_edges<'a>(
     node_gap_x: f64,
     entity_margin: f64,
 ) -> Vec<LayoutEdge> {
+    // Self-references on one node nest, so each needs to know its position.
+    let mut self_ref_seen: HashMap<&str, usize> = HashMap::new();
+
     ir.edges
         .iter()
         .enumerate()
@@ -36,10 +39,13 @@ pub fn route_edges<'a>(
             let to_node = node_positions.get(edge.to.as_str())?;
 
             if edge.from == edge.to {
+                let loop_index = self_ref_seen.entry(edge.from.as_str()).or_insert(0);
+                let waypoints = route_self_ref(from_node, *loop_index, lane_spacing);
+                *loop_index += 1;
                 return Some(LayoutEdge {
                     from: edge.from.clone(),
                     to: edge.to.clone(),
-                    waypoints: route_self_ref(from_node),
+                    waypoints,
                     is_self_ref: true,
                     edge_index: idx,
                 });
