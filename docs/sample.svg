@@ -8,12 +8,12 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-label-bg { fill: rgba(245,245,245,0.6); }
-  .edge-label { font-family: monospace; font-size: 14px; fill: #555; }
-  .cardinality-bg { fill: rgba(240,240,240,0.6); }
-  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }
+  .edge-label-bg { fill: rgba(234,234,234,0.9); }
+  .edge-label { font-family: monospace; font-size: 14px; fill: #444; }
+  .cardinality-bg { fill: rgba(224,224,224,0.95); }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #222; }
 </style>
-<path class="edge" d="M 176 71.2 L 188.5 71.2 Q 201 71.2 201 83.7 L 201 100.3 Q 201 112.8 188.5 112.8 L 176 112.8" />
+<path class="edge" d="M 176 60.8 L 188.5 60.8 Q 201 60.8 201 73.3 L 201 110.7 Q 201 123.2 188.5 123.2 L 176 123.2" />
 <path class="edge" d="M 104 144 L 104 302" />
 <path class="edge" d="M 392 164 L 392 302" />
 <path class="edge" d="M 352 164 L 352 225 Q 352 257 320 257 L 166.5 257 Q 144 257 144 279.5 L 144 302" />
@@ -57,26 +57,26 @@
 <text class="column-text" x="320" y="392">  total: decimal</text>
 <text class="column-text" x="320" y="412">  status: string</text>
 <rect class="entity-border" x="308" y="302" width="136" height="124" rx="4" />
-<rect class="cardinality-bg" x="198.5" y="61.7" width="13.0" height="19.0" rx="8" />
-<text class="cardinality" x="205" y="71.2" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="198.5" y="103.3" width="13.0" height="19.0" rx="8" />
-<text class="cardinality" x="205" y="112.8" text-anchor="middle" dominant-baseline="middle">*</text>
-<rect class="edge-label-bg" x="176.8" y="82.0" width="56.4" height="20.0" rx="8" />
-<text class="edge-label" x="205" y="92" text-anchor="middle" dominant-baseline="middle">parent</text>
-<rect class="cardinality-bg" x="97.5" y="146.0" width="13.0" height="19.0" rx="8" />
+<rect class="cardinality-bg" x="196.5" y="49.3" width="17.0" height="23.0" rx="8" />
+<text class="cardinality" x="205" y="60.8" text-anchor="middle" dominant-baseline="middle">1</text>
+<rect class="cardinality-bg" x="196.5" y="111.7" width="17.0" height="23.0" rx="8" />
+<text class="cardinality" x="205" y="123.2" text-anchor="middle" dominant-baseline="middle">✱</text>
+<rect class="edge-label-bg" x="206.0" y="82.0" width="56.4" height="20.0" rx="8" />
+<text class="edge-label" x="234.2" y="92" text-anchor="middle" dominant-baseline="middle">parent</text>
+<rect class="cardinality-bg" x="95.5" y="144.0" width="17.0" height="23.0" rx="8" />
 <text class="cardinality" x="104" y="155.5" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="97.5" y="281.0" width="13.0" height="19.0" rx="8" />
-<text class="cardinality" x="104" y="290.5" text-anchor="middle" dominant-baseline="middle">*</text>
-<rect class="cardinality-bg" x="385.5" y="166.0" width="13.0" height="19.0" rx="8" />
+<rect class="cardinality-bg" x="95.5" y="279.0" width="17.0" height="23.0" rx="8" />
+<text class="cardinality" x="104" y="290.5" text-anchor="middle" dominant-baseline="middle">✱</text>
+<rect class="cardinality-bg" x="383.5" y="164.0" width="17.0" height="23.0" rx="8" />
 <text class="cardinality" x="392" y="175.5" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="385.5" y="281.0" width="13.0" height="19.0" rx="8" />
-<text class="cardinality" x="392" y="290.5" text-anchor="middle" dominant-baseline="middle">*</text>
+<rect class="cardinality-bg" x="383.5" y="279.0" width="17.0" height="23.0" rx="8" />
+<text class="cardinality" x="392" y="290.5" text-anchor="middle" dominant-baseline="middle">✱</text>
 <rect class="edge-label-bg" x="363.8" y="223.0" width="56.4" height="20.0" rx="8" />
 <text class="edge-label" x="392" y="233" text-anchor="middle" dominant-baseline="middle">places</text>
-<rect class="cardinality-bg" x="332.0" y="166.0" width="40.0" height="19.0" rx="8" />
+<rect class="cardinality-bg" x="330.0" y="164.0" width="44.0" height="23.0" rx="8" />
 <text class="cardinality" x="352" y="175.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
-<rect class="cardinality-bg" x="124.0" y="281.0" width="40.0" height="19.0" rx="8" />
-<text class="cardinality" x="144" y="290.5" text-anchor="middle" dominant-baseline="middle">1..*</text>
+<rect class="cardinality-bg" x="122.0" y="279.0" width="44.0" height="23.0" rx="8" />
+<text class="cardinality" x="144" y="290.5" text-anchor="middle" dominant-baseline="middle">1..✱</text>
 <rect class="edge-label-bg" x="207.2" y="247.0" width="81.6" height="20.0" rx="8" />
 <text class="edge-label" x="248" y="257" text-anchor="middle" dominant-baseline="middle">favorites</text>
 </svg>

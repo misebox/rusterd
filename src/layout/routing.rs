@@ -13,10 +13,19 @@ pub fn calculate_lane_offset(lane: usize, total: usize, lane_spacing: f64) -> f6
 }
 
 /// Generate waypoints for a self-referential edge.
+///
+/// The two ends carry a cardinality label each, so they need enough vertical
+/// separation for both pills to sit clear of one another.
 pub fn route_self_ref(node: &LayoutNode) -> Vec<(f64, f64)> {
+    let min_span = 56.0;
+    let span = (node.height * 0.6)
+        .max(min_span)
+        .min((node.height - 24.0).max(24.0));
+
     let x = node.x + node.width;
-    let y_top = node.y + node.height * 0.3;
-    let y_bottom = node.y + node.height * 0.7;
+    let center_y = node.y + node.height / 2.0;
+    let y_top = center_y - span / 2.0;
+    let y_bottom = center_y + span / 2.0;
     let loop_offset = 25.0;
 
     vec![

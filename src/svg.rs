@@ -34,10 +34,10 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-label-bg {{ fill: rgba(245,245,245,0.6); }}
-  .edge-label {{ font-family: monospace; font-size: 14px; fill: #555; }}
-  .cardinality-bg {{ fill: rgba(240,240,240,0.6); }}
-  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #333; }}
+  .edge-label-bg {{ fill: rgba(234,234,234,0.9); }}
+  .edge-label {{ font-family: monospace; font-size: 14px; fill: #444; }}
+  .cardinality-bg {{ fill: rgba(224,224,224,0.95); }}
+  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #222; }}
 </style>"#
         )
         .unwrap();
@@ -255,8 +255,10 @@ impl SvgRenderer {
 
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
-                // Center label on the loop edge to avoid extending into adjacent entities
-                render_edge_label(svg, loop_x, mid_y, label);
+                // Keep the whole label right of the loop, off the entity box.
+                let label_x =
+                    loop_x + monospace_width(label, EDGE_LABEL_FONT_SIZE) / 2.0 + margin;
+                render_edge_label(svg, label_x, mid_y, label);
             }
         } else {
             // For orthogonal edges, place cardinalities near first/last segments
@@ -307,12 +309,16 @@ impl SvgRenderer {
     }
 }
 
+/// U+2731 HEAVY ASTERISK. The ASCII `*` is drawn small and near the cap height,
+/// so it reads as a footnote mark next to the digits; this one sits centered.
+const MANY: &str = "\u{2731}";
+
 fn cardinality_symbol(c: Cardinality) -> &'static str {
     match c {
         Cardinality::One => "1",
         Cardinality::ZeroOrOne => "0..1",
-        Cardinality::Many => "*",
-        Cardinality::OneOrMore => "1..*",
+        Cardinality::Many => MANY,
+        Cardinality::OneOrMore => concat!("1..", "\u{2731}"),
     }
 }
 
@@ -343,9 +349,13 @@ fn monospace_width(text: &str, font_size: f64) -> f64 {
     UnicodeWidthStr::width(text) as f64 * font_size * 0.6
 }
 
+
+/// Font size of relationship labels, matching the `.edge-label` class.
+const EDGE_LABEL_FONT_SIZE: f64 = 14.0;
+
 /// Render edge label with semi-transparent background
 fn render_edge_label(svg: &mut String, x: f64, y: f64, label: &str) {
-    let font_size = 14.0;
+    let font_size = EDGE_LABEL_FONT_SIZE;
     let text_width = monospace_width(label, font_size);
     let text_height = font_size;
     let padding = 3.0;
@@ -387,7 +397,7 @@ fn render_cardinality(
 ) {
     let text_width = monospace_width(symbol, font_size);
     let text_height = font_size;
-    let padding = 2.0;
+    let padding = 4.0;
 
     // Rect centered on (x, y)
     let rect_x = x - text_width / 2.0 - padding;
