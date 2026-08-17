@@ -58,13 +58,8 @@ impl GraphIR {
     pub fn from_schema(schema: &Schema, view: Option<&str>, detail: DetailLevel) -> Self {
         use std::collections::HashMap;
 
-        let included_entities: Vec<&str> = match view {
-            Some(view_name) => schema
-                .views
-                .iter()
-                .find(|v| v.name == view_name)
-                .map(|v| v.includes.iter().map(|s| s.as_str()).collect())
-                .unwrap_or_default(),
+        let included_entities: Vec<&str> = match view.and_then(|name| schema.find_view(name)) {
+            Some(view) => view.includes.iter().map(|s| s.as_str()).collect(),
             None => schema.entities.iter().map(|e| e.name.as_str()).collect(),
         };
 

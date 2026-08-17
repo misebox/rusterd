@@ -8,6 +8,16 @@ pub struct Schema {
     pub arrangement: Option<Vec<Vec<String>>>,
 }
 
+impl Schema {
+    pub fn find_view(&self, name: &str) -> Option<&View> {
+        self.views.iter().find(|v| v.name == name)
+    }
+
+    pub fn view_names(&self) -> Vec<&str> {
+        self.views.iter().map(|v| v.name.as_str()).collect()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub name: String,

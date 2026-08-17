@@ -31,6 +31,16 @@ pub fn render_erd(
     let mut parser = Parser::new(source).map_err(|e| e.to_string())?;
     let schema = parser.parse().map_err(|e| e.to_string())?;
 
+    if let Some(name) = view.as_deref() {
+        if schema.find_view(name).is_none() {
+            return Err(format!(
+                "Unknown view: {} (available: {})",
+                name,
+                schema.view_names().join(", ")
+            ));
+        }
+    }
+
     let detail_level = detail
         .as_deref()
         .and_then(DetailLevel::from_str)

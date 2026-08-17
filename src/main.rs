@@ -119,7 +119,7 @@ fn run_render(program: &str, args: &[String]) {
     let mut parser = match Parser::new(&input) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("Lex error: {}", e);
+            eprintln!("{}", e);
             process::exit(1);
         }
     };
@@ -131,6 +131,19 @@ fn run_render(program: &str, args: &[String]) {
             process::exit(1);
         }
     };
+
+    if let Some(name) = view.as_deref() {
+        if schema.find_view(name).is_none() {
+            eprintln!("Unknown view: {}", name);
+            let names = schema.view_names();
+            if names.is_empty() {
+                eprintln!("This file defines no views.");
+            } else {
+                eprintln!("Available views: {}", names.join(", "));
+            }
+            process::exit(1);
+        }
+    }
 
     let ir = GraphIR::from_schema(&schema, view.as_deref(), detail);
     let layout = LayoutEngine::default().layout(&ir);
