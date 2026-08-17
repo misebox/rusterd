@@ -155,6 +155,9 @@ bin/svg examples/sample.erd   # render one file next to its source
 bin/dev                       # render every example
 bin/docs                      # regenerate the diagrams in this README
 cd demo && bun run dev        # demo app on the local wasm build
+
+bin/publish                   # check and build the npm package
+bin/publish --yes             # ...and publish it as rusterd@<Cargo.toml version>
 ```
 
 ## Syntax Reference
