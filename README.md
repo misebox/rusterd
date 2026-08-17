@@ -64,14 +64,23 @@ view simple {
 cargo build --release
 
 # Render to file
-rusterd input.erd -o output.svg
+rusterd render input.erd -o output.svg
 
 # Render specific view
-rusterd input.erd -v simple -o output.svg
+rusterd render input.erd -v simple -o output.svg
 
 # Control detail level
-rusterd input.erd -d pk_fk -o output.svg
+rusterd render input.erd -d pk_fk -o output.svg
+
+# Read from stdin
+cat input.erd | rusterd render - -o output.svg
+
+# Convert a SQL dump to ERD notation
+rusterd convert schema.sql -o schema.erd
+rusterd convert schema.sql -d postgres
 ```
+
+**SQL dialects:** `auto` (default), `generic`, `postgres`, `mysql`
 
 **Detail levels:**
 - `tables` - Entity names only
