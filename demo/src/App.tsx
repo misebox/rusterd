@@ -1,5 +1,27 @@
-import { createSignal, createEffect, onMount } from "solid-js";
-import init, { erdToSvg } from "../../pkg/rusterd.js";
+import { createSignal, onMount, Show } from "solid-js";
+import init, { erdToSvg, sqlToErd } from "../../pkg/rusterd.js";
+
+const DEFAULT_SQL = `-- Paste a CREATE TABLE dump here
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name TEXT,
+    created_at TIMESTAMPTZ
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id),
+    total DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE order_items (
+    order_id INT NOT NULL REFERENCES orders(id),
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    PRIMARY KEY (order_id, product_id)
+);`;
 
 const DEFAULT_ERD = `# Sample ERD - demonstrates all features
 
@@ -51,6 +73,9 @@ view simple {
     include User, Order
 }`;
 
+const TABS = ["SQL", "ERD", "SVG Code", "SVG Preview"] as const;
+type Tab = (typeof TABS)[number];
+
 const DETAIL_LEVELS = [
   { value: "all", label: "All columns" },
   { value: "pk_fk", label: "PK + FK only" },
@@ -58,29 +83,91 @@ const DETAIL_LEVELS = [
   { value: "tables", label: "Tables only" },
 ];
 
+const DIALECTS = [
+  { value: "auto", label: "Auto-detect" },
+  { value: "postgres", label: "PostgreSQL" },
+  { value: "mysql", label: "MySQL" },
+  { value: "generic", label: "Generic" },
+];
+
 export default function App() {
-  const [source, setSource] = createSignal(DEFAULT_ERD);
-  const [detail, setDetail] = createSignal("all");
+  const [tab, setTab] = createSignal<Tab>("ERD");
+  const [sql, setSql] = createSignal(DEFAULT_SQL);
+  const [erd, setErd] = createSignal(DEFAULT_ERD);
   const [svg, setSvg] = createSignal("");
+  const [dialect, setDialect] = createSignal("auto");
+  const [detail, setDetail] = createSignal("all");
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
+
+  /// Run a conversion, showing whatever the compiler complains about.
+  const convert = (step: () => Tab) => {
+    try {
+      setTab(step());
+      setError("");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  /// The SQL parser skips statements it does not recognise, so a typo yields an
+  /// empty schema rather than an error. Say so instead of showing a blank pane.
+  const erdFromSql = () => {
+    const converted = sqlToErd(sql(), dialect());
+    if (!converted.trim()) {
+      throw new Error("No tables found. Check the SQL, or choose the dialect explicitly.");
+    }
+    return converted;
+  };
+
+  const renderErd = (source: string) => {
+    if (!source.trim()) {
+      throw new Error("Nothing to render: the ERD is empty.");
+    }
+    return erdToSvg(source, null, detail());
+  };
+
+  const sqlToErdStep = () =>
+    convert(() => {
+      setErd(erdFromSql());
+      return "ERD";
+    });
+
+  const sqlToSvgStep = () =>
+    convert(() => {
+      setSvg(renderErd(erdFromSql()));
+      return "SVG Preview";
+    });
+
+  const erdToSvgStep = () =>
+    convert(() => {
+      setSvg(renderErd(erd()));
+      return "SVG Preview";
+    });
 
   onMount(async () => {
     await init();
     setReady(true);
+    convert(() => {
+      setSvg(renderErd(erd()));
+      return "ERD";
+    });
   });
 
-  createEffect(() => {
-    if (!ready()) return;
-    try {
-      const result = erdToSvg(source(), null, detail());
-      setSvg(result);
-      setError("");
-    } catch (e) {
-      setError(String(e));
-      setSvg("");
-    }
-  });
+  const detailSelect = () => (
+    <label style={styles.field}>
+      Detail
+      <select
+        style={styles.select}
+        value={detail()}
+        onChange={(e) => setDetail(e.currentTarget.value)}
+      >
+        {DETAIL_LEVELS.map((level) => (
+          <option value={level.value}>{level.label}</option>
+        ))}
+      </select>
+    </label>
+  );
 
   return (
     <div style={styles.container}>
@@ -95,35 +182,89 @@ export default function App() {
           GitHub
         </a>
       </div>
-      <div style={styles.main}>
-        <div style={styles.editorPane}>
-          <h2 style={styles.paneTitle}>ERD Source</h2>
-          <textarea
-            style={styles.textarea}
-            value={source()}
-            onInput={(e) => setSource(e.currentTarget.value)}
-            spellcheck={false}
-          />
-        </div>
-        <div style={styles.previewPane}>
-          <div style={styles.previewHeader}>
-            <h2 style={styles.paneTitle}>SVG Output</h2>
+
+      <div style={styles.tabs}>
+        {TABS.map((name) => (
+          <button
+            style={{ ...styles.tab, ...(tab() === name ? styles.tabActive : {}) }}
+            onClick={() => setTab(name)}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
+      <div style={styles.toolbar}>
+        <Show when={tab() === "SQL"}>
+          <label style={styles.field}>
+            Dialect
             <select
               style={styles.select}
-              value={detail()}
-              onChange={(e) => setDetail(e.currentTarget.value)}
+              value={dialect()}
+              onChange={(e) => setDialect(e.currentTarget.value)}
             >
-              {DETAIL_LEVELS.map((level) => (
-                <option value={level.value}>{level.label}</option>
+              {DIALECTS.map((d) => (
+                <option value={d.value}>{d.label}</option>
               ))}
             </select>
-          </div>
-          {error() ? (
-            <pre style={styles.error}>{error()}</pre>
-          ) : (
-            <div style={styles.svgContainer} innerHTML={svg()} />
-          )}
-        </div>
+          </label>
+          {detailSelect()}
+          <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
+            SQL → ERD
+          </button>
+          <button style={styles.action} disabled={!ready()} onClick={sqlToSvgStep}>
+            SQL → SVG
+          </button>
+        </Show>
+
+        <Show when={tab() === "ERD"}>
+          {detailSelect()}
+          <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
+            ERD → SVG
+          </button>
+        </Show>
+
+        <Show when={tab() === "SVG Code"}>
+          <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
+        </Show>
+
+        <Show when={tab() === "SVG Preview"}>
+          <span style={styles.hint}>Rendered from the SVG Code tab.</span>
+        </Show>
+      </div>
+
+      <Show when={error()}>
+        <pre style={styles.error}>{error()}</pre>
+      </Show>
+
+      <div style={styles.panel}>
+        <Show when={tab() === "SQL"}>
+          <textarea
+            style={styles.textarea}
+            value={sql()}
+            onInput={(e) => setSql(e.currentTarget.value)}
+            spellcheck={false}
+          />
+        </Show>
+        <Show when={tab() === "ERD"}>
+          <textarea
+            style={styles.textarea}
+            value={erd()}
+            onInput={(e) => setErd(e.currentTarget.value)}
+            spellcheck={false}
+          />
+        </Show>
+        <Show when={tab() === "SVG Code"}>
+          <textarea
+            style={styles.textarea}
+            value={svg()}
+            onInput={(e) => setSvg(e.currentTarget.value)}
+            spellcheck={false}
+          />
+        </Show>
+        <Show when={tab() === "SVG Preview"}>
+          <div style={styles.preview} innerHTML={svg()} />
+        </Show>
       </div>
     </div>
   );
@@ -135,13 +276,17 @@ const styles = {
     padding: "20px",
     "max-width": "1400px",
     margin: "0 auto",
+    height: "100vh",
+    "box-sizing": "border-box",
+    display: "flex",
+    "flex-direction": "column",
   },
   header: {
     display: "flex",
     "justify-content": "space-between",
     "align-items": "baseline",
     gap: "16px",
-    "margin-bottom": "20px",
+    "margin-bottom": "16px",
   },
   title: {
     margin: "0",
@@ -151,32 +296,43 @@ const styles = {
     "font-size": "14px",
     color: "#555",
   },
-  main: {
+  tabs: {
     display: "flex",
-    gap: "20px",
-    height: "calc(100vh - 120px)",
+    gap: "4px",
+    "border-bottom": "1px solid #ccc",
   },
-  editorPane: {
-    flex: "1",
-    display: "flex",
-    "flex-direction": "column",
-  },
-  previewPane: {
-    flex: "1",
-    display: "flex",
-    "flex-direction": "column",
-    overflow: "auto",
-  },
-  paneTitle: {
-    margin: "0",
+  tab: {
+    "font-family": "system-ui, sans-serif",
     "font-size": "14px",
-    color: "#666",
+    padding: "8px 14px",
+    border: "1px solid transparent",
+    "border-bottom": "none",
+    "border-radius": "4px 4px 0 0",
+    background: "transparent",
+    color: "#555",
+    cursor: "pointer",
   },
-  previewHeader: {
+  tabActive: {
+    border: "1px solid #ccc",
+    "border-bottom": "1px solid #fff",
+    "margin-bottom": "-1px",
+    background: "#fff",
+    color: "#111",
+    "font-weight": "bold",
+  },
+  toolbar: {
     display: "flex",
-    "justify-content": "space-between",
     "align-items": "center",
-    "margin-bottom": "10px",
+    gap: "12px",
+    padding: "12px 0",
+    "min-height": "34px",
+  },
+  field: {
+    display: "flex",
+    "align-items": "center",
+    gap: "6px",
+    "font-size": "13px",
+    color: "#666",
   },
   select: {
     "font-family": "system-ui, sans-serif",
@@ -185,6 +341,26 @@ const styles = {
     border: "1px solid #ccc",
     "border-radius": "4px",
     background: "#fff",
+  },
+  action: {
+    "font-family": "system-ui, sans-serif",
+    "font-size": "13px",
+    "font-weight": "bold",
+    padding: "6px 12px",
+    border: "1px solid #999",
+    "border-radius": "4px",
+    background: "#f6f6f6",
+    color: "#222",
+    cursor: "pointer",
+  },
+  hint: {
+    "font-size": "13px",
+    color: "#888",
+  },
+  panel: {
+    flex: "1",
+    display: "flex",
+    "min-height": "0",
   },
   textarea: {
     flex: "1",
@@ -195,7 +371,7 @@ const styles = {
     "border-radius": "4px",
     resize: "none",
   },
-  svgContainer: {
+  preview: {
     flex: "1",
     border: "1px solid #ccc",
     "border-radius": "4px",
@@ -210,7 +386,7 @@ const styles = {
     padding: "12px",
     background: "#fee",
     "border-radius": "4px",
-    margin: "0",
+    margin: "0 0 12px 0",
     "white-space": "pre-wrap",
   },
 };
