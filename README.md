@@ -158,6 +158,7 @@ cd demo && bun run dev        # demo app on the local wasm build
 
 bin/release patch             # show what a patch release would do
 bin/release minor --yes       # bump, commit, tag, publish to crates.io and npm, push
+bin/release current --yes     # release the version already in Cargo.toml
 ```
 
 ## Syntax Reference

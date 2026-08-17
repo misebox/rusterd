@@ -3,6 +3,7 @@
 #
 #   bin/release patch          # show the plan, change nothing
 #   bin/release patch --yes    # carry it out
+#   bin/release current --yes  # publish the version already in Cargo.toml
 #
 # Publishing cannot be undone, so --yes is required.
 
@@ -13,9 +14,9 @@ level="${1:-}"
 confirm="${2:-}"
 
 case "$level" in
-    patch | minor | major) ;;
+    patch | minor | major | current) ;;
     *)
-        echo "Usage: bin/release <patch|minor|major> [--yes]" >&2
+        echo "Usage: bin/release <patch|minor|major|current> [--yes]" >&2
         exit 1
         ;;
 esac
@@ -31,6 +32,7 @@ case "$level" in
     major) major=$((major + 1)) minor=0 patch=0 ;;
     minor) minor=$((minor + 1)) patch=0 ;;
     patch) patch=$((patch + 1)) ;;
+    current) ;;
 esac
 next="${major}.${minor}.${patch}"
 tag="v${next}"
@@ -67,15 +69,19 @@ fi
 cargo test
 
 echo
-echo "Release rusterd ${current} -> ${next} on branch ${branch}"
+if [ "$level" = current ]; then
+    echo "Release rusterd ${next} (already in Cargo.toml) on branch ${branch}"
+else
+    echo "Release rusterd ${current} -> ${next} on branch ${branch}"
+    echo "  - set version = \"${next}\" in Cargo.toml, commit \"Release ${next}\""
+fi
 if [ "$branch" != "main" ]; then
     echo "  note: releasing from ${branch}, not main"
 fi
-echo "  1. set version = \"${next}\" in Cargo.toml"
-echo "  2. commit \"Release ${next}\" and tag ${tag}"
-echo "  3. cargo publish"
-echo "  4. wasm-pack build --target web && wasm-pack publish"
-echo "  5. git push && git push origin ${tag}"
+echo "  - tag ${tag}"
+echo "  - cargo publish"
+echo "  - wasm-pack build --target web && wasm-pack publish"
+echo "  - git push && git push origin ${tag}"
 
 if [ "$confirm" != "--yes" ]; then
     echo
@@ -84,14 +90,18 @@ if [ "$confirm" != "--yes" ]; then
 fi
 
 echo
-echo "==> Bumping version"
-awk -v v="$next" '!done && /^version = "/ { sub(/"[^"]*"/, "\"" v "\""); done = 1 } { print }' \
-    Cargo.toml >Cargo.toml.new
-mv Cargo.toml.new Cargo.toml
+if [ "$level" != current ]; then
+    echo "==> Bumping version"
+    awk -v v="$next" '!done && /^version = "/ { sub(/"[^"]*"/, "\"" v "\""); done = 1 } { print }' \
+        Cargo.toml >Cargo.toml.new
+    mv Cargo.toml.new Cargo.toml
 
-echo "==> Committing and tagging"
-git add Cargo.toml
-git commit -m "Release ${next}"
+    echo "==> Committing"
+    git add Cargo.toml
+    git commit -m "Release ${next}"
+fi
+
+echo "==> Tagging ${tag}"
 git tag "$tag"
 
 echo "==> Publishing to crates.io"
