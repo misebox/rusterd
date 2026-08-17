@@ -84,7 +84,17 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Rusterd Demo</h1>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Rusterd Demo</h1>
+        <a
+          style={styles.repoLink}
+          href="https://github.com/misebox/rusterd"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+        </a>
+      </div>
       <div style={styles.main}>
         <div style={styles.editorPane}>
           <h2 style={styles.paneTitle}>ERD Source</h2>
@@ -126,9 +136,20 @@ const styles = {
     "max-width": "1400px",
     margin: "0 auto",
   },
+  header: {
+    display: "flex",
+    "justify-content": "space-between",
+    "align-items": "baseline",
+    gap: "16px",
+    "margin-bottom": "20px",
+  },
   title: {
-    margin: "0 0 20px 0",
+    margin: "0",
     color: "#333",
+  },
+  repoLink: {
+    "font-size": "14px",
+    color: "#555",
   },
   main: {
     display: "flex",
