@@ -51,9 +51,15 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
+tag_exists=false
 if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-    echo "Tag ${tag} already exists." >&2
-    exit 1
+    # A half-finished release leaves the tag behind; `current` can retry from it.
+    if [ "$level" = current ] && [ "$(git rev-parse "$tag")" = "$(git rev-parse HEAD)" ]; then
+        tag_exists=true
+    else
+        echo "Tag ${tag} already exists." >&2
+        exit 1
+    fi
 fi
 
 if npm view "rusterd@${next}" version >/dev/null 2>&1; then
@@ -78,7 +84,11 @@ fi
 if [ "$branch" != "main" ]; then
     echo "  note: releasing from ${branch}, not main"
 fi
-echo "  - tag ${tag}"
+if [ "$tag_exists" = true ]; then
+    echo "  - tag ${tag} already exists at HEAD, keeping it"
+else
+    echo "  - tag ${tag}"
+fi
 echo "  - cargo publish"
 echo "  - wasm-pack build --target web && wasm-pack publish"
 echo "  - git push && git push origin ${tag}"
@@ -101,8 +111,12 @@ if [ "$level" != current ]; then
     git commit -m "Release ${next}"
 fi
 
-echo "==> Tagging ${tag}"
-git tag "$tag"
+if [ "$tag_exists" = true ]; then
+    echo "==> Tag ${tag} already points at HEAD"
+else
+    echo "==> Tagging ${tag}"
+    git tag "$tag"
+fi
 
 echo "==> Publishing to crates.io"
 cargo publish
