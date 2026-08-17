@@ -2,6 +2,8 @@
 
 ER diagram DSL compiler that renders to SVG. Written in Rust, compiles to WASM for browser use.
 
+Live demo: https://misebox.github.io/rusterd/
+
 ## Features
 
 - **Entities**: Define tables with typed columns
