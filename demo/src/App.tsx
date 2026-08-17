@@ -1,26 +1,36 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../pkg/rusterd.js";
 
-const DEFAULT_SQL = `-- Paste a CREATE TABLE dump here
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
+const DEFAULT_SQL = `-- The same schema as the ERD tab.
+-- Relationships come from the foreign keys, so the "favorites" link and the
+-- relationship labels of the ERD sample have no equivalent here.
+
+CREATE TABLE Category (
+    id INTEGER PRIMARY KEY,
+    parent_id INTEGER REFERENCES Category(id),
+    name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE User (
+    id INTEGER PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
-    name TEXT,
-    created_at TIMESTAMPTZ
+    name VARCHAR(100),
+    created_at TIMESTAMP
 );
 
-CREATE TABLE orders (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES users(id),
-    total DECIMAL(10, 2) NOT NULL,
-    status VARCHAR(50) NOT NULL
+CREATE TABLE Product (
+    id INTEGER PRIMARY KEY,
+    category_id INTEGER REFERENCES Category(id),
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2),
+    is_active BOOLEAN
 );
 
-CREATE TABLE order_items (
-    order_id INT NOT NULL REFERENCES orders(id),
-    product_id INT NOT NULL,
-    quantity INT NOT NULL,
-    PRIMARY KEY (order_id, product_id)
+CREATE TABLE "Order" (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER REFERENCES User(id),
+    total DECIMAL(10, 2),
+    status VARCHAR(20) NOT NULL
 );`;
 
 const DEFAULT_ERD = `# Sample ERD - demonstrates all features
