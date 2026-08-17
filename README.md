@@ -71,7 +71,7 @@ view simple {
 
 Rendered with `rusterd render examples/sample.erd -o docs/sample.svg`:
 
-![Rendered ERD](docs/sample.svg)
+![Rendered ERD](https://raw.githubusercontent.com/misebox/rusterd/main/docs/sample.svg)
 
 ## Install
 
