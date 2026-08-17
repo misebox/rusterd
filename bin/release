@@ -1,0 +1,109 @@
+#!/bin/bash
+# Cut a release: bump the version, commit, tag, publish to crates.io and npm.
+#
+#   bin/release patch          # show the plan, change nothing
+#   bin/release patch --yes    # carry it out
+#
+# Publishing cannot be undone, so --yes is required.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+level="${1:-}"
+confirm="${2:-}"
+
+case "$level" in
+    patch | minor | major) ;;
+    *)
+        echo "Usage: bin/release <patch|minor|major> [--yes]" >&2
+        exit 1
+        ;;
+esac
+
+current=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Cannot bump version '${current}' automatically. Edit Cargo.toml by hand." >&2
+    exit 1
+fi
+
+IFS=. read -r major minor patch <<<"$current"
+case "$level" in
+    major) major=$((major + 1)) minor=0 patch=0 ;;
+    minor) minor=$((minor + 1)) patch=0 ;;
+    patch) patch=$((patch + 1)) ;;
+esac
+next="${major}.${minor}.${patch}"
+tag="v${next}"
+branch=$(git branch --show-current)
+
+# Pre-flight checks, so nothing is touched unless the release can go through.
+for tool in cargo wasm-pack npm git; do
+    if ! command -v "$tool" >/dev/null; then
+        echo "Missing ${tool}." >&2
+        exit 1
+    fi
+done
+
+if [ -n "$(git status --porcelain)" ]; then
+    echo "Working tree is dirty. Commit or stash first." >&2
+    exit 1
+fi
+
+if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+    echo "Tag ${tag} already exists." >&2
+    exit 1
+fi
+
+if npm view "rusterd@${next}" version >/dev/null 2>&1; then
+    echo "rusterd@${next} is already on npm." >&2
+    exit 1
+fi
+
+if ! npm whoami >/dev/null 2>&1; then
+    echo "Not logged in to npm. Run: npm login" >&2
+    exit 1
+fi
+
+cargo test
+
+echo
+echo "Release rusterd ${current} -> ${next} on branch ${branch}"
+if [ "$branch" != "main" ]; then
+    echo "  note: releasing from ${branch}, not main"
+fi
+echo "  1. set version = \"${next}\" in Cargo.toml"
+echo "  2. commit \"Release ${next}\" and tag ${tag}"
+echo "  3. cargo publish"
+echo "  4. wasm-pack build --target web && wasm-pack publish"
+echo "  5. git push && git push origin ${tag}"
+
+if [ "$confirm" != "--yes" ]; then
+    echo
+    echo "Nothing changed. Re-run with --yes to release."
+    exit 0
+fi
+
+echo
+echo "==> Bumping version"
+awk -v v="$next" '!done && /^version = "/ { sub(/"[^"]*"/, "\"" v "\""); done = 1 } { print }' \
+    Cargo.toml >Cargo.toml.new
+mv Cargo.toml.new Cargo.toml
+
+echo "==> Committing and tagging"
+git add Cargo.toml
+git commit -m "Release ${next}"
+git tag "$tag"
+
+echo "==> Publishing to crates.io"
+cargo publish
+
+echo "==> Publishing to npm"
+wasm-pack build --target web
+wasm-pack publish
+
+echo "==> Pushing"
+git push
+git push origin "$tag"
+
+echo
+echo "Released ${next}."
