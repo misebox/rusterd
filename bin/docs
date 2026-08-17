@@ -1,0 +1,6 @@
+#!/bin/bash
+# Regenerate the diagrams embedded in README.md.
+
+set -e
+cd "$(dirname "$0")/.."
+cargo run --release -- render examples/sample.erd -o docs/sample.svg
