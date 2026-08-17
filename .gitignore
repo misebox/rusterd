@@ -6,4 +6,3 @@ tmp/
 .DS_Store
 examples/*.svg
 pkg/
-demo/pkg/

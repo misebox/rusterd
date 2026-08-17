@@ -6,4 +6,7 @@ export default defineConfig({
   // /rusterd/ prefix GitHub Pages serves a project site from.
   base: "./",
   plugins: [solid()],
+  // The wasm package is read straight from ../pkg, so the dev server has to be
+  // allowed to serve files from the repository root.
+  server: { fs: { allow: [".."] } },
 });

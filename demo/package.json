@@ -4,9 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "load": "mkdir -p pkg && cp ../pkg/* pkg/",
-    "dev": "bun run load; vite",
-    "build": "bun run load && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

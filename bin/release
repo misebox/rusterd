@@ -90,7 +90,7 @@ else
     echo "  - tag ${tag}"
 fi
 echo "  - cargo publish"
-echo "  - wasm-pack build --target web && wasm-pack publish"
+echo "  - wasm-pack build --target web && npm publish pkg"
 echo "  - git push && git push origin ${tag}"
 
 if [ "$confirm" != "--yes" ]; then
@@ -123,7 +123,14 @@ cargo publish
 
 echo "==> Publishing to npm"
 wasm-pack build --target web
-wasm-pack publish
+built=$(grep -m1 '"version"' pkg/package.json | cut -d'"' -f4)
+if [ "$built" != "$next" ]; then
+    echo "pkg/ holds ${built}, expected ${next}. Not publishing." >&2
+    exit 1
+fi
+# Publish pkg/ by path: running `wasm-pack publish` from elsewhere in the tree
+# can pick up a different pkg directory.
+npm publish pkg
 
 echo "==> Pushing"
 git push
