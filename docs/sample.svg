@@ -10,6 +10,8 @@
   .pk { font-weight: bold; }
   .fk { font-style: italic; }
   .edge { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-symbol { stroke: #666; stroke-width: 1.5; fill: none; }
+  .edge-symbol-zero { stroke: #666; stroke-width: 1.5; fill: #fff; }
   .edge-label-bg { fill: rgba(234,234,234,0.9); }
   .edge-label { font-family: monospace; font-size: 14px; fill: #444; }
   .cardinality-bg { fill: rgba(224,224,224,0.95); }
@@ -23,6 +25,8 @@
     .entity-name { fill: #e6edf3; }
     .column-text { fill: #e6edf3; }
     .edge { stroke: #8b949e; }
+    .edge-symbol { stroke: #8b949e; }
+    .edge-symbol-zero { stroke: #8b949e; fill: #0d1117; }
     .edge-label-bg { fill: rgba(48,54,61,0.92); }
     .edge-label { fill: #c9d1d9; }
     .cardinality-bg { fill: rgba(60,67,76,0.95); }
@@ -31,9 +35,23 @@
 </style>
 <rect class="canvas" width="100%" height="100%" />
 <path class="edge" d="M 176 60.8 L 188.5 60.8 Q 201 60.8 201 73.3 L 201 110.7 Q 201 123.2 188.5 123.2 L 176 123.2" />
+<path class="edge-symbol" d="M 186 53.3 L 186 68.3" />
+<path class="edge-symbol" d="M 176 123.2 L 191 115.7" />
+<path class="edge-symbol" d="M 176 123.2 L 191 130.7" />
 <path class="edge" d="M 96 144 L 96 302" />
+<path class="edge-symbol" d="M 103.5 154 L 88.5 154" />
+<path class="edge-symbol" d="M 96 302 L 88.5 287" />
+<path class="edge-symbol" d="M 96 302 L 103.5 287" />
 <path class="edge" d="M 485 164 L 485 186.5 Q 485 209 462.5 209 L 408 209 Q 376 209 376 241 L 376 302" />
+<path class="edge-symbol" d="M 492.5 174 L 477.5 174" />
+<path class="edge-symbol" d="M 376 302 L 368.5 287" />
+<path class="edge-symbol" d="M 376 302 L 383.5 287" />
 <path class="edge" d="M 429 164 L 429 225 Q 429 257 397 257 L 174.5 257 Q 152 257 152 279.5 L 152 302" />
+<path class="edge-symbol" d="M 436.5 174 L 421.5 174" />
+<circle class="edge-symbol-zero" cx="429" cy="180" r="4" />
+<path class="edge-symbol" d="M 152 302 L 144.5 287" />
+<path class="edge-symbol" d="M 152 302 L 159.5 287" />
+<path class="edge-symbol" d="M 144.5 287 L 159.5 287" />
 <rect class="entity-bg" x="40" y="40" width="136" height="104" rx="4" />
 <rect class="entity-header" x="40" y="40" width="136" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="136" height="4" />
@@ -74,26 +92,10 @@
 <text class="column-text" x="320" y="392">  total: decimal</text>
 <text class="column-text" x="320" y="412">  status: string</text>
 <rect class="entity-border" x="308" y="302" width="136" height="124" rx="4" />
-<rect class="cardinality-bg" x="196.5" y="49.3" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="205" y="60.8" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="196.5" y="111.7" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="205" y="123.2" text-anchor="middle" dominant-baseline="middle">✱</text>
 <rect class="edge-label-bg" x="206.0" y="82.0" width="56.4" height="20.0" rx="8" />
 <text class="edge-label" x="234.2" y="92" text-anchor="middle" dominant-baseline="middle">parent</text>
-<rect class="cardinality-bg" x="87.5" y="150.0" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="96" y="161.5" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="87.5" y="273.0" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="96" y="284.5" text-anchor="middle" dominant-baseline="middle">✱</text>
-<rect class="cardinality-bg" x="476.5" y="170.0" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="485" y="181.5" text-anchor="middle" dominant-baseline="middle">1</text>
-<rect class="cardinality-bg" x="367.5" y="273.0" width="17.0" height="23.0" rx="8" />
-<text class="cardinality" x="376" y="284.5" text-anchor="middle" dominant-baseline="middle">✱</text>
 <rect class="edge-label-bg" x="366.3" y="199.0" width="56.4" height="20.0" rx="8" />
 <text class="edge-label" x="394.5" y="209" text-anchor="middle" dominant-baseline="middle">places</text>
-<rect class="cardinality-bg" x="407.0" y="170.0" width="44.0" height="23.0" rx="8" />
-<text class="cardinality" x="429" y="181.5" text-anchor="middle" dominant-baseline="middle">0..1</text>
-<rect class="cardinality-bg" x="130.0" y="273.0" width="44.0" height="23.0" rx="8" />
-<text class="cardinality" x="152" y="284.5" text-anchor="middle" dominant-baseline="middle">1..✱</text>
 <rect class="edge-label-bg" x="249.7" y="247.0" width="81.6" height="20.0" rx="8" />
 <text class="edge-label" x="290.5" y="257" text-anchor="middle" dominant-baseline="middle">favorites</text>
 </svg>

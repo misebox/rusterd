@@ -116,6 +116,11 @@ const DIALECTS = [
   { value: "generic", label: "Generic" },
 ];
 
+const NOTATIONS = [
+  { value: "crowsfoot", label: "Crow's foot" },
+  { value: "text", label: "1 / 0..1 / *" },
+];
+
 export default function App() {
   const [tab, setTab] = createSignal<Tab>("ERD");
   const [sql, setSql] = createSignal(DEFAULT_SQL);
@@ -123,6 +128,7 @@ export default function App() {
   const [svg, setSvg] = createSignal("");
   const [dialect, setDialect] = createSignal("auto");
   const [detail, setDetail] = createSignal("all");
+  const [notation, setNotation] = createSignal("crowsfoot");
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
 
@@ -150,7 +156,7 @@ export default function App() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, null, detail());
+    return erdToSvg(source, null, detail(), notation());
   };
 
   const sqlToErdStep = () =>
@@ -202,6 +208,21 @@ export default function App() {
     </label>
   );
 
+  const notationSelect = () => (
+    <label style={styles.field}>
+      Notation
+      <select
+        style={styles.select}
+        value={notation()}
+        onChange={(e) => setNotation(e.currentTarget.value)}
+      >
+        {NOTATIONS.map((n) => (
+          <option value={n.value}>{n.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -242,6 +263,7 @@ export default function App() {
             </select>
           </label>
           {detailSelect()}
+          {notationSelect()}
           <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
             SQL → ERD
           </button>
@@ -255,6 +277,7 @@ export default function App() {
 
         <Show when={tab() === "ERD"}>
           {detailSelect()}
+          {notationSelect()}
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
           </button>

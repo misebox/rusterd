@@ -93,6 +93,9 @@ rusterd render input.erd -v simple -o output.svg
 # Control detail level
 rusterd render input.erd -d pk_fk -o output.svg
 
+# Cardinality notation
+rusterd render input.erd -n text -o output.svg
+
 # Read from stdin
 cat input.erd | rusterd render - -o output.svg
 
@@ -109,6 +112,10 @@ rusterd convert schema.sql -d postgres
 - `pk_fk` - Primary and foreign keys
 - `all` - All columns (default)
 
+**Cardinality notation:**
+- `crowsfoot` - Crow's foot symbols drawn on the line (default)
+- `text` - `1`, `0..1`, `*`, `1..*` in a pill beside the line
+
 ## Browser Usage (WASM)
 
 ```javascript
@@ -116,9 +123,10 @@ import init, { erdToSvg, erdToDataUri, sqlToErd, sqlToSvg } from 'rusterd';
 
 await init();
 
-erdToSvg(source);                  // SVG markup for the whole diagram
-erdToSvg(source, 'simple');        // a named view
-erdToSvg(source, null, 'pk_fk');   // a detail level
+erdToSvg(source);                        // SVG markup for the whole diagram
+erdToSvg(source, 'simple');              // a named view
+erdToSvg(source, null, 'pk_fk');         // a detail level
+erdToSvg(source, null, null, 'text');    // text cardinalities, not crow's foot
 erdToDataUri(source);              // data: URI, ready for <img src={...}>
 sqlToErd(sqlDump, 'postgres');     // SQL dump -> ERD notation
 sqlToSvg(sqlDump, 'postgres');     // SQL dump -> SVG

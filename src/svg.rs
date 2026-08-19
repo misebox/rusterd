@@ -6,12 +6,40 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use unicode_width::UnicodeWidthStr;
 
+/// How the cardinality of each edge end is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Notation {
+    /// Crow's foot (IE) symbols on the line itself.
+    #[default]
+    CrowsFoot,
+    /// `1`, `0..1`, `*`, `1..*` written in a pill next to the line.
+    Text,
+}
+
+impl Notation {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "crowsfoot" | "crows-foot" | "ie" => Some(Self::CrowsFoot),
+            "text" => Some(Self::Text),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct SvgRenderer {
     metrics: TextMetrics,
+    notation: Notation,
 }
 
 impl SvgRenderer {
+    pub fn with_notation(notation: Notation) -> Self {
+        Self {
+            notation,
+            ..Self::default()
+        }
+    }
+
     pub fn render(&self, ir: &GraphIR, layout: &Layout) -> String {
         let mut svg = String::new();
 
@@ -36,6 +64,8 @@ impl SvgRenderer {
   .pk {{ font-weight: bold; }}
   .fk {{ font-style: italic; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
+  .edge-symbol {{ stroke: #666; stroke-width: 1.5; fill: none; }}
+  .edge-symbol-zero {{ stroke: #666; stroke-width: 1.5; fill: #fff; }}
   .edge-label-bg {{ fill: rgba(234,234,234,0.9); }}
   .edge-label {{ font-family: monospace; font-size: 14px; fill: #444; }}
   .cardinality-bg {{ fill: rgba(224,224,224,0.95); }}
@@ -49,6 +79,8 @@ impl SvgRenderer {
     .entity-name {{ fill: #e6edf3; }}
     .column-text {{ fill: #e6edf3; }}
     .edge {{ stroke: #8b949e; }}
+    .edge-symbol {{ stroke: #8b949e; }}
+    .edge-symbol-zero {{ stroke: #8b949e; fill: #0d1117; }}
     .edge-label-bg {{ fill: rgba(48,54,61,0.92); }}
     .edge-label {{ fill: #c9d1d9; }}
     .cardinality-bg {{ fill: rgba(60,67,76,0.95); }}
@@ -73,6 +105,11 @@ impl SvgRenderer {
         // 1. Render edge lines (behind nodes)
         for edge in &layout.edges {
             self.render_edge_line(&mut svg, edge, layout.corner_radius);
+            if self.notation == Notation::CrowsFoot {
+                if let Some(ir_edge) = ir.edges.get(edge.edge_index) {
+                    self.render_edge_ends(&mut svg, edge, ir_edge);
+                }
+            }
         }
 
         // 2. Render nodes (backgrounds, text, borders)
@@ -261,6 +298,39 @@ impl SvgRenderer {
         writeln!(svg, r#"<path class="edge" d="{}" />"#, path).unwrap();
     }
 
+    /// Draw the crow's foot symbol at both ends of an edge.
+    fn render_edge_ends(&self, svg: &mut String, layout: &LayoutEdge, edge: &Edge) {
+        let points = &layout.waypoints;
+        if points.len() < 2 {
+            return;
+        }
+
+        // Unit direction from an entity border along the line, away from it.
+        let outward = |from: (f64, f64), towards: (f64, f64)| {
+            let (dx, dy) = (towards.0 - from.0, towards.1 - from.1);
+            let length = (dx * dx + dy * dy).sqrt();
+            if length < f64::EPSILON {
+                (0.0, 0.0)
+            } else {
+                (dx / length, dy / length)
+            }
+        };
+
+        let last = points.len() - 1;
+        render_crows_foot(
+            svg,
+            points[0],
+            outward(points[0], points[1]),
+            edge.from_cardinality,
+        );
+        render_crows_foot(
+            svg,
+            points[last],
+            outward(points[last], points[last - 1]),
+            edge.to_cardinality,
+        );
+    }
+
     /// Work out where an edge's cardinalities and label go, without drawing
     /// them yet: they may still have to slide to avoid one another.
     fn plan_edge_labels(&self, plans: &mut Vec<LabelPlan>, layout: &LayoutEdge, edge: &Edge) {
@@ -279,12 +349,18 @@ impl SvgRenderer {
 
         let index = layout.edge_index;
 
+        // Crow's foot draws the cardinality on the line, so only the
+        // relationship label needs a pill.
+        let text_cardinalities = self.notation == Notation::Text;
+
         if layout.is_self_ref && layout.waypoints.len() >= 4 {
             // Self-referential: place cardinalities on the right side of loop
             let loop_x = layout.waypoints[1].0 + margin;
 
-            plans.push(plan_cardinality(loop_x, y1, from_symbol, index, RIGHT, 0.0));
-            plans.push(plan_cardinality(loop_x, y2, to_symbol, index, RIGHT, 0.0));
+            if text_cardinalities {
+                plans.push(plan_cardinality(loop_x, y1, from_symbol, index, RIGHT, 0.0));
+                plans.push(plan_cardinality(loop_x, y2, to_symbol, index, RIGHT, 0.0));
+            }
 
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
@@ -297,47 +373,49 @@ impl SvgRenderer {
             return;
         }
 
-        // For orthogonal edges, place cardinalities near first/last segments
-        // From cardinality: near the start point
-        let (p2x, p2y) = layout.waypoints[1];
-        let (dx1, dy1) = (p2x - x1, p2y - y1);
+        if text_cardinalities {
+            // For orthogonal edges, place cardinalities near first/last segments
+            // From cardinality: near the start point
+            let (p2x, p2y) = layout.waypoints[1];
+            let (dx1, dy1) = (p2x - x1, p2y - y1);
 
-        // Position cardinality so edge passes through center of background:
-        // along the stub, with the other coordinate left on the edge.
-        let (from_pos, from_dir) = if dy1.abs() > dx1.abs() {
-            ((x1, y1 + dy1.signum() * (margin + half_font)), (0.0, dy1.signum()))
-        } else {
-            ((x1 + dx1.signum() * (margin + half_font), y1), (dx1.signum(), 0.0))
-        };
-        let from_room = dx1.abs().max(dy1.abs()) - (margin + half_font) - half_font;
-        plans.push(plan_cardinality(
-            from_pos.0,
-            from_pos.1,
-            from_symbol,
-            index,
-            from_dir,
-            from_room,
-        ));
+            // Position cardinality so edge passes through center of background:
+            // along the stub, with the other coordinate left on the edge.
+            let (from_pos, from_dir) = if dy1.abs() > dx1.abs() {
+                ((x1, y1 + dy1.signum() * (margin + half_font)), (0.0, dy1.signum()))
+            } else {
+                ((x1 + dx1.signum() * (margin + half_font), y1), (dx1.signum(), 0.0))
+            };
+            let from_room = dx1.abs().max(dy1.abs()) - (margin + half_font) - half_font;
+            plans.push(plan_cardinality(
+                from_pos.0,
+                from_pos.1,
+                from_symbol,
+                index,
+                from_dir,
+                from_room,
+            ));
 
-        // To cardinality: near the end point
-        let n = layout.waypoints.len();
-        let (pn1x, pn1y) = layout.waypoints[n - 2];
-        let (dx2, dy2) = (x2 - pn1x, y2 - pn1y);
+            // To cardinality: near the end point
+            let n = layout.waypoints.len();
+            let (pn1x, pn1y) = layout.waypoints[n - 2];
+            let (dx2, dy2) = (x2 - pn1x, y2 - pn1y);
 
-        let (to_pos, to_dir) = if dy2.abs() > dx2.abs() {
-            ((x2, y2 - dy2.signum() * (margin + half_font)), (0.0, -dy2.signum()))
-        } else {
-            ((x2 - dx2.signum() * (margin + half_font), y2), (-dx2.signum(), 0.0))
-        };
-        let to_room = dx2.abs().max(dy2.abs()) - (margin + half_font) - half_font;
-        plans.push(plan_cardinality(
-            to_pos.0,
-            to_pos.1,
-            to_symbol,
-            index,
-            to_dir,
-            to_room,
-        ));
+            let (to_pos, to_dir) = if dy2.abs() > dx2.abs() {
+                ((x2, y2 - dy2.signum() * (margin + half_font)), (0.0, -dy2.signum()))
+            } else {
+                ((x2 - dx2.signum() * (margin + half_font), y2), (-dx2.signum(), 0.0))
+            };
+            let to_room = dx2.abs().max(dy2.abs()) - (margin + half_font) - half_font;
+            plans.push(plan_cardinality(
+                to_pos.0,
+                to_pos.1,
+                to_symbol,
+                index,
+                to_dir,
+                to_room,
+            ));
+        }
 
         // Label on the longest segment that can hold it, where it has the most
         // room to slide out of the way of other edges.
@@ -350,6 +428,82 @@ impl SvgRenderer {
             ));
             let ((mid_x, mid_y), dir, room) = anchor;
             plans.push(plan_edge_label(mid_x, mid_y, label, index, dir, room));
+        }
+    }
+}
+
+/// Length of the crow's foot prongs, and of the gap before an outer tick.
+const FOOT_LENGTH: f64 = 15.0;
+
+/// Half the width of a tick, and half the spread of the crow's foot prongs.
+const SYMBOL_HALF_WIDTH: f64 = 7.5;
+
+/// Distance from the entity border to a tick drawn on its own.
+const TICK_INSET: f64 = 10.0;
+
+/// Radius of the "zero" circle.
+const ZERO_RADIUS: f64 = 4.0;
+
+/// Draw the crow's foot symbol for one end of an edge.
+///
+/// `at` is the point on the entity border and `out` the unit direction along
+/// the line, away from that entity.
+fn render_crows_foot(svg: &mut String, at: (f64, f64), out: (f64, f64), cardinality: Cardinality) {
+    // Along the line, and across it.
+    let along = |d: f64| (at.0 + out.0 * d, at.1 + out.1 * d);
+    let across = (-out.1, out.0);
+
+    let tick = |svg: &mut String, distance: f64| {
+        let (cx, cy) = along(distance);
+        writeln!(
+            svg,
+            r#"<path class="edge-symbol" d="M {} {} L {} {}" />"#,
+            num(cx - across.0 * SYMBOL_HALF_WIDTH),
+            num(cy - across.1 * SYMBOL_HALF_WIDTH),
+            num(cx + across.0 * SYMBOL_HALF_WIDTH),
+            num(cy + across.1 * SYMBOL_HALF_WIDTH)
+        )
+        .unwrap();
+    };
+
+    let foot = |svg: &mut String| {
+        let (tx, ty) = along(FOOT_LENGTH);
+        for side in [-1.0, 1.0] {
+            writeln!(
+                svg,
+                r#"<path class="edge-symbol" d="M {} {} L {} {}" />"#,
+                num(at.0),
+                num(at.1),
+                num(tx + across.0 * SYMBOL_HALF_WIDTH * side),
+                num(ty + across.1 * SYMBOL_HALF_WIDTH * side)
+            )
+            .unwrap();
+        }
+    };
+
+    // The circle is opaque so the line does not show through it.
+    let zero = |svg: &mut String, distance: f64| {
+        let (cx, cy) = along(distance + ZERO_RADIUS);
+        writeln!(
+            svg,
+            r#"<circle class="edge-symbol-zero" cx="{}" cy="{}" r="{}" />"#,
+            num(cx),
+            num(cy),
+            num(ZERO_RADIUS)
+        )
+        .unwrap();
+    };
+
+    match cardinality {
+        Cardinality::One => tick(svg, TICK_INSET),
+        Cardinality::ZeroOrOne => {
+            tick(svg, TICK_INSET);
+            zero(svg, TICK_INSET + 2.0);
+        }
+        Cardinality::Many => foot(svg),
+        Cardinality::OneOrMore => {
+            foot(svg);
+            tick(svg, FOOT_LENGTH);
         }
     }
 }

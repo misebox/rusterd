@@ -3,7 +3,7 @@ use rusterd::layout::LayoutEngine;
 use rusterd::parser::Parser;
 use rusterd::serializer;
 use rusterd::sql::{parse_sql, Dialect};
-use rusterd::svg::SvgRenderer;
+use rusterd::svg::{Notation, SvgRenderer};
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -65,6 +65,7 @@ fn run_render(program: &str, args: &[String]) {
         eprintln!("  -o, --output <file>   Output file (default: stdout)");
         eprintln!("  -v, --view <name>     Render specific view");
         eprintln!("  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)");
+        eprintln!("  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)");
         if args.is_empty() {
             process::exit(1);
         }
@@ -75,6 +76,7 @@ fn run_render(program: &str, args: &[String]) {
     let mut output_path: Option<String> = None;
     let mut view: Option<String> = None;
     let mut detail = DetailLevel::All;
+    let mut notation = Notation::default();
 
     let mut i = 1;
     while i < args.len() {
@@ -96,6 +98,16 @@ fn run_render(program: &str, args: &[String]) {
                 if i < args.len() {
                     detail = DetailLevel::from_str(&args[i]).unwrap_or_else(|| {
                         eprintln!("Invalid detail level: {}", args[i]);
+                        process::exit(1);
+                    });
+                }
+            }
+            "-n" | "--notation" => {
+                i += 1;
+                if i < args.len() {
+                    notation = Notation::from_str(&args[i]).unwrap_or_else(|| {
+                        eprintln!("Invalid notation: {}", args[i]);
+                        eprintln!("Valid options: crowsfoot, text");
                         process::exit(1);
                     });
                 }
@@ -147,7 +159,7 @@ fn run_render(program: &str, args: &[String]) {
 
     let ir = GraphIR::from_schema(&schema, view.as_deref(), detail);
     let layout = LayoutEngine::default().layout(&ir);
-    let svg = SvgRenderer::default().render(&ir, &layout);
+    let svg = SvgRenderer::with_notation(notation).render(&ir, &layout);
 
     match output_path {
         Some(path) => {

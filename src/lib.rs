@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 use ir::{DetailLevel, GraphIR};
 use layout::LayoutEngine;
 use parser::Parser;
-use svg::SvgRenderer;
+use svg::{Notation, SvgRenderer};
 
 #[wasm_bindgen(start)]
 fn init() {
@@ -27,6 +27,7 @@ pub fn render_erd(
     source: &str,
     view: Option<String>,
     detail: Option<String>,
+    notation: Option<String>,
 ) -> Result<String, String> {
     let mut parser = Parser::new(source).map_err(|e| e.to_string())?;
     let schema = parser.parse().map_err(|e| e.to_string())?;
@@ -46,9 +47,14 @@ pub fn render_erd(
         .and_then(DetailLevel::from_str)
         .unwrap_or(DetailLevel::All);
 
+    let notation = notation
+        .as_deref()
+        .and_then(Notation::from_str)
+        .unwrap_or_default();
+
     let ir = GraphIR::from_schema(&schema, view.as_deref(), detail_level);
     let layout = LayoutEngine::default().layout(&ir);
-    let svg = SvgRenderer::default().render(&ir, &layout);
+    let svg = SvgRenderer::with_notation(notation).render(&ir, &layout);
 
     Ok(svg)
 }
@@ -59,8 +65,9 @@ pub fn render_erd_data_uri(
     source: &str,
     view: Option<String>,
     detail: Option<String>,
+    notation: Option<String>,
 ) -> Result<String, String> {
-    let svg = render_erd(source, view, detail)?;
+    let svg = render_erd(source, view, detail, notation)?;
     Ok(format!(
         "data:image/svg+xml,{}",
         js_sys::encode_uri_component(&svg)
@@ -86,7 +93,8 @@ pub fn sql_to_svg(
     dialect: Option<String>,
     view: Option<String>,
     detail: Option<String>,
+    notation: Option<String>,
 ) -> Result<String, String> {
     let erd = sql_to_erd(sql_source, dialect)?;
-    render_erd(&erd, view, detail)
+    render_erd(&erd, view, detail, notation)
 }
