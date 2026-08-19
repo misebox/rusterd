@@ -1,9 +1,8 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../pkg/rusterd.js";
 
-const DEFAULT_SQL = `-- The same schema as the ERD tab.
--- Relationships come from the foreign keys, so the "favorites" link and the
--- relationship labels of the ERD sample have no equivalent here.
+const DEFAULT_SQL = `-- The same schema as the ERD tab: press "SQL → ERD" to regenerate it.
+-- Order and Product are many-to-many through the OrderItem table.
 
 CREATE TABLE Category (
     id INTEGER PRIMARY KEY,
@@ -22,65 +21,82 @@ CREATE TABLE Product (
     id INTEGER PRIMARY KEY,
     category_id INTEGER REFERENCES Category(id),
     name VARCHAR(100) NOT NULL,
-    price DECIMAL(10, 2),
-    is_active BOOLEAN
+    price DECIMAL(10, 2)
 );
 
 CREATE TABLE "Order" (
     id INTEGER PRIMARY KEY,
     user_id INTEGER REFERENCES User(id),
-    total DECIMAL(10, 2),
-    status VARCHAR(20) NOT NULL
+    status VARCHAR(20) NOT NULL,
+    total DECIMAL(10, 2)
+);
+
+CREATE TABLE OrderItem (
+    order_id INTEGER NOT NULL REFERENCES "Order"(id),
+    product_id INTEGER NOT NULL REFERENCES Product(id),
+    quantity INTEGER NOT NULL,
+    PRIMARY KEY (order_id, product_id)
 );`;
 
-const DEFAULT_ERD = `# Sample ERD - demonstrates all features
+const DEFAULT_ERD = `# The same schema as the SQL tab, plus what SQL cannot express.
+# Lines marked "ERD only" have no equivalent in a CREATE TABLE dump, so
+# "SQL → ERD" will not produce them.
 
-# Grid-based layout
-@hint.arrangement = {
-    Category User;
-    Product Order
-}
-
-# Self-referential entity
 entity Category {
     id int pk
     parent_id int fk -> Category.id
-    name string not null
+    name varchar not null
 }
 
 entity User {
     id int pk
-    email string unique not null
-    name string
+    email varchar unique not null
+    name varchar
     created_at timestamp
 }
 
 entity Product {
     id int pk
     category_id int fk -> Category.id
-    name string not null
+    name varchar not null
     price decimal
-    is_active boolean
 }
 
 entity Order {
     id int pk
     user_id int fk -> User.id
+    status varchar not null
     total decimal
-    status string not null
 }
 
-# All cardinality types: 1, *, 0..1, 1..*
+entity OrderItem {
+    order_id int not null fk -> Order.id
+    product_id int not null fk -> Product.id
+    quantity int not null
+    primary_key(order_id, product_id)
+}
+
 rel {
-    Category 1 -- * Category : "parent"
+    # ERD only: relationship labels, and cardinalities beyond "1 -- *".
+    # A foreign key alone cannot say "at most one parent" or "at least one item".
+    Category 0..1 -- * Category : "parent"
     Category 1 -- * Product
     User 1 -- * Order : "places"
-    User 0..1 -- 1..* Product : "favorites"
+    Order 1 -- 1..* OrderItem : "contains"
+    Product 1 -- * OrderItem
 }
 
-# Filtered view
-view simple {
-    include User, Order
+# Grid placement: one row per level, left to right.
+@hint.arrangement = {
+    Category User
+    Product Order
+    OrderItem
+}
+
+# ERD only: a named subset of the diagram.
+# rusterd render schema.erd -v checkout
+view checkout {
+    include User, Order, OrderItem
 }`;
 
 const TABS = ["SQL", "ERD", "SVG Code", "SVG Preview"] as const;
@@ -155,6 +171,13 @@ export default function App() {
       return "SVG Preview";
     });
 
+  /// Throw away hand edits to the SVG by rendering the ERD tab again.
+  const resetSvgStep = () =>
+    convert(() => {
+      setSvg(renderErd(erd()));
+      return "SVG Code";
+    });
+
   onMount(async () => {
     await init();
     setReady(true);
@@ -225,6 +248,9 @@ export default function App() {
           <button style={styles.action} disabled={!ready()} onClick={sqlToSvgStep}>
             SQL → SVG
           </button>
+          <button style={styles.reset} onClick={() => setSql(DEFAULT_SQL)}>
+            Reset
+          </button>
         </Show>
 
         <Show when={tab() === "ERD"}>
@@ -232,10 +258,16 @@ export default function App() {
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
           </button>
+          <button style={styles.reset} onClick={() => setErd(DEFAULT_ERD)}>
+            Reset
+          </button>
         </Show>
 
         <Show when={tab() === "SVG Code"}>
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
+          <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
+            Reset
+          </button>
         </Show>
 
         <Show when={tab() === "SVG Preview"}>
@@ -362,6 +394,18 @@ const styles = {
     background: "#f6f6f6",
     color: "#222",
     cursor: "pointer",
+  },
+  reset: {
+    "font-family": "system-ui, sans-serif",
+    "font-size": "13px",
+    padding: "6px 12px",
+    border: "1px solid #ccc",
+    "border-radius": "4px",
+    background: "#fff",
+    color: "#555",
+    cursor: "pointer",
+    // Sits apart from the conversion buttons, at the end of the toolbar.
+    "margin-left": "auto",
   },
   hint: {
     "font-size": "13px",
