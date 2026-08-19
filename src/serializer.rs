@@ -57,6 +57,11 @@ fn generate_arrangement(schema: &Schema) -> Vec<Vec<String>> {
     }
 
     for rel in &schema.relationships {
+        // A self-reference says nothing about levels, and treating it as a
+        // dependency would leave the table (and everything below it) unranked.
+        if rel.left == rel.right {
+            continue;
+        }
         // rel.left is parent (1 side), rel.right is child (* side)
         if entity_names.contains(rel.left.as_str()) && entity_names.contains(rel.right.as_str()) {
             if let Some(deps) = parents.get_mut(rel.right.as_str()) {
@@ -115,9 +120,43 @@ fn generate_arrangement(schema: &Schema) -> Vec<Vec<String>> {
         rows[*level].push(entity.to_string());
     }
 
-    // Sort entities within each row alphabetically for consistency
+    // Alphabetical is the tie-breaker, not the order itself.
     for row in &mut rows {
         row.sort();
+    }
+
+    // Place each entity under the ones it references, so the relationships run
+    // straight down instead of crossing over each other.
+    for level in 1..rows.len() {
+        let above: HashMap<String, usize> = rows[level - 1]
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), index))
+            .collect();
+
+        let mut ordered: Vec<(f64, String)> = rows[level]
+            .iter()
+            .map(|name| {
+                let positions: Vec<usize> = parents
+                    .get(name.as_str())
+                    .map(|deps| deps.iter().filter_map(|p| above.get(*p).copied()).collect())
+                    .unwrap_or_default();
+                // Entities with no parent above keep to the right.
+                let center = if positions.is_empty() {
+                    f64::MAX
+                } else {
+                    positions.iter().sum::<usize>() as f64 / positions.len() as f64
+                };
+                (center, name.clone())
+            })
+            .collect();
+
+        ordered.sort_by(|a, b| {
+            a.0.partial_cmp(&b.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.1.cmp(&b.1))
+        });
+        rows[level] = ordered.into_iter().map(|(_, name)| name).collect();
     }
 
     // Remove empty rows
