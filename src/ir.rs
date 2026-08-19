@@ -1,4 +1,4 @@
-use crate::ast::{Cardinality, ColumnModifier, Schema};
+use crate::ast::{Cardinality, ColumnModifier, Constraint, Schema};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DetailLevel {
@@ -84,11 +84,24 @@ impl GraphIR {
             .iter()
             .filter(|e| included_entities.contains(&e.name.as_str()))
             .map(|e| {
+                // A composite key is declared next to the columns, not on them.
+                let composite_pk: Vec<&str> = e
+                    .constraints
+                    .iter()
+                    .filter_map(|c| match c {
+                        Constraint::PrimaryKey(columns) => Some(columns),
+                        _ => None,
+                    })
+                    .flatten()
+                    .map(|name| name.as_str())
+                    .collect();
+
                 let columns: Vec<ColumnIR> = e
                     .columns
                     .iter()
                     .filter_map(|c| {
-                        let is_pk = c.modifiers.iter().any(|m| matches!(m, ColumnModifier::Pk));
+                        let is_pk = c.modifiers.iter().any(|m| matches!(m, ColumnModifier::Pk))
+                            || composite_pk.contains(&c.name.as_str());
                         let is_fk = c.modifiers.iter().any(|m| matches!(m, ColumnModifier::Fk { .. }));
 
                         let include = match detail {
