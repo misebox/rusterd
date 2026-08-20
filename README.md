@@ -171,6 +171,12 @@ bin/release current --yes     # release the version already in Cargo.toml
 
 ## Syntax Reference
 
+Full language reference: [docs/DSL-spec.md](docs/DSL-spec.md), written to be
+handed to an LLM, with GBNF grammars for constrained generation:
+[docs/erd.gbnf](docs/erd.gbnf) for the DSL and [docs/sql.gbnf](docs/sql.gbnf)
+for the DDL subset `convert` reads. `cargo test --test grammar` generates
+documents from both and checks that the compiler accepts them.
+
 ### Entities
 
 ```erd

@@ -1,0 +1,58 @@
+# GBNF grammar for the SQL subset `rusterd convert` understands.
+#
+# This is a DDL-reading grammar, not a SQL dialect: only the statements that
+# carry schema shape are here. `rusterd convert` skips anything else it meets,
+# so a dump may contain more than this grammar generates.
+#
+# Deliberately stricter than the parser: one canonical layout, so anything
+# generated under this grammar converts cleanly.
+
+root         ::= blank statement+
+statement    ::= (create-table | alter-add-fk) blank
+
+# ---------------------------------------------------------------- whitespace
+sp           ::= " "*
+sp1          ::= " "+
+indent       ::= "    "
+comment      ::= "--" [^\n]*
+eol          ::= sp comment? "\n"
+blank        ::= (sp comment? "\n")*
+
+# ---------------------------------------------------------------- CREATE TABLE
+create-table ::= "CREATE TABLE " if-not-exists? table-name " (" eol
+                 body-item ("," eol body-item)* eol
+                 ");" eol
+if-not-exists ::= "IF NOT EXISTS "
+body-item    ::= indent (column | table-constraint)
+
+# ---------------------------------------------------------------- columns
+column       ::= ident sp1 data-type column-constraint*
+column-constraint ::= sp1 ("PRIMARY KEY" | "NOT NULL" | "UNIQUE" | "AUTO_INCREMENT" | default | references)
+default      ::= "DEFAULT " literal
+references   ::= "REFERENCES " table-name "(" ident ")"
+
+# A type is one or more words, optionally with a size or precision.
+data-type    ::= type-word (" " type-word)* type-args?
+type-word    ::= [A-Z] [A-Z0-9_]*
+type-args    ::= "(" number ("," sp number)* ")"
+
+# ---------------------------------------------------------------- constraints
+table-constraint ::= constraint-name? (primary-key | foreign-key | unique-key)
+constraint-name  ::= "CONSTRAINT " ident " "
+primary-key  ::= "PRIMARY KEY (" idlist ")"
+unique-key   ::= "UNIQUE (" idlist ")"
+foreign-key  ::= "FOREIGN KEY (" idlist ") REFERENCES " table-name "(" idlist ")" fk-action*
+fk-action    ::= " ON " ("DELETE" | "UPDATE") " " ("CASCADE" | "RESTRICT" | "SET NULL" | "SET DEFAULT" | "NO ACTION")
+
+# ---------------------------------------------------------------- ALTER TABLE
+# The other way a dump states a foreign key.
+alter-add-fk ::= "ALTER TABLE " "ONLY "? table-name eol
+                 indent "ADD " constraint-name? foreign-key ";" eol
+
+# ---------------------------------------------------------------- tokens
+# Quote the name when it collides with a keyword, as in "Order".
+table-name   ::= ident | "\"" ident "\""
+idlist       ::= ident ("," sp ident)*
+ident        ::= [a-zA-Z_] [a-zA-Z0-9_]*
+number       ::= [0-9]+
+literal      ::= number | "'" [^'\n]* "'" | "NULL" | "TRUE" | "FALSE" | ident "()"

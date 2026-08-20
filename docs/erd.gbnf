@@ -1,0 +1,62 @@
+# GBNF grammar for the rusterd ERD DSL (see DSL-spec.md).
+#
+# Deliberately stricter than the parser: it allows one canonical layout — one
+# column per line, one relationship per line — so anything generated under this
+# grammar parses. Identifiers are ASCII here; add the ranges you need to
+# `ident-start` for other scripts.
+
+root         ::= blank item+
+item         ::= (entity | rel | view | arrangement) blank
+
+# ---------------------------------------------------------------- whitespace
+# `sp` never crosses a line: columns and relationships end at the newline.
+sp           ::= " "*
+sp1          ::= " "+
+indent       ::= "    "
+comment      ::= "#" [^\n]*
+eol          ::= sp comment? "\n"
+blank        ::= (sp comment? "\n")*
+
+# ---------------------------------------------------------------- entities
+entity       ::= "entity" sp1 ident sp "{" eol blank member* "}" eol
+member       ::= indent (hint | constraint | column) eol blank
+
+column       ::= ident sp1 ident modifier*
+modifier     ::= sp1 ("pk" | "unique" | "not" sp1 "null" | default | fk)
+default      ::= "default" sp1 value
+fk           ::= "fk" sp1 "->" sp1 ident "." ident
+value        ::= ident ("(" arglist? ")")? | number | string
+arglist      ::= value ("," sp value)*
+
+constraint   ::= primary-key | foreign-key | index
+primary-key  ::= "primary_key(" idlist ")"
+foreign-key  ::= "foreign_key(" idlist ")" sp1 "references" sp1 ident "(" idlist ")" on-delete? on-update?
+on-delete    ::= sp1 "on" sp1 "delete" sp1 ident
+on-update    ::= sp1 "on" sp1 "update" sp1 ident
+index        ::= "index(" idlist ")" (sp1 "[name=" ident "]")?
+
+hint         ::= "@hint.level" sp "=" sp number
+              | "@hint.group" sp "=" sp (string | ident)
+
+# ---------------------------------------------------------------- relationships
+rel          ::= "rel" sp "{" eol blank relation+ "}" eol
+relation     ::= indent ident sp1 cardinality sp1 "--" sp1 cardinality sp1 ident label? role? eol blank
+cardinality  ::= "1..*" | "0..1" | "1" | "*"
+label        ::= sp1 ":" sp1 string
+role         ::= sp1 "as" sp1 ident
+
+# ---------------------------------------------------------------- views
+view         ::= "view" sp1 ident sp "{" eol blank include+ "}" eol
+include      ::= indent "include" sp1 idlist eol blank
+
+# ---------------------------------------------------------------- layout
+arrangement  ::= "@hint.arrangement" sp "=" sp "{" eol blank row+ "}" eol
+row          ::= indent ident (sp1 ident)* eol blank
+
+# ---------------------------------------------------------------- tokens
+idlist       ::= ident ("," sp ident)*
+ident        ::= ident-start ident-rest*
+ident-start  ::= [a-zA-Z_]
+ident-rest   ::= [a-zA-Z0-9_]
+number       ::= [0-9]+
+string       ::= "\"" [^"\n]* "\""

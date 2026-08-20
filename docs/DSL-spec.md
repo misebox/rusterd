@@ -1,223 +1,222 @@
-# Improved ER Diagram DSL Specification (Draft)
+# rusterd ERD DSL
 
-## 1. Overview
+A text format that compiles to an SVG entity-relationship diagram. This
+document describes the language as the parser actually accepts it; it is meant
+to be handed to a model that has to author `.erd` files.
 
-This DSL defines data entities, their attributes, constraints, and relationships.
-It aims to be human-readable, layout-friendly, and structurally precise, improving on Mermaid's `erDiagram` syntax while remaining compact.
+[`erd.gbnf`](erd.gbnf) is the same language as a GBNF grammar, for constrained
+decoding (`llama-cli --grammar-file docs/erd.gbnf`). It is stricter than the
+parser on purpose — one canonical layout, four-space indents — so that
+everything it produces parses. [`sql.gbnf`](sql.gbnf) does the same for the DDL
+subset that `rusterd convert` reads.
 
-The DSL separates **entity definitions**, **relationship definitions**, and **view / layout hints**.
+Both grammars are covered by `cargo test --test grammar`, which generates
+documents from them and runs the result through the compiler.
 
----
+## File structure
 
-## 2. Comments
+A file is a sequence of these top-level items, in any order:
 
-Line comments begin with `#`. Everything after `#` until end of line is ignored.
+| Item | Repeatable |
+| --- | --- |
+| `entity NAME { ... }` | yes, one per entity |
+| `rel { ... }` | yes, all blocks are merged |
+| `view NAME { ... }` | yes, one per view |
+| `@hint.arrangement = { ... }` | once (a second one replaces the first) |
 
-```
-# This is a comment
+Line comments start with `#` and run to the end of the line. Blank lines are
+free. Anything else at the top level is an error.
+
+## Lexical rules
+
+- **Identifiers** start with a letter or `_` and continue with letters, digits
+  or `_`. Letters may be non-ASCII, so `注文` and `顧客ID` are valid names.
+- **Strings** are double-quoted and used only for relationship labels and some
+  hint values.
+- **Numbers** are integers.
+- A **column type is a bare identifier**. `varchar(255)` is a parse error —
+  write `varchar`. Length, precision and other parameters have no place in this
+  language.
+
+## Entities
+
+```erd
 entity User {
-  id int pk  # inline comment
+    id int pk
+    email varchar unique not null
+    name varchar
+    created_at timestamp default now()
 }
 ```
 
----
+A column is `NAME TYPE [MODIFIER ...]` and ends at the end of the line, so
+exactly one column per line.
 
-## 3. Entity Definition
+| Modifier | Meaning | Drawn as |
+| --- | --- | --- |
+| `pk` | primary key | `◆` and bold |
+| `fk -> Entity.column` | foreign key target | italic |
+| `not null` | both words, in this order | not drawn |
+| `unique` | | not drawn |
+| `default VALUE` | identifier, number, string or `func(...)` | not drawn |
 
-```
-entity EntityName {
-  column_name   type      [constraint1 constraint2 ...]
-  ...
-  primary_key (col1, col2?)
-  foreign_key (col) references Target(col) [options]
-  index (col1, col2?) [name=...]
+Table-level constraints may appear between the columns:
+
+```erd
+entity OrderItem {
+    order_id int not null fk -> Order.id
+    product_id int not null fk -> Product.id
+    quantity int not null
+    primary_key(order_id, product_id)
 }
 ```
 
-### 2.1 Columns
+- `primary_key(a, b)` — marks those columns as primary keys, exactly like `pk`.
+- `foreign_key(a) references Target(b) [on delete ACTION] [on update ACTION]` —
+  parsed and kept in the schema, but **not drawn**.
+- `index(a, b) [name=ix_name]` — parsed, **not drawn**.
 
-* Syntax: `<name> <type> [constraints...]`
-* Supported constraints:
+## Relationships
 
-  * `pk`
-  * `not null`
-  * `unique`
-  * `default <value>`
-  * `fk -> Target.column`
+**This is the only thing that draws a line.** A column marked `fk -> User.id`
+is rendered in italics but produces no edge; every relationship you want to see
+must be written in a `rel` block.
 
-### 2.2 Structural Constraints
-
-Optional explicit constraint blocks:
-
-* `primary_key(...)`
-* `foreign_key(col) references Target(col) on delete ... on update ...`
-* `index(...)`
-
-These blocks override or complement inline constraints.
-
----
-
-## 4. Relationships
-
-Relationships are defined in a dedicated block:
-
-```
+```erd
 rel {
-  A 1 -- * B [:label] [as role]
+    Category 0..1 -- * Category : "parent"
+    User 1 -- * Order : "places"
+    Order 1 -- 1..* OrderItem : "contains"
 }
 ```
 
-### Semantics:
+Syntax: `LEFT CARDINALITY -- CARDINALITY RIGHT [: "label"] [as role]`
 
-* Cardinalities: `1`, `0..1`, `*`, `1..*`
-* Roles: optional, for distinguishing multiple edges between the same entities.
+The separator is exactly `--`. The optional label is a quoted string. The
+optional `as role` is parsed but not drawn.
 
-Example:
+| Cardinality | Meaning | Crow's foot |
+| --- | --- | --- |
+| `1` | exactly one | one tick |
+| `0..1` | zero or one | tick and circle |
+| `*` | many | crow's foot |
+| `1..*` | one or more | crow's foot and tick |
 
-```
-rel {
-  User 1 -- * Order         : "places"
-  User 1 -- * Order as approver
+Those four are the whole set. `0..*`, `1..1` and `2..5` are parse errors.
+
+An entity may relate to itself (`Category 0..1 -- * Category`), which draws a
+loop on its right-hand side.
+
+## Views
+
+A view names a subset of the entities. Relationships are kept when both of
+their entities are in the subset.
+
+```erd
+view checkout {
+    include User, Order
+    include OrderItem
 }
 ```
 
----
+Several `include` lines are allowed and are concatenated. Views change nothing
+unless the renderer is asked for one by name.
 
-## 5. Layout Hints (Optional)
+## Layout hints
 
-Entities may include layout metadata to improve diagram rendering.
+Placement is a grid: one row per level, entities left to right within a row.
 
+```erd
+@hint.arrangement = {
+    Category User
+    Product Order
+    OrderItem
+}
 ```
+
+Rows are separated by a newline or a `;`. Entities missing from the
+arrangement fall to level 0.
+
+Inside an entity, `@hint.level = 2` puts it on that level when there is no
+arrangement block. `@hint.group = "core"` is parsed but currently unused, as is
+any other `@hint.*` key.
+
+Without any hint every entity lands on level 0, which draws them in a single
+row — so give a schema of more than a few entities an arrangement.
+
+## Render-time options
+
+These are not part of the file. They are chosen when rendering:
+
+- **view**: `-v checkout` renders only that view.
+- **detail**: `-d tables | pk | pk_fk | all` (default `all`) filters which
+  columns are drawn.
+- **notation**: `-n crowsfoot | text` (default `crowsfoot`) switches between
+  crow's foot symbols and `1` / `0..1` / `*` / `1..*` written beside the line.
+
+## Mistakes to avoid
+
+| Mistake | Result |
+| --- | --- |
+| Relying on `fk ->` to draw a relationship | no line is drawn |
+| `varchar(255)`, `decimal(10, 2)` | `Parse error: Unexpected token: LParen` |
+| `0..*` or `1..1` | parse error; use `*` or `1` |
+| Two columns on one line | the second is read as a modifier and fails |
+| Referring to an entity that is not defined | the relationship is dropped silently |
+| Omitting the arrangement in a large schema | everything on one row |
+
+## Complete example
+
+```erd
+# Online shop
+
+entity Category {
+    id int pk
+    parent_id int fk -> Category.id
+    name varchar not null
+}
+
 entity User {
-  @hint.level = 0
-  @hint.group = "core"
-  @hint.anchor = center
+    id int pk
+    email varchar unique not null
+    created_at timestamp default now()
+}
+
+entity Product {
+    id int pk
+    category_id int fk -> Category.id
+    name varchar not null
+    price decimal
+}
+
+entity Order {
+    id int pk
+    user_id int fk -> User.id
+    status varchar not null
+}
+
+entity OrderItem {
+    order_id int not null fk -> Order.id
+    product_id int not null fk -> Product.id
+    quantity int not null
+    primary_key(order_id, product_id)
+}
+
+rel {
+    Category 0..1 -- * Category : "parent"
+    Category 1 -- * Product
+    User 1 -- * Order : "places"
+    Order 1 -- 1..* OrderItem : "contains"
+    Product 1 -- * OrderItem
+}
+
+@hint.arrangement = {
+    Category User
+    Product Order
+    OrderItem
+}
+
+view checkout {
+    include User, Order, OrderItem
 }
 ```
-
-### Supported hints:
-
-* `level`: integer layer (0 = top/center)
-* `group`: logical cluster name
-* `anchor`: `center` | `left` | `right`
-* `side`: preferred region (`top`, `bottom`, `left`, `right`)
-* Hints influence layout heuristics but never affect schema semantics.
-
----
-
-## 6. Views (Subsets of the Schema)
-
-For large schemas, diagrams can be generated per-view:
-
-```
-view core {
-  include User, Order, OrderItem
-}
-```
-
-A view defines which entities/relations appear in a rendered diagram.
-
----
-
-## 7. Rendering Model (Informal)
-
-This DSL is intended to support Graph IR generation and layout engines.
-
-Key principles:
-
-* Entities become nodes with measured dimensions (text-based width/height).
-* Relationships become edges with cardinality markers and optional labels/roles.
-* Layout engine uses:
-
-  * Hierarchical layering (from `level` or FK direction)
-  * Cluster grouping (from `group`)
-  * Crossing minimization heuristics
-  * Optional orthogonal or polyline routing
-
----
-
-## 8. Global Detail Level Specification
-
-### 1. Overview
-
-The rendering engine supports configurable **detail levels** that determine how much information is shown for each entity in a diagram.
-This setting is **global per rendering invocation** and applies uniformly to all entities and relationships in the output.
-
-The DSL itself contains **no per-view or per-entity detail configuration**.
-
----
-
-### 2. Detail Levels
-
-The renderer SHALL support the following predefined detail levels:
-
-#### **`tables`**
-
-* Render entity boxes using **names only**
-* Omit all attributes
-* Show relationships between entities
-
-#### **`pk`**
-
-* Show **primary key columns only**
-* Hide non-PK attributes
-* Show relationships normally
-
-#### **`pk_fk`**
-
-* Show **primary key** and **foreign key** columns
-* Hide all other columns
-* Display foreign-key relationships normally
-
-#### **`all`**
-
-* Show **all attributes** of each entity
-* Full-detail ER rendering
-
-These four levels provide predictable, consistent diagram abstraction while keeping the DSL simple.
-
----
-
-### 3. Global Rendering Parameter
-
-The detail level is selected **at render time**, not in the DSL:
-
-```
-er render --view core --detail pk_fk
-```
-
-or programmatically:
-
-```ts
-render(schema, {
-  view: "core",
-  detail: "pk_fk"
-})
-```
-
-### 4. Resolution Rules
-
-* The global detail level applies to **all included entities and relationships**.
-* Views **may not** override detail levels.
-* Entities **may not** specify their own detail levels.
-* The renderer must treat the detail level as a pure visualization filter;
-  schema semantics (PK, FK, constraints) remain unchanged internally.
-
----
-
-### 5. Rationale
-
-* Keeps the DSL clean and stable
-* Allows the same schema or view to be visualized in multiple abstraction levels
-* Avoids configuration explosion (per-entity or per-view overrides)
-* Keeps rendering deterministic and easy to reason about
-
-
-## 9. Goals
-
-* Stronger structural representation than Mermaid’s `erDiagram`
-* Clean separation between schema and visualization
-* Human-friendly syntax, minimal punctuation
-* Future-proof for DDL generation, schema diffs, and automated documentation
-
-
