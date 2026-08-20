@@ -220,20 +220,43 @@ fn serialize_column(output: &mut String, column: &Column, composite_pk_columns: 
     // Default value
     for modifier in &column.modifiers {
         if let ColumnModifier::Default(val) = modifier {
-            // Check if it's a function call (e.g., NOW())
-            let is_function_call = val.contains('(') && val.ends_with(')');
-            // Quote the value if it contains special characters but is not a function call
-            let needs_quote = !is_function_call
-                && (val.contains(' ') || val.starts_with('\''));
-            if needs_quote {
-                output.push_str(&format!(" default \"{}\"", val));
-            } else {
+            if is_bare_default(val) {
                 output.push_str(&format!(" default {}", val));
+            } else {
+                let escaped = val.replace('\\', "\\\\").replace('"', "\\\"");
+                output.push_str(&format!(" default \"{}\"", escaped));
             }
         }
     }
 
     output.push('\n');
+}
+
+/// True when a default value can follow `default` unquoted, that is when the
+/// ERD lexer reads it back as a number, an identifier, or a call like `now()`.
+/// Anything else — `-1`, `'x'`, `n/a` — has to be a quoted string.
+fn is_bare_default(value: &str) -> bool {
+    let Some((head, rest)) = value.split_once('(') else {
+        return is_number(value) || is_identifier(value);
+    };
+
+    let Some(args) = rest.strip_suffix(')') else {
+        return false;
+    };
+    is_identifier(head)
+        && args
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '_' | ',' | ' '))
+}
+
+fn is_number(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| c.is_ascii_digit())
+}
+
+fn is_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    matches!(chars.next(), Some(c) if c.is_alphabetic() || c == '_')
+        && chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 
 fn serialize_constraint(output: &mut String, constraint: &Constraint) {
