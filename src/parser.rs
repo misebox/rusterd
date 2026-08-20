@@ -276,14 +276,16 @@ impl Parser {
                 if *self.peek() == Token::LParen {
                     self.advance(); // consume (
                     let mut args = String::new();
-                    // Parse arguments until )
+                    // Parse arguments until the matching ), so that a nested
+                    // call like coalesce(x, now()) keeps its own parentheses.
+                    let mut depth = 1;
                     loop {
                         match self.peek() {
-                            Token::RParen => {
+                            Token::Eof => break,
+                            Token::RParen if depth == 1 => {
                                 self.advance();
                                 break;
                             }
-                            Token::Eof => break,
                             _ => {
                                 let tok = self.advance().clone();
                                 match tok {
@@ -295,6 +297,14 @@ impl Parser {
                                         args.push('"');
                                     }
                                     Token::Comma => args.push_str(", "),
+                                    Token::LParen => {
+                                        depth += 1;
+                                        args.push('(');
+                                    }
+                                    Token::RParen => {
+                                        depth -= 1;
+                                        args.push(')');
+                                    }
                                     _ => {}
                                 }
                             }
