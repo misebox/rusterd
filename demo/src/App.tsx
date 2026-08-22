@@ -117,8 +117,8 @@ const DIALECTS = [
 ];
 
 const NOTATIONS = [
-  { value: "crowsfoot", label: "Crow's foot" },
-  { value: "text", label: "1 / 0..1 / *" },
+  { value: "crowsfoot", label: "Crow's foot symbols" },
+  { value: "text", label: "Text — 1, 0..1, ✱, 1..✱" },
 ];
 
 export default function App() {
@@ -193,13 +193,27 @@ export default function App() {
     });
   });
 
+  /// Both selects change how the diagram is drawn rather than what it contains,
+  /// so they redraw it on the spot instead of waiting for a conversion button.
+  /// The redraw comes from the ERD tab, which discards hand edits to the SVG.
+  const redraw = () => {
+    if (!ready()) return;
+    convert(() => {
+      setSvg(renderErd(erd()));
+      return tab();
+    });
+  };
+
   const detailSelect = () => (
     <label style={styles.field}>
       Detail
       <select
         style={styles.select}
         value={detail()}
-        onChange={(e) => setDetail(e.currentTarget.value)}
+        onChange={(e) => {
+          setDetail(e.currentTarget.value);
+          redraw();
+        }}
       >
         {DETAIL_LEVELS.map((level) => (
           <option value={level.value}>{level.label}</option>
@@ -214,7 +228,10 @@ export default function App() {
       <select
         style={styles.select}
         value={notation()}
-        onChange={(e) => setNotation(e.currentTarget.value)}
+        onChange={(e) => {
+          setNotation(e.currentTarget.value);
+          redraw();
+        }}
       >
         {NOTATIONS.map((n) => (
           <option value={n.value}>{n.label}</option>
@@ -287,6 +304,8 @@ export default function App() {
         </Show>
 
         <Show when={tab() === "SVG Code"}>
+          {detailSelect()}
+          {notationSelect()}
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
             Reset
@@ -294,6 +313,8 @@ export default function App() {
         </Show>
 
         <Show when={tab() === "SVG Preview"}>
+          {detailSelect()}
+          {notationSelect()}
           <span style={styles.hint}>Rendered from the SVG Code tab.</span>
         </Show>
       </div>
