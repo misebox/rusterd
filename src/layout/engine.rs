@@ -104,7 +104,6 @@ impl LayoutEngine {
             &node_placement.layout_nodes,
             &levels,
             self.entity_margin,
-            self.anchor_spacing,
         );
 
         // Phase 7: Lane assignments
