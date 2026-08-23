@@ -125,10 +125,12 @@ impl LayoutEngine {
             ir,
             &node_level,
             &node_positions,
+            &node_exits,
             &node_placement.layout_nodes,
             &levels,
             self.entity_margin,
             self.lane_spacing,
+            self.anchor_spacing,
         );
 
         // Phase 9: Edge routing
