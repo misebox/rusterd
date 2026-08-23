@@ -48,6 +48,11 @@ pub struct CorridorAnalysis {
 /// Result of node placement phase.
 pub struct NodePlacement {
     pub layout_nodes: Vec<LayoutNode>,
+    /// One row per level, holding indices into `layout_nodes` left to right
+    pub rows: Vec<Vec<usize>>,
+    /// Space that must stay clear to the right of each node, indexed like
+    /// `layout_nodes`
+    pub min_gap: Vec<f64>,
     /// Channel level -> Y coordinate
     pub channel_y: HashMap<i64, f64>,
     pub max_width: f64,
