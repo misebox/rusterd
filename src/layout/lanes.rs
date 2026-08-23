@@ -4,192 +4,125 @@ use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
 use super::analysis::edge_sides;
-use super::corridor::{find_gap_center_x, find_safe_corridors};
-use super::routing::distribute_anchor;
-use super::types::LayoutNode;
+use super::anchors::{anchor_x, Anchors};
 
-/// Assign lanes for edges in channels.
-#[allow(clippy::too_many_arguments)]
+use super::corridor::{find_safe_corridors, nearest_corridor};
+use super::types::{Corridor, LayoutNode};
+
+/// Order the edges crossing each channel into lanes.
+///
+/// Every edge crossing a channel comes down at one x, runs sideways, and leaves
+/// at another. Two of them cross when one runs over the point where the other
+/// comes down, so within a channel the edge that finishes furthest along its
+/// direction of travel takes the lane nearest the level it came from: its
+/// sideways run is over and done with before any of the others has dropped past
+/// it. Edges coming up from below are the mirror image and take the far lanes.
 pub fn assign_channel_lanes<'a>(
     ir: &'a GraphIR,
     channel_edges_list: &HashMap<i64, Vec<usize>>,
     node_positions: &HashMap<&str, &LayoutNode>,
     node_level: &HashMap<&str, i64>,
-    node_exits: &HashMap<(&str, bool), Vec<(usize, f64)>>,
-    edge_gap_index: &HashMap<usize, usize>,
-    layout_nodes: &[LayoutNode],
-    levels: &HashMap<i64, Vec<&'a Node>>,
-    anchor_spacing: f64,
-    entity_margin: f64,
+    anchors: &Anchors<'a>,
+    corridors: &HashMap<usize, Corridor>,
 ) -> HashMap<(i64, usize), usize> {
-    let mut channel_lane_assignments: HashMap<(i64, usize), usize> = HashMap::new();
+    let mut lanes: HashMap<(i64, usize), usize> = HashMap::new();
 
-    // Collect channel edges with info
-    let mut channel_edges_with_info: HashMap<i64, Vec<(usize, f64, bool)>> = HashMap::new();
+    for (&channel, edge_indices) in channel_edges_list {
+        let mut from_above: Vec<(usize, Run)> = Vec::new();
+        let mut from_below: Vec<(usize, Run)> = Vec::new();
 
-    for (&channel_level, edge_indices) in channel_edges_list {
         for &idx in edge_indices {
             let edge = &ir.edges[idx];
-            let from_node = match node_positions.get(edge.from.as_str()) {
-                Some(n) => *n,
-                None => continue,
-            };
-
             let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
             let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-            let going_down = to_level >= from_level;
-            let is_going_up = to_level <= channel_level;
+            let (from_side, to_side) = edge_sides(from_level, to_level);
 
-            let from_exits = node_exits.get(&(edge.from.as_str(), going_down));
-            let from_cx = if let Some(exits) = from_exits {
-                let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
-                distribute_anchor(from_node, pos, exits.len(), anchor_spacing)
-            } else {
-                from_node.x + from_node.width / 2.0
-            };
-
-            channel_edges_with_info
-                .entry(channel_level)
-                .or_default()
-                .push((idx, from_cx, is_going_up));
-        }
-    }
-
-    // Sort and assign lanes
-    for (&channel_level, edges) in channel_edges_with_info.iter_mut() {
-        sort_channel_edges(
-            edges,
-            ir,
-            node_level,
-            node_positions,
-            edge_gap_index,
-            layout_nodes,
-            levels,
-            channel_level,
-            entity_margin,
-        );
-        for (lane, (edge_idx, _, _)) in edges.iter().enumerate() {
-            channel_lane_assignments.insert((channel_level, *edge_idx), lane);
-        }
-    }
-
-    channel_lane_assignments
-}
-
-/// Sort channel edges for lane assignment.
-#[allow(clippy::too_many_arguments)]
-pub fn sort_channel_edges<'a>(
-    edges: &mut Vec<(usize, f64, bool)>,
-    ir: &'a GraphIR,
-    node_level: &HashMap<&str, i64>,
-    node_positions: &HashMap<&str, &LayoutNode>,
-    edge_gap_index: &HashMap<usize, usize>,
-    layout_nodes: &[LayoutNode],
-    levels: &HashMap<i64, Vec<&'a Node>>,
-    channel_level: i64,
-    entity_margin: f64,
-) {
-    edges.sort_by(|a, b| {
-        let edge_a = &ir.edges[a.0];
-        let edge_b = &ir.edges[b.0];
-        let from_level_a = *node_level.get(edge_a.from.as_str()).unwrap_or(&0);
-        let from_level_b = *node_level.get(edge_b.from.as_str()).unwrap_or(&0);
-        let to_level_a = *node_level.get(edge_a.to.as_str()).unwrap_or(&0);
-        let to_level_b = *node_level.get(edge_b.to.as_str()).unwrap_or(&0);
-        let is_down_a = to_level_a > channel_level;
-        let is_down_b = to_level_b > channel_level;
-
-        let get_corridor_x = |edge_idx: usize| -> f64 {
-            if let Some(&gap_idx) = edge_gap_index.get(&edge_idx) {
-                find_gap_center_x(layout_nodes, levels, channel_level + 1, gap_idx, entity_margin)
-            } else {
-                let edge = &ir.edges[edge_idx];
+            let fallback = |id: &str| {
                 node_positions
-                    .get(edge.from.as_str())
+                    .get(id)
                     .map(|n| n.x + n.width / 2.0)
                     .unwrap_or(0.0)
-            }
-        };
+            };
+            let leaving = anchor_x(anchors, edge.from.as_str(), from_side, idx)
+                .unwrap_or_else(|| fallback(edge.from.as_str()));
+            let landing = anchor_x(anchors, edge.to.as_str(), to_side, idx)
+                .unwrap_or_else(|| fallback(edge.to.as_str()));
+            let corridor = corridors.get(&idx).map(|c| c.x);
 
-        let get_to_x = |edge: &crate::ir::Edge| -> f64 {
-            node_positions
-                .get(edge.to.as_str())
-                .map(|n| n.x + n.width / 2.0)
-                .unwrap_or(0.0)
-        };
+            // Only the first and last channel of an edge meet its anchors; in
+            // between it stays in its corridor and runs straight through.
+            let at = |level_touched: bool, anchor: f64| match (level_touched, corridor) {
+                (true, _) | (_, None) => anchor,
+                (false, Some(x)) => x,
+            };
 
-        match is_down_b.cmp(&is_down_a) {
-            std::cmp::Ordering::Equal => {
-                let a_multi = (to_level_a - from_level_a).abs() > 1;
-                let b_multi = (to_level_b - from_level_b).abs() > 1;
-
-                if a_multi || b_multi {
-                    let corridor_x_a = get_corridor_x(a.0);
-                    let corridor_x_b = get_corridor_x(b.0);
-                    let corridor_diff = (corridor_x_a - corridor_x_b).abs();
-
-                    if corridor_diff > 1.0 {
-                        if is_down_a {
-                            corridor_x_a
-                                .partial_cmp(&corridor_x_b)
-                                .unwrap_or(std::cmp::Ordering::Equal)
-                        } else {
-                            corridor_x_b
-                                .partial_cmp(&corridor_x_a)
-                                .unwrap_or(std::cmp::Ordering::Equal)
-                        }
-                    } else {
-                        let to_x_a = get_to_x(edge_a);
-                        let to_x_b = get_to_x(edge_b);
-                        let avg_to_x = (to_x_a + to_x_b) / 2.0;
-                        if corridor_x_a < avg_to_x {
-                            to_x_a
-                                .partial_cmp(&to_x_b)
-                                .unwrap_or(std::cmp::Ordering::Equal)
-                        } else {
-                            to_x_b
-                                .partial_cmp(&to_x_a)
-                                .unwrap_or(std::cmp::Ordering::Equal)
-                        }
-                    }
-                } else {
-                    let dist_cmp = if is_down_a {
-                        to_level_a.cmp(&to_level_b)
-                    } else {
-                        to_level_b.cmp(&to_level_a)
-                    };
-                    match dist_cmp {
-                        std::cmp::Ordering::Equal => {
-                            let to_x_a = get_to_x(edge_a);
-                            let to_x_b = get_to_x(edge_b);
-                            let from_x_a = node_positions
-                                .get(edge_a.from.as_str())
-                                .map(|n| n.x + n.width / 2.0)
-                                .unwrap_or(0.0);
-                            let avg_to_x = (to_x_a + to_x_b) / 2.0;
-                            if from_x_a > avg_to_x {
-                                to_x_b
-                                    .partial_cmp(&to_x_a)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            } else {
-                                to_x_a
-                                    .partial_cmp(&to_x_b)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            }
-                        }
-                        ord => ord,
-                    }
+            let run = if from_level == to_level {
+                Run { entry: leaving, exit: landing }
+            } else if to_level > from_level {
+                Run {
+                    entry: at(channel == from_level, leaving),
+                    exit: at(channel == to_level - 1, landing),
                 }
+            } else {
+                Run {
+                    entry: at(channel == from_level - 1, leaving),
+                    exit: at(channel == to_level, landing),
+                }
+            };
+
+            if to_level >= from_level {
+                from_above.push((idx, run));
+            } else {
+                from_below.push((idx, run));
             }
-            ord => ord,
         }
-    });
+
+        from_above.sort_by(|a, b| a.1.lane_order().cmp(&b.1.lane_order()));
+        from_below.sort_by(|a, b| b.1.lane_order().cmp(&a.1.lane_order()));
+
+        for (lane, (idx, _)) in from_above.iter().chain(&from_below).enumerate() {
+            lanes.insert((channel, *idx), lane);
+        }
+    }
+
+    lanes
+}
+
+/// One edge's passage through one channel: where it arrives and where it goes.
+struct Run {
+    entry: f64,
+    exit: f64,
+}
+
+impl Run {
+    /// Sorts edges into the order that leaves the fewest crossings behind.
+    fn lane_order(&self) -> (u8, ordered_float::Key) {
+        let travelling_left = self.exit <= self.entry;
+        let group = if travelling_left { 0 } else { 1 };
+        let reach = if travelling_left { self.exit } else { -self.exit };
+        (group, ordered_float::Key(reach))
+    }
+}
+
+/// Comparing f64 keys, which do not implement `Ord`, without pulling in a crate.
+mod ordered_float {
+    #[derive(PartialEq, PartialOrd)]
+    pub struct Key(pub f64);
+
+    impl Eq for Key {}
+
+    #[allow(clippy::derive_ord_xor_partial_ord)]
+    impl Ord for Key {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        }
+    }
 }
 
 /// Calculate corridor X positions for multi-level edges.
 ///
 /// An edge that skips a level has to pass the entities in between somewhere.
-/// It runs down whichever safe corridor comes closest to the anchor it is
+/// It runs down whichever safe corridor comes closest to the entity it is
 /// heading for, so a target sitting in open space is reached by dropping
 /// straight onto it rather than by touring the diagram.
 #[allow(clippy::too_many_arguments)]
@@ -197,14 +130,12 @@ pub fn calculate_multi_level_corridor_x<'a>(
     ir: &'a GraphIR,
     node_level: &HashMap<&str, i64>,
     node_positions: &HashMap<&str, &LayoutNode>,
-    node_exits: &HashMap<(&str, bool), Vec<(usize, f64)>>,
     layout_nodes: &[LayoutNode],
     levels: &HashMap<i64, Vec<&'a Node>>,
     entity_margin: f64,
     lane_spacing: f64,
-    anchor_spacing: f64,
-) -> HashMap<usize, f64> {
-    let mut multi_level_corridor_x: HashMap<usize, f64> = HashMap::new();
+) -> HashMap<usize, Corridor> {
+    let mut multi_level_corridor_x: HashMap<usize, Corridor> = HashMap::new();
     let mut corridor_groups: HashMap<(i64, i64, usize), Vec<(usize, f64)>> = HashMap::new();
 
     for (idx, edge) in ir.edges.iter().enumerate() {
@@ -225,30 +156,15 @@ pub fn calculate_multi_level_corridor_x<'a>(
             Some(n) => *n,
             None => continue,
         };
-        // The corridor lines up with the anchor the edge ends on, which turns
-        // the last hop into the descent itself instead of a sidestep.
-        let (_, to_side) = edge_sides(from_level, to_level);
-        let wanted_x = match node_exits.get(&(edge.to.as_str(), to_side)) {
-            Some(exits) => {
-                let pos = exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
-                distribute_anchor(to_node, pos, exits.len(), anchor_spacing)
-            }
-            None => to_node.x + to_node.width / 2.0,
-        };
+        // The corridor lines up with the entity the edge ends on, which turns
+        // the last hop into the descent itself instead of a sidestep. Both ends
+        // of the edge then anchor onto the same line.
+        let wanted_x = to_node.x + to_node.width / 2.0;
 
         let safe_corridors =
             find_safe_corridors(layout_nodes, levels, min_level, max_level, entity_margin);
 
-        let best_corridor_idx = safe_corridors
-            .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| {
-                let dist_a = (wanted_x.clamp(a.0, a.1) - wanted_x).abs();
-                let dist_b = (wanted_x.clamp(b.0, b.1) - wanted_x).abs();
-                dist_a
-                    .partial_cmp(&dist_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        let best_corridor_idx = nearest_corridor(&safe_corridors, wanted_x)
             .map(|(i, _)| i)
             .unwrap_or(0);
 
@@ -292,10 +208,52 @@ pub fn calculate_multi_level_corridor_x<'a>(
             }
         }
 
-        for (edge_idx, corridor_x) in edges_sorted {
-            multi_level_corridor_x.insert(edge_idx, corridor_x);
+        for (edge_idx, x) in edges_sorted {
+            multi_level_corridor_x.insert(
+                edge_idx,
+                Corridor {
+                    x,
+                    left: corridor_left,
+                    right: corridor_right,
+                },
+            );
         }
     }
 
     multi_level_corridor_x
+}
+
+/// Line up each corridor with one of the anchors its edge ends on.
+///
+/// The corridor is chosen before the anchors are, from where the target entity
+/// stands. An anchor that cannot reach it — a narrow entity, or a border
+/// already full — would leave the edge stepping sideways by a few pixels on its
+/// way down. Landing the corridor on an anchor instead turns that step into
+/// nothing at all; where no anchor can reach, the step is at least made big
+/// enough to read as a deliberate turn.
+pub fn align_corridors_with_anchors<'a>(
+    corridors: &mut HashMap<usize, Corridor>,
+    ir: &'a GraphIR,
+    node_level: &HashMap<&str, i64>,
+    anchors: &Anchors<'a>,
+    jog_tolerance: f64,
+) {
+    for (&idx, corridor) in corridors.iter_mut() {
+        let edge = &ir.edges[idx];
+        let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
+        let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
+        let (from_side, to_side) = edge_sides(from_level, to_level);
+
+        let landing = anchor_x(anchors, edge.to.as_str(), to_side, idx);
+        if landing.is_some_and(|x| corridor.snap_to(x)) {
+            continue;
+        }
+        let leaving = anchor_x(anchors, edge.from.as_str(), from_side, idx);
+        if leaving.is_some_and(|x| corridor.snap_to(x)) {
+            continue;
+        }
+        if let Some(x) = leaving {
+            corridor.stand_clear_of(x, jog_tolerance);
+        }
+    }
 }

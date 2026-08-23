@@ -37,10 +37,36 @@ pub struct Layout {
     pub corner_radius: f64,
 }
 
+/// The vertical line a level-skipping edge runs down, with the range it has to
+/// stay inside to clear the entities it passes.
+#[derive(Debug, Clone, Copy)]
+pub struct Corridor {
+    pub x: f64,
+    pub left: f64,
+    pub right: f64,
+}
+
+impl Corridor {
+    /// Move the line onto `x` if that still clears the entities beside it.
+    pub fn snap_to(&mut self, x: f64) -> bool {
+        let reachable = self.left <= x && x <= self.right;
+        if reachable {
+            self.x = x;
+        }
+        reachable
+    }
+
+    /// Move the line at least `distance` away from `x`, as far as the corridor
+    /// allows. Used when it cannot reach `x` at all: a step of a few pixels
+    /// reads as a mistake, where a clear one reads as a turn.
+    pub fn stand_clear_of(&mut self, x: f64, distance: f64) {
+        let away = if self.x >= x { x + distance } else { x - distance };
+        self.x = away.clamp(self.left, self.right);
+    }
+}
+
 /// Result of corridor analysis phase.
 pub struct CorridorAnalysis {
-    /// Edge index -> gap index
-    pub edge_gap_index: HashMap<usize, usize>,
     /// Gap index -> extra width needed
     pub gap_extra_width: HashMap<usize, f64>,
 }

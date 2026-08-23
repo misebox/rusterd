@@ -122,19 +122,3 @@ pub fn route_adjacent_level_with_channel(
         ]
     }
 }
-
-/// Distribute anchor points along a node's horizontal edge.
-pub fn distribute_anchor(
-    node: &LayoutNode,
-    position: usize,
-    total: usize,
-    anchor_spacing: f64,
-) -> f64 {
-    let cx = node.x + node.width / 2.0;
-    if total <= 1 {
-        cx
-    } else {
-        let offset = (position as f64 - (total - 1) as f64 / 2.0) * anchor_spacing;
-        cx + offset
-    }
-}

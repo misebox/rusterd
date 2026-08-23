@@ -9,7 +9,9 @@ use super::analysis::{
     calculate_dynamic_channel_gaps, calculate_self_ref_reserve, count_edges_per_node,
 };
 use super::anchors::calculate_edge_anchors;
-use super::lanes::{assign_channel_lanes, calculate_multi_level_corridor_x};
+use super::lanes::{
+    align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
+};
 use super::placement::{build_node_positions, calculate_node_sizes, group_nodes_by_level, place_nodes};
 use super::straighten::straighten_edges;
 use super::types::Layout;
@@ -99,42 +101,42 @@ impl LayoutEngine {
 
         let node_positions = build_node_positions(&node_placement.layout_nodes);
 
-        // Phase 6: Edge anchor distribution
+        // Phase 6: The line each level-skipping edge runs down
+        let mut multi_level_corridor_x = calculate_multi_level_corridor_x(
+            ir,
+            &node_level,
+            &node_positions,
+            &node_placement.layout_nodes,
+            &levels,
+            self.entity_margin,
+            self.lane_spacing,
+        );
+
+        // Phase 7: Where each edge meets its entities
         let node_exits = calculate_edge_anchors(
             ir,
             &node_positions,
             &node_level,
-            &corridor_analysis.edge_gap_index,
-            &node_placement.layout_nodes,
-            &levels,
-            self.entity_margin,
+            &multi_level_corridor_x,
+            self.anchor_spacing,
         );
 
-        // Phase 7: Lane assignments
+        align_corridors_with_anchors(
+            &mut multi_level_corridor_x,
+            ir,
+            &node_level,
+            &node_exits,
+            self.jog_tolerance,
+        );
+
+        // Phase 8: Lane assignments
         let channel_lane_assignments = assign_channel_lanes(
             ir,
             &channel_edges_list,
             &node_positions,
             &node_level,
             &node_exits,
-            &corridor_analysis.edge_gap_index,
-            &node_placement.layout_nodes,
-            &levels,
-            self.anchor_spacing,
-            self.entity_margin,
-        );
-
-        // Phase 8: Multi-level corridor X calculation
-        let multi_level_corridor_x = calculate_multi_level_corridor_x(
-            ir,
-            &node_level,
-            &node_positions,
-            &node_exits,
-            &node_placement.layout_nodes,
-            &levels,
-            self.entity_margin,
-            self.lane_spacing,
-            self.anchor_spacing,
+            &multi_level_corridor_x,
         );
 
         // Phase 9: Edge routing
@@ -148,7 +150,6 @@ impl LayoutEngine {
             &node_placement,
             &levels,
             &multi_level_corridor_x,
-            self.anchor_spacing,
             self.lane_spacing,
             self.channel_gap,
             self.node_gap_x,

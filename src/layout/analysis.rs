@@ -180,7 +180,6 @@ pub fn analyze_corridors(
     lane_spacing: f64,
 ) -> CorridorAnalysis {
     let mut corridor_edges: HashMap<usize, Vec<usize>> = HashMap::new();
-    let mut edge_gap_index: HashMap<usize, usize> = HashMap::new();
 
     for (idx, edge) in ir.edges.iter().enumerate() {
         if edge.from == edge.to {
@@ -203,7 +202,6 @@ pub fn analyze_corridors(
             from_order.max(to_order + 1)
         };
 
-        edge_gap_index.insert(idx, gap_index);
         corridor_edges.entry(gap_index).or_default().push(idx);
     }
 
@@ -213,9 +211,6 @@ pub fn analyze_corridors(
         gap_extra_width.insert(gap_idx, extra);
     }
 
-    CorridorAnalysis {
-        edge_gap_index,
-        gap_extra_width,
-    }
+    CorridorAnalysis { gap_extra_width }
 }
 
