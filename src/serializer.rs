@@ -3,6 +3,7 @@
 use crate::ast::{
     Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema,
 };
+use crate::ordering::order_levels;
 use std::collections::{HashMap, HashSet};
 
 /// Serialize a Schema to ERD notation string.
@@ -125,39 +126,35 @@ fn generate_arrangement(schema: &Schema) -> Vec<Vec<String>> {
         row.sort();
     }
 
-    // Place each entity under the ones it references, so the relationships run
-    // straight down instead of crossing over each other.
-    for level in 1..rows.len() {
-        let above: HashMap<String, usize> = rows[level - 1]
-            .iter()
-            .enumerate()
-            .map(|(index, name)| (name.clone(), index))
-            .collect();
+    // Order each row so that as few relationships as possible cross.
+    let order: Vec<&str> = schema.entities.iter().map(|e| e.name.as_str()).collect();
+    let index: HashMap<&str, usize> = order
+        .iter()
+        .enumerate()
+        .map(|(i, name)| (*name, i))
+        .collect();
 
-        let mut ordered: Vec<(f64, String)> = rows[level]
-            .iter()
-            .map(|name| {
-                let positions: Vec<usize> = parents
-                    .get(name.as_str())
-                    .map(|deps| deps.iter().filter_map(|p| above.get(*p).copied()).collect())
-                    .unwrap_or_default();
-                // Entities with no parent above keep to the right.
-                let center = if positions.is_empty() {
-                    f64::MAX
-                } else {
-                    positions.iter().sum::<usize>() as f64 / positions.len() as f64
-                };
-                (center, name.clone())
-            })
-            .collect();
+    let mut id_rows: Vec<Vec<usize>> = rows
+        .iter()
+        .map(|row| row.iter().filter_map(|n| index.get(n.as_str()).copied()).collect())
+        .collect();
+    let links: Vec<(usize, usize)> = schema
+        .relationships
+        .iter()
+        .filter_map(|rel| {
+            Some((
+                index.get(rel.left.as_str()).copied()?,
+                index.get(rel.right.as_str()).copied()?,
+            ))
+        })
+        .collect();
 
-        ordered.sort_by(|a, b| {
-            a.0.partial_cmp(&b.0)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.1.cmp(&b.1))
-        });
-        rows[level] = ordered.into_iter().map(|(_, name)| name).collect();
-    }
+    order_levels(&mut id_rows, &links);
+
+    let rows: Vec<Vec<String>> = id_rows
+        .into_iter()
+        .map(|row| row.into_iter().map(|i| order[i].to_string()).collect())
+        .collect();
 
     // Remove empty rows
     rows.into_iter().filter(|r| !r.is_empty()).collect()

@@ -2,6 +2,7 @@
 
 use crate::ir::{GraphIR, Node};
 use crate::measure::TextMetrics;
+use crate::ordering::order_levels;
 use std::collections::HashMap;
 
 use super::types::{LayoutNode, NodePlacement};
@@ -44,7 +45,7 @@ pub fn calculate_node_sizes(
     node_sizes
 }
 
-/// Group nodes by level and sort within each level.
+/// Group nodes by level, in the order the source asked for.
 pub fn group_nodes_by_level(ir: &GraphIR) -> (HashMap<i64, Vec<&Node>>, Vec<i64>) {
     let mut levels: HashMap<i64, Vec<&Node>> = HashMap::new();
 
@@ -61,6 +62,51 @@ pub fn group_nodes_by_level(ir: &GraphIR) -> (HashMap<i64, Vec<&Node>>, Vec<i64>
     level_keys.sort();
 
     (levels, level_keys)
+}
+
+/// The same levels, reordered so that as few relationships as possible cross.
+///
+/// Only worth trying when the source did not say where its entities go: an
+/// arrangement written by hand is followed as written.
+pub fn reorder_levels<'a>(
+    ir: &'a GraphIR,
+    levels: &HashMap<i64, Vec<&'a Node>>,
+    level_keys: &[i64],
+) -> HashMap<i64, Vec<&'a Node>> {
+    let index: HashMap<&str, usize> = ir
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, node)| (node.id.as_str(), i))
+        .collect();
+
+    let mut rows: Vec<Vec<usize>> = level_keys
+        .iter()
+        .map(|level| {
+            levels[level]
+                .iter()
+                .filter_map(|n| index.get(n.id.as_str()).copied())
+                .collect()
+        })
+        .collect();
+    let links: Vec<(usize, usize)> = ir
+        .edges
+        .iter()
+        .filter_map(|edge| {
+            Some((
+                index.get(edge.from.as_str()).copied()?,
+                index.get(edge.to.as_str()).copied()?,
+            ))
+        })
+        .collect();
+
+    order_levels(&mut rows, &links);
+
+    level_keys
+        .iter()
+        .zip(rows)
+        .map(|(&level, row)| (level, row.into_iter().map(|i| &ir.nodes[i]).collect()))
+        .collect()
 }
 
 /// Place nodes with calculated gap widths.

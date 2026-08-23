@@ -157,44 +157,6 @@ fn paths_do_not_run_on_top_of_each_other() {
     }
 }
 
-/// True when two axis-aligned segments cross at a point interior to both.
-fn crosses(a: (&(f64, f64), &(f64, f64)), b: (&(f64, f64), &(f64, f64))) -> bool {
-    let vertical = |(p, q): (&(f64, f64), &(f64, f64))| p.0 == q.0;
-    if vertical(a) == vertical(b) {
-        return false;
-    }
-    let (v, h) = if vertical(a) { (a, b) } else { (b, a) };
-    let x = v.0 .0;
-    let y = h.0 .1;
-    let (top, bottom) = (v.0 .1.min(v.1 .1), v.0 .1.max(v.1 .1));
-    let (left, right) = (h.0 .0.min(h.1 .0), h.0 .0.max(h.1 .0));
-    top < y && y < bottom && left < x && x < right
-}
-
-fn crossings(layout: &Layout) -> usize {
-    let mut count = 0;
-    for (i, first) in layout.edges.iter().enumerate() {
-        for second in layout.edges.iter().skip(i + 1) {
-            for a in first.waypoints.windows(2) {
-                for b in second.waypoints.windows(2) {
-                    if crosses((&a[0], &a[1]), (&b[0], &b[1])) {
-                        count += 1;
-                    }
-                }
-            }
-        }
-    }
-    count
-}
-
-fn bends(layout: &Layout) -> usize {
-    layout
-        .edges
-        .iter()
-        .map(|e| e.waypoints.len().saturating_sub(2))
-        .sum()
-}
-
 /// The crossings and bends each example is allowed to draw. These are not
 /// targets, they are ratchets: when a change improves a diagram, tighten its
 /// numbers so the improvement cannot quietly slip away again.
@@ -203,7 +165,7 @@ const BUDGET: &[(&str, usize, usize)] = &[
     ("02_wide_horizontal.erd", 0, 0),
     ("03_long_names.erd", 0, 0),
     ("04_deep_hierarchy.erd", 0, 0),
-    ("05_dense_relations.erd", 3, 14),
+    ("05_dense_relations.erd", 1, 12),
     ("06_unicode_cjk.erd", 0, 4),
     ("07_all_cardinalities.erd", 0, 8),
     ("08_mixed_sizes.erd", 0, 0),
@@ -221,7 +183,7 @@ fn layouts_stay_within_their_crossing_and_bend_budget() {
         else {
             panic!("{name}: no budget recorded; add one to BUDGET");
         };
-        let (crossings, bends) = (crossings(&layout), bends(&layout));
+        let (crossings, bends) = (layout.crossings(), layout.bends());
         assert!(
             crossings <= max_crossings && bends <= max_bends,
             "{name}: {crossings} crossings and {bends} bends, over the budget of \

@@ -1,6 +1,7 @@
 //! Layout engine core implementation.
 
-use crate::ir::GraphIR;
+use crate::ir::{GraphIR, Node};
+use std::collections::HashMap;
 use crate::measure::TextMetrics;
 
 use super::align::align_levels;
@@ -12,7 +13,10 @@ use super::anchors::calculate_edge_anchors;
 use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
-use super::placement::{build_node_positions, calculate_node_sizes, group_nodes_by_level, place_nodes};
+use super::placement::{
+    build_node_positions, calculate_node_sizes, group_nodes_by_level, place_nodes,
+    reorder_levels,
+};
 use super::straighten::straighten_edges;
 use super::types::Layout;
 use super::waypoints::route_edges;
@@ -51,15 +55,40 @@ impl Default for LayoutEngine {
 
 impl LayoutEngine {
     /// Compute layout for the given graph.
+    ///
+    /// Where the source did not say how to arrange its entities, an arrangement
+    /// with fewer crossings is worked out and drawn as well; whichever of the
+    /// two reads more easily is the one returned. The heuristic proposes, the
+    /// finished drawing decides.
     pub fn layout(&self, ir: &GraphIR) -> Layout {
+        let (levels, level_keys) = group_nodes_by_level(ir);
+        let mut best = self.arrange(ir, &levels, &level_keys);
+
+        if ir.nodes.iter().all(|node| node.order.is_none()) {
+            let reordered = reorder_levels(ir, &levels, &level_keys);
+            let candidate = self.arrange(ir, &reordered, &level_keys);
+            if candidate.is_tidier_than(&best) {
+                best = candidate;
+            }
+        }
+
+        best
+    }
+
+    /// Draw the graph with its entities in the given order.
+    fn arrange(
+        &self,
+        ir: &GraphIR,
+        levels: &HashMap<i64, Vec<&Node>>,
+        level_keys: &[i64],
+    ) -> Layout {
         // Phase 1: Edge analysis
         let node_level = build_node_level_lookup(ir);
         let edge_count_per_node = count_edges_per_node(ir, &node_level);
         let (channel_edges_list, channel_edge_count) = analyze_channel_edges(ir, &node_level);
 
         // Phase 2: Node grouping
-        let (levels, level_keys) = group_nodes_by_level(ir);
-        let node_order = build_node_order(&levels);
+        let node_order = build_node_order(levels);
 
         // Phase 3: Corridor analysis
         let corridor_analysis =
@@ -67,7 +96,7 @@ impl LayoutEngine {
 
         // Phase 4: Dynamic channel gaps
         let dynamic_channel_gap = calculate_dynamic_channel_gaps(
-            &level_keys,
+            level_keys,
             &channel_edge_count,
             self.entity_margin,
             self.lane_spacing,
@@ -85,8 +114,8 @@ impl LayoutEngine {
         let self_ref_reserve = calculate_self_ref_reserve(ir, &self.metrics, self.lane_spacing);
 
         let mut node_placement = place_nodes(
-            &levels,
-            &level_keys,
+            levels,
+            level_keys,
             &node_sizes,
             &corridor_analysis.gap_extra_width,
             &self_ref_reserve,
@@ -107,7 +136,7 @@ impl LayoutEngine {
             &node_level,
             &node_positions,
             &node_placement.layout_nodes,
-            &levels,
+            levels,
             self.entity_margin,
             self.lane_spacing,
         );
@@ -148,7 +177,7 @@ impl LayoutEngine {
             &channel_edge_count,
             &channel_lane_assignments,
             &node_placement,
-            &levels,
+            levels,
             &multi_level_corridor_x,
             self.lane_spacing,
             self.channel_gap,

@@ -3,6 +3,7 @@ pub mod ir;
 pub mod layout;
 pub mod lexer;
 pub mod measure;
+pub mod ordering;
 pub mod parser;
 pub mod serializer;
 pub mod sql;
