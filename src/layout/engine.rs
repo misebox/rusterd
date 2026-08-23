@@ -3,6 +3,7 @@
 use crate::ir::GraphIR;
 use crate::measure::TextMetrics;
 
+use super::align::align_levels;
 use super::analysis::{
     analyze_channel_edges, analyze_corridors, build_node_level_lookup, build_node_order,
     calculate_dynamic_channel_gaps, calculate_self_ref_reserve, count_edges_per_node,
@@ -81,7 +82,7 @@ impl LayoutEngine {
 
         let self_ref_reserve = calculate_self_ref_reserve(ir, &self.metrics, self.lane_spacing);
 
-        let node_placement = place_nodes(
+        let mut node_placement = place_nodes(
             &levels,
             &level_keys,
             &node_sizes,
@@ -92,6 +93,9 @@ impl LayoutEngine {
             self.node_gap_y,
             self.channel_gap,
         );
+
+        // Phase 5b: Slide each level under the entities it relates to
+        align_levels(&mut node_placement, ir, self.node_gap_x);
 
         let node_positions = build_node_positions(&node_placement.layout_nodes);
 

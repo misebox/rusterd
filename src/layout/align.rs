@@ -1,0 +1,192 @@
+//! Horizontal alignment of the entities within each level.
+//!
+//! Placement packs every level against the left margin, which leaves an entity
+//! sitting under whichever entity happens to share its index rather than under
+//! the one it is joined to. This pass slides each entity towards the average of
+//! the entities it relates to, so that edges run down instead of across. The
+//! order of a level and the gaps placement reserved are kept, and the drawing
+//! is never made wider than the packed one it started from.
+
+use crate::ir::GraphIR;
+use std::collections::HashMap;
+
+use super::types::NodePlacement;
+
+/// Rounds of relaxation. Each entity follows its neighbours, which have moved
+/// in the previous round, so a few passes are needed before the levels settle.
+const ROUNDS: usize = 6;
+
+/// Margin between the drawing and the edge of the canvas.
+const MARGIN: f64 = 40.0;
+
+pub fn align_levels(placement: &mut NodePlacement, ir: &GraphIR, node_gap_x: f64) {
+    // Space each entity keeps to its right beyond the ordinary gap, for a
+    // self-reference loop and the labels hanging off it.
+    let right_pad: Vec<f64> = placement
+        .min_gap
+        .iter()
+        .map(|gap| (gap - node_gap_x).max(0.0))
+        .collect();
+    let width_budget = placement.max_width;
+
+    let index: HashMap<&str, usize> = placement
+        .layout_nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.id.as_str(), i))
+        .collect();
+
+    let mut level_of = vec![0usize; placement.layout_nodes.len()];
+    for (level, row) in placement.rows.iter().enumerate() {
+        for &node in row {
+            level_of[node] = level;
+        }
+    }
+
+    // Entities on the same level pull sideways rather than up or down, so only
+    // relations that cross a level guide the alignment.
+    let mut neighbours: Vec<Vec<usize>> = vec![Vec::new(); placement.layout_nodes.len()];
+    for edge in &ir.edges {
+        let (Some(&from), Some(&to)) =
+            (index.get(edge.from.as_str()), index.get(edge.to.as_str()))
+        else {
+            continue;
+        };
+        if from == to || level_of[from] == level_of[to] {
+            continue;
+        }
+        neighbours[from].push(to);
+        neighbours[to].push(from);
+    }
+
+    for _ in 0..ROUNDS {
+        for row in 0..placement.rows.len() {
+            align_row(placement, &neighbours, &right_pad, row, width_budget);
+        }
+    }
+
+    settle(placement, &right_pad);
+}
+
+/// Move one row's entities as close as possible to the centre of the entities
+/// they relate to, without reordering them or closing the gaps between them.
+fn align_row(
+    placement: &mut NodePlacement,
+    neighbours: &[Vec<usize>],
+    right_pad: &[f64],
+    row: usize,
+    width_budget: f64,
+) {
+    let nodes = placement.rows[row].clone();
+    let Some(&last) = nodes.last() else {
+        return;
+    };
+
+    let wanted: Vec<f64> = nodes
+        .iter()
+        .map(|&node| {
+            let linked = &neighbours[node];
+            if linked.is_empty() {
+                let n = &placement.layout_nodes[node];
+                return n.x + n.width / 2.0;
+            }
+            let sum: f64 = linked
+                .iter()
+                .map(|&other| {
+                    let o = &placement.layout_nodes[other];
+                    o.x + o.width / 2.0
+                })
+                .sum();
+            sum / linked.len() as f64
+        })
+        .collect();
+
+    // Rewrite the ordering constraint `left[i] + width + gap <= left[i + 1]` as
+    // `u[i] <= u[i + 1]` by subtracting the space every earlier entity in the
+    // row takes up. What is left is a nearest non-decreasing sequence, which
+    // pool-adjacent-violators solves exactly.
+    let mut offsets = Vec::with_capacity(nodes.len());
+    let mut target = Vec::with_capacity(nodes.len());
+    let mut offset = 0.0;
+    for (i, &node) in nodes.iter().enumerate() {
+        let n = &placement.layout_nodes[node];
+        offsets.push(offset);
+        target.push(wanted[i] - n.width / 2.0 - offset);
+        offset += n.width + placement.min_gap[node];
+    }
+
+    let solved = isotonic(&target);
+    for (i, &node) in nodes.iter().enumerate() {
+        placement.layout_nodes[node].x = solved[i] + offsets[i];
+    }
+
+    // Aligning a level may move and spread it, but must not widen the drawing.
+    // Anything past the right margin is pushed back, and whatever that crowds
+    // is pushed back in turn; the row fitted before it was aligned, so there is
+    // always room.
+    let mut right_bound = width_budget - MARGIN - right_pad[last];
+    for k in (0..nodes.len()).rev() {
+        let node = nodes[k];
+        let n = &mut placement.layout_nodes[node];
+        n.x = n.x.min(right_bound - n.width);
+        if k > 0 {
+            right_bound = n.x - placement.min_gap[nodes[k - 1]];
+        }
+    }
+
+    let mut floor = MARGIN;
+    for &node in &nodes {
+        let n = &mut placement.layout_nodes[node];
+        n.x = n.x.max(floor);
+        floor = n.x + n.width + placement.min_gap[node];
+    }
+}
+
+/// Nearest non-decreasing sequence to `target`, by pool adjacent violators.
+fn isotonic(target: &[f64]) -> Vec<f64> {
+    // Each block holds a run of positions that share one value: their mean.
+    let mut blocks: Vec<(f64, usize)> = Vec::with_capacity(target.len());
+    for &t in target {
+        blocks.push((t, 1));
+        while blocks.len() >= 2 {
+            let (value, count) = blocks[blocks.len() - 1];
+            let (prev_value, prev_count) = blocks[blocks.len() - 2];
+            if prev_value <= value {
+                break;
+            }
+            blocks.pop();
+            blocks.pop();
+            let merged = (prev_value * prev_count as f64 + value * count as f64)
+                / (prev_count + count) as f64;
+            blocks.push((merged, prev_count + count));
+        }
+    }
+
+    let mut out = Vec::with_capacity(target.len());
+    for (value, count) in blocks {
+        out.extend(std::iter::repeat_n(value, count));
+    }
+    out
+}
+
+/// Bring the whole drawing back against the left margin and re-measure it.
+fn settle(placement: &mut NodePlacement, right_pad: &[f64]) {
+    let leftmost = placement
+        .layout_nodes
+        .iter()
+        .map(|n| n.x)
+        .fold(f64::INFINITY, f64::min);
+    if leftmost.is_finite() {
+        let shift = MARGIN - leftmost;
+        for node in placement.layout_nodes.iter_mut() {
+            node.x += shift;
+        }
+    }
+
+    placement.max_width = placement
+        .layout_nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| n.x + n.width + right_pad[i] + MARGIN)
+        .fold(0.0, f64::max);
+}

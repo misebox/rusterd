@@ -78,6 +78,8 @@ pub fn place_nodes(
 ) -> NodePlacement {
     let mut layout_nodes = Vec::new();
     let mut channel_y: HashMap<i64, f64> = HashMap::new();
+    let mut rows: Vec<Vec<usize>> = Vec::with_capacity(level_keys.len());
+    let mut min_gap: Vec<f64> = Vec::new();
     let mut y: f64 = 40.0;
     let mut max_width: f64 = 0.0;
 
@@ -86,9 +88,11 @@ pub fn place_nodes(
         let gap0_extra = *gap_extra_width.get(&0).unwrap_or(&0.0);
         let mut x: f64 = 40.0 + gap0_extra;
         let mut max_height: f64 = 0.0;
+        let mut row: Vec<usize> = Vec::with_capacity(nodes_in_level.len());
 
         for (node_idx, node) in nodes_in_level.iter().enumerate() {
             let (w, h) = node_sizes[&node.id];
+            row.push(layout_nodes.len());
             layout_nodes.push(LayoutNode {
                 id: node.id.clone(),
                 x,
@@ -103,11 +107,13 @@ pub fn place_nodes(
             // their own, whether the next thing is an entity or the SVG edge.
             let reserve = *self_ref_reserve.get(node.id.as_str()).unwrap_or(&0.0);
             let effective_gap_x = node_gap_x + extra_gap + reserve;
+            min_gap.push(effective_gap_x);
 
             x += w + effective_gap_x;
             max_height = max_height.max(h);
         }
 
+        rows.push(row);
         max_width = max_width.max(x - node_gap_x + 40.0);
 
         if i < level_keys.len() - 1 {
@@ -125,6 +131,8 @@ pub fn place_nodes(
 
     NodePlacement {
         layout_nodes,
+        rows,
+        min_gap,
         channel_y,
         max_width,
         total_height,

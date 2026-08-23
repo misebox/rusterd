@@ -3,6 +3,7 @@
 //! This module computes positions and routing for nodes and edges
 //! in an Entity-Relationship diagram.
 
+mod align;
 mod analysis;
 mod anchors;
 mod corridor;
