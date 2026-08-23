@@ -38,20 +38,20 @@
 <path class="edge-symbol" d="M 186 53.3 L 186 68.3" />
 <path class="edge-symbol" d="M 176 123.2 L 191 115.7" />
 <path class="edge-symbol" d="M 176 123.2 L 191 130.7" />
-<path class="edge" d="M 108 144 L 108 201 Q 108 233 140 233 L 173 233 Q 205 233 205 265 L 205 302" />
-<path class="edge-symbol" d="M 115.5 154 L 100.5 154" />
-<path class="edge-symbol" d="M 205 302 L 197.5 287" />
-<path class="edge-symbol" d="M 205 302 L 212.5 287" />
+<path class="edge" d="M 148 144 L 148 242.5 Q 148 257 162.5 257 L 162.5 257 Q 177 257 177 271.5 L 177 302" />
+<path class="edge-symbol" d="M 155.5 154 L 140.5 154" />
+<path class="edge-symbol" d="M 177 302 L 169.5 287" />
+<path class="edge-symbol" d="M 177 302 L 184.5 287" />
 <path class="edge" d="M 485 164 L 485 302" />
 <path class="edge-symbol" d="M 492.5 174 L 477.5 174" />
 <path class="edge-symbol" d="M 485 302 L 477.5 287" />
 <path class="edge-symbol" d="M 485 302 L 492.5 287" />
-<path class="edge" d="M 429 164 L 429 225 Q 429 257 397 257 L 283.5 257 Q 261 257 261 279.5 L 261 302" />
-<path class="edge-symbol" d="M 436.5 174 L 421.5 174" />
-<circle class="edge-symbol-zero" cx="429" cy="180" r="4" />
-<path class="edge-symbol" d="M 261 302 L 253.5 287" />
-<path class="edge-symbol" d="M 261 302 L 268.5 287" />
-<path class="edge-symbol" d="M 253.5 287 L 268.5 287" />
+<path class="edge" d="M 389 164 L 389 186.5 Q 389 209 366.5 209 L 321 209 Q 289 209 289 241 L 289 302" />
+<path class="edge-symbol" d="M 396.5 174 L 381.5 174" />
+<circle class="edge-symbol-zero" cx="389" cy="180" r="4" />
+<path class="edge-symbol" d="M 289 302 L 281.5 287" />
+<path class="edge-symbol" d="M 289 302 L 296.5 287" />
+<path class="edge-symbol" d="M 281.5 287 L 296.5 287" />
 <rect class="entity-bg" x="40" y="40" width="136" height="104" rx="4" />
 <rect class="entity-header" x="40" y="40" width="136" height="28" rx="4" />
 <rect class="entity-header" x="40" y="64" width="136" height="4" />
@@ -96,6 +96,6 @@
 <text class="edge-label" x="234.2" y="92" text-anchor="middle" dominant-baseline="middle">parent</text>
 <rect class="edge-label-bg" x="456.8" y="223.0" width="56.4" height="20.0" rx="8" />
 <text class="edge-label" x="485" y="233" text-anchor="middle" dominant-baseline="middle">places</text>
-<rect class="edge-label-bg" x="304.2" y="247.0" width="81.6" height="20.0" rx="8" />
-<text class="edge-label" x="345" y="257" text-anchor="middle" dominant-baseline="middle">favorites</text>
+<rect class="edge-label-bg" x="298.2" y="199.0" width="81.6" height="20.0" rx="8" />
+<text class="edge-label" x="339" y="209" text-anchor="middle" dominant-baseline="middle">favorites</text>
 </svg>
