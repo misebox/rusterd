@@ -77,61 +77,18 @@ pub fn find_safe_corridors(
     gaps
 }
 
-/// Find the center X coordinate of a specific gap at a given level.
-/// gap_index: 0 = before first entity, 1 = between first and second, etc.
-pub fn find_gap_center_x(
-    layout_nodes: &[LayoutNode],
-    levels: &HashMap<i64, Vec<&Node>>,
-    level: i64,
-    gap_index: usize,
-    entity_margin: f64,
-) -> f64 {
-    let nodes_at_level = match levels.get(&level) {
-        Some(nodes) => nodes,
-        None => return 100.0,
-    };
-
-    let node_positions: HashMap<&str, &LayoutNode> = layout_nodes
+/// Pick the corridor that comes closest to `wanted`, and the point in it that
+/// gets there. A corridor containing `wanted` wins outright, which is what lets
+/// an edge run straight down onto what it is aiming for.
+pub fn nearest_corridor(corridors: &[(f64, f64)], wanted: f64) -> Option<(usize, f64)> {
+    corridors
         .iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
-
-    let mut boundaries: Vec<(f64, f64)> = Vec::new();
-
-    for node in nodes_at_level {
-        if let Some(layout_node) = node_positions.get(node.id.as_str()) {
-            boundaries.push((layout_node.x, layout_node.x + layout_node.width));
-        }
-    }
-
-    boundaries.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    if boundaries.is_empty() {
-        return 100.0;
-    }
-
-    if gap_index == 0 {
-        let first_left = boundaries[0].0;
-        return (40.0 + first_left) / 2.0;
-    }
-
-    if gap_index >= boundaries.len() {
-        if let Some(&(_, last_right)) = boundaries.last() {
-            return last_right + entity_margin + 50.0;
-        }
-    }
-
-    if gap_index > 0 && gap_index < boundaries.len() {
-        let left_entity_right = boundaries[gap_index - 1].1;
-        let right_entity_left = boundaries[gap_index].0;
-        return (left_entity_right + right_entity_left) / 2.0;
-    }
-
-    if gap_index < boundaries.len().saturating_sub(1) {
-        let left_entity_right = boundaries[gap_index].1;
-        let right_entity_left = boundaries[gap_index + 1].0;
-        return (left_entity_right + right_entity_left) / 2.0;
-    }
-
-    100.0
+        .enumerate()
+        .map(|(i, &(left, right))| (i, wanted.clamp(left, right)))
+        .min_by(|(_, a), (_, b)| {
+            (a - wanted)
+                .abs()
+                .partial_cmp(&(b - wanted).abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
 }

@@ -4,12 +4,13 @@ use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
 use super::analysis::edge_sides;
+use super::anchors::{anchor_x, Anchors};
 use super::corridor::find_safe_corridors;
 use super::routing::{
-    calculate_lane_offset, distribute_anchor, route_adjacent_level_direct,
-    route_adjacent_level_with_channel, route_same_level_adjacent, route_self_ref,
+    calculate_lane_offset, route_adjacent_level_direct, route_adjacent_level_with_channel,
+    route_same_level_adjacent, route_self_ref,
 };
-use super::types::{LayoutEdge, LayoutNode, NodePlacement};
+use super::types::{Corridor, LayoutEdge, LayoutNode, NodePlacement};
 
 /// Route all edges and generate waypoints.
 #[allow(clippy::too_many_arguments)]
@@ -17,13 +18,12 @@ pub fn route_edges<'a>(
     ir: &'a GraphIR,
     node_positions: &HashMap<&str, &LayoutNode>,
     node_level: &HashMap<&str, i64>,
-    node_exits: &HashMap<(&str, bool), Vec<(usize, f64)>>,
+    node_exits: &Anchors<'a>,
     channel_edge_count: &HashMap<i64, usize>,
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
-    multi_level_corridor_x: &HashMap<usize, f64>,
-    anchor_spacing: f64,
+    multi_level_corridor_x: &HashMap<usize, Corridor>,
     lane_spacing: f64,
     channel_gap: f64,
     node_gap_x: f64,
@@ -56,13 +56,8 @@ pub fn route_edges<'a>(
             let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
             let (from_side, to_side) = edge_sides(from_level, to_level);
 
-            let from_exits = node_exits.get(&(edge.from.as_str(), from_side))?;
-            let from_pos = from_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
-            let from_cx = distribute_anchor(from_node, from_pos, from_exits.len(), anchor_spacing);
-
-            let to_exits = node_exits.get(&(edge.to.as_str(), to_side))?;
-            let to_pos = to_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
-            let to_cx = distribute_anchor(to_node, to_pos, to_exits.len(), anchor_spacing);
+            let from_cx = anchor_x(node_exits, edge.from.as_str(), from_side, idx)?;
+            let to_cx = anchor_x(node_exits, edge.to.as_str(), to_side, idx)?;
 
             let waypoints = calculate_waypoints(
                 idx,
@@ -108,7 +103,7 @@ fn calculate_waypoints<'a>(
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
-    multi_level_corridor_x: &HashMap<usize, f64>,
+    multi_level_corridor_x: &HashMap<usize, Corridor>,
     lane_spacing: f64,
     channel_gap: f64,
     node_gap_x: f64,
@@ -263,12 +258,12 @@ fn route_multi_level<'a>(
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
-    multi_level_corridor_x: &HashMap<usize, f64>,
+    multi_level_corridor_x: &HashMap<usize, Corridor>,
     lane_spacing: f64,
     channel_gap: f64,
     entity_margin: f64,
 ) -> Vec<(f64, f64)> {
-    let corridor_x = multi_level_corridor_x.get(&idx).copied().unwrap_or_else(|| {
+    let corridor_x = multi_level_corridor_x.get(&idx).map(|c| c.x).unwrap_or_else(|| {
         let safe_corridors = find_safe_corridors(
             &node_placement.layout_nodes,
             levels,
