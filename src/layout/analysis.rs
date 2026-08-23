@@ -57,8 +57,23 @@ pub fn build_node_level_lookup(ir: &GraphIR) -> HashMap<&str, i64> {
         .collect()
 }
 
-/// Count edges per node per direction.
-/// Returns: (node_id, going_down) -> edge count
+/// Which border each end of an edge attaches to: `true` is the bottom of the
+/// entity, `false` the top.
+///
+/// A same-level edge detours through the channel below its own level, so both
+/// of its ends leave from the bottom. Every other edge leaves the bottom of the
+/// upper entity and enters the top of the lower one.
+pub fn edge_sides(from_level: i64, to_level: i64) -> (bool, bool) {
+    let going_down = to_level >= from_level;
+    if from_level == to_level {
+        (true, true)
+    } else {
+        (going_down, !going_down)
+    }
+}
+
+/// Count edges per node per border.
+/// Returns: (node_id, is_bottom) -> edge count
 pub fn count_edges_per_node<'a>(
     ir: &'a GraphIR,
     node_level: &HashMap<&str, i64>,
@@ -71,10 +86,10 @@ pub fn count_edges_per_node<'a>(
         }
         let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
         let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-        let going_down = to_level >= from_level;
+        let (from_side, to_side) = edge_sides(from_level, to_level);
 
-        *edge_count.entry((edge.from.as_str(), going_down)).or_insert(0) += 1;
-        *edge_count.entry((edge.to.as_str(), !going_down)).or_insert(0) += 1;
+        *edge_count.entry((edge.from.as_str(), from_side)).or_insert(0) += 1;
+        *edge_count.entry((edge.to.as_str(), to_side)).or_insert(0) += 1;
     }
 
     edge_count

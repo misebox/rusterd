@@ -111,3 +111,48 @@ fn paths_do_not_cross_entities() {
         }
     }
 }
+
+/// Length two axis-aligned segments share while lying on the same line.
+fn shared_length(a: (&(f64, f64), &(f64, f64)), b: (&(f64, f64), &(f64, f64))) -> f64 {
+    let ((a1, a2), (b1, b2)) = (a, b);
+    let on_same_line = |p: f64, q: f64| (p - q).abs() < 1.0;
+
+    if a1.0 == a2.0 && b1.0 == b2.0 && on_same_line(a1.0, b1.0) {
+        let (lo_a, hi_a) = (a1.1.min(a2.1), a1.1.max(a2.1));
+        let (lo_b, hi_b) = (b1.1.min(b2.1), b1.1.max(b2.1));
+        return hi_a.min(hi_b) - lo_a.max(lo_b);
+    }
+    if a1.1 == a2.1 && b1.1 == b2.1 && on_same_line(a1.1, b1.1) {
+        let (lo_a, hi_a) = (a1.0.min(a2.0), a1.0.max(a2.0));
+        let (lo_b, hi_b) = (b1.0.min(b2.0), b1.0.max(b2.0));
+        return hi_a.min(hi_b) - lo_a.max(lo_b);
+    }
+    f64::NEG_INFINITY
+}
+
+#[test]
+fn paths_do_not_run_on_top_of_each_other() {
+    // Two edges may cross, but one hiding inside another leaves the reader
+    // unable to tell how many relations are drawn.
+    for (name, layout) in examples() {
+        for (i, first) in layout.edges.iter().enumerate() {
+            for second in layout.edges.iter().skip(i + 1) {
+                for a in first.waypoints.windows(2) {
+                    for b in second.waypoints.windows(2) {
+                        let shared = shared_length((&a[0], &a[1]), (&b[0], &b[1]));
+                        assert!(
+                            shared <= MIN_JOG,
+                            "{name}: {} -> {} and {} -> {} run together for {shared}: {:?} / {:?}",
+                            first.from,
+                            first.to,
+                            second.from,
+                            second.to,
+                            first.waypoints,
+                            second.waypoints
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

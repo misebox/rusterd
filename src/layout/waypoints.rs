@@ -3,6 +3,7 @@
 use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
+use super::analysis::edge_sides;
 use super::corridor::find_safe_corridors;
 use super::routing::{
     calculate_lane_offset, distribute_anchor, route_adjacent_level_direct,
@@ -53,13 +54,13 @@ pub fn route_edges<'a>(
 
             let from_level = *node_level.get(edge.from.as_str()).unwrap_or(&0);
             let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
-            let going_down = to_level >= from_level;
+            let (from_side, to_side) = edge_sides(from_level, to_level);
 
-            let from_exits = node_exits.get(&(edge.from.as_str(), going_down))?;
+            let from_exits = node_exits.get(&(edge.from.as_str(), from_side))?;
             let from_pos = from_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
             let from_cx = distribute_anchor(from_node, from_pos, from_exits.len(), anchor_spacing);
 
-            let to_exits = node_exits.get(&(edge.to.as_str(), !going_down))?;
+            let to_exits = node_exits.get(&(edge.to.as_str(), to_side))?;
             let to_pos = to_exits.iter().position(|(i, _)| *i == idx).unwrap_or(0);
             let to_cx = distribute_anchor(to_node, to_pos, to_exits.len(), anchor_spacing);
 
