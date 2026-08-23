@@ -10,6 +10,7 @@
 use crate::ir::GraphIR;
 use std::collections::HashMap;
 
+use super::fit::fit_in_order;
 use super::types::NodePlacement;
 
 /// Rounds of relaxation. Each entity follows its neighbours, which have moved
@@ -101,72 +102,27 @@ fn align_row(
         })
         .collect();
 
-    // Rewrite the ordering constraint `left[i] + width + gap <= left[i + 1]` as
-    // `u[i] <= u[i + 1]` by subtracting the space every earlier entity in the
-    // row takes up. What is left is a nearest non-decreasing sequence, which
-    // pool-adjacent-violators solves exactly.
-    let mut offsets = Vec::with_capacity(nodes.len());
-    let mut target = Vec::with_capacity(nodes.len());
-    let mut offset = 0.0;
-    for (i, &node) in nodes.iter().enumerate() {
-        let n = &placement.layout_nodes[node];
-        offsets.push(offset);
-        target.push(wanted[i] - n.width / 2.0 - offset);
-        offset += n.width + placement.min_gap[node];
-    }
+    // Aligning a level may move and spread it, but must not widen the drawing:
+    // the far end is bounded by where the packed layout reached.
+    let span: Vec<f64> = nodes
+        .iter()
+        .map(|&node| placement.layout_nodes[node].width + placement.min_gap[node])
+        .collect();
+    let left_edges: Vec<f64> = nodes
+        .iter()
+        .zip(&wanted)
+        .map(|(&node, want)| want - placement.layout_nodes[node].width / 2.0)
+        .collect();
+    let placed = fit_in_order(
+        &left_edges,
+        &span,
+        MARGIN,
+        width_budget - MARGIN - right_pad[last] - placement.layout_nodes[last].width,
+    );
 
-    let solved = isotonic(&target);
-    for (i, &node) in nodes.iter().enumerate() {
-        placement.layout_nodes[node].x = solved[i] + offsets[i];
+    for (&node, x) in nodes.iter().zip(placed) {
+        placement.layout_nodes[node].x = x;
     }
-
-    // Aligning a level may move and spread it, but must not widen the drawing.
-    // Anything past the right margin is pushed back, and whatever that crowds
-    // is pushed back in turn; the row fitted before it was aligned, so there is
-    // always room.
-    let mut right_bound = width_budget - MARGIN - right_pad[last];
-    for k in (0..nodes.len()).rev() {
-        let node = nodes[k];
-        let n = &mut placement.layout_nodes[node];
-        n.x = n.x.min(right_bound - n.width);
-        if k > 0 {
-            right_bound = n.x - placement.min_gap[nodes[k - 1]];
-        }
-    }
-
-    let mut floor = MARGIN;
-    for &node in &nodes {
-        let n = &mut placement.layout_nodes[node];
-        n.x = n.x.max(floor);
-        floor = n.x + n.width + placement.min_gap[node];
-    }
-}
-
-/// Nearest non-decreasing sequence to `target`, by pool adjacent violators.
-fn isotonic(target: &[f64]) -> Vec<f64> {
-    // Each block holds a run of positions that share one value: their mean.
-    let mut blocks: Vec<(f64, usize)> = Vec::with_capacity(target.len());
-    for &t in target {
-        blocks.push((t, 1));
-        while blocks.len() >= 2 {
-            let (value, count) = blocks[blocks.len() - 1];
-            let (prev_value, prev_count) = blocks[blocks.len() - 2];
-            if prev_value <= value {
-                break;
-            }
-            blocks.pop();
-            blocks.pop();
-            let merged = (prev_value * prev_count as f64 + value * count as f64)
-                / (prev_count + count) as f64;
-            blocks.push((merged, prev_count + count));
-        }
-    }
-
-    let mut out = Vec::with_capacity(target.len());
-    for (value, count) in blocks {
-        out.extend(std::iter::repeat_n(value, count));
-    }
-    out
 }
 
 /// Bring the whole drawing back against the left margin and re-measure it.

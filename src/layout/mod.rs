@@ -8,6 +8,7 @@ mod analysis;
 mod anchors;
 mod corridor;
 mod engine;
+mod fit;
 mod lanes;
 mod placement;
 mod routing;
