@@ -153,6 +153,8 @@ These are not part of the file. They are chosen when rendering:
   columns are drawn.
 - **notation**: `-n crowsfoot | text` (default `crowsfoot`) switches between
   crow's foot symbols and `1` / `0..1` / `*` / `1..*` written beside the line.
+- **legend**: `-l` draws a key to the four cardinalities below the diagram, in
+  whichever notation is in use.
 
 ## Mistakes to avoid
 

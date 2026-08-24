@@ -129,6 +129,7 @@ export default function App() {
   const [dialect, setDialect] = createSignal("auto");
   const [detail, setDetail] = createSignal("all");
   const [notation, setNotation] = createSignal("crowsfoot");
+  const [legend, setLegend] = createSignal(false);
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
 
@@ -156,7 +157,7 @@ export default function App() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, null, detail(), notation());
+    return erdToSvg(source, null, detail(), notation(), legend());
   };
 
   const sqlToErdStep = () =>
@@ -222,6 +223,20 @@ export default function App() {
     </label>
   );
 
+  const legendToggle = () => (
+    <label style={styles.field}>
+      <input
+        type="checkbox"
+        checked={legend()}
+        onChange={(e) => {
+          setLegend(e.currentTarget.checked);
+          redraw();
+        }}
+      />
+      Legend
+    </label>
+  );
+
   const notationSelect = () => (
     <label style={styles.field}>
       Notation
@@ -281,6 +296,7 @@ export default function App() {
           </label>
           {detailSelect()}
           {notationSelect()}
+          {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
             SQL → ERD
           </button>
@@ -295,6 +311,7 @@ export default function App() {
         <Show when={tab() === "ERD"}>
           {detailSelect()}
           {notationSelect()}
+          {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
           </button>
@@ -306,6 +323,7 @@ export default function App() {
         <Show when={tab() === "SVG Code"}>
           {detailSelect()}
           {notationSelect()}
+          {legendToggle()}
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
             Reset
@@ -315,6 +333,7 @@ export default function App() {
         <Show when={tab() === "SVG Preview"}>
           {detailSelect()}
           {notationSelect()}
+          {legendToggle()}
           <span style={styles.hint}>Rendered from the SVG Code tab.</span>
         </Show>
       </div>
