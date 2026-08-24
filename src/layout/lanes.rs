@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use super::analysis::edge_sides;
 use super::anchors::{anchor_x, Anchors};
+use super::descent::{Descent, Descents};
 
 use super::corridor::{find_safe_corridors, nearest_corridor};
 use super::types::{Corridor, LayoutNode};
@@ -24,6 +25,7 @@ pub fn assign_channel_lanes<'a>(
     node_level: &HashMap<&str, i64>,
     anchors: &Anchors<'a>,
     corridors: &HashMap<usize, Corridor>,
+    descents: &Descents,
 ) -> HashMap<(i64, usize), usize> {
     let mut lanes: HashMap<(i64, usize), usize> = HashMap::new();
 
@@ -49,24 +51,40 @@ pub fn assign_channel_lanes<'a>(
                 .unwrap_or_else(|| fallback(edge.to.as_str()));
             let corridor = corridors.get(&idx).map(|c| c.x);
 
-            // Only the first and last channel of an edge meet its anchors; in
-            // between it stays in its corridor and runs straight through.
-            let at = |level_touched: bool, anchor: f64| match (level_touched, corridor) {
-                (true, _) | (_, None) => anchor,
-                (false, Some(x)) => x,
-            };
-
+            // An edge steps sideways in one channel and runs straight through
+            // the rest, so in those it arrives and leaves at the same x.
             let run = if from_level == to_level {
                 Run { entry: leaving, exit: landing }
-            } else if to_level > from_level {
-                Run {
-                    entry: at(channel == from_level, leaving),
-                    exit: at(channel == to_level - 1, landing),
-                }
+            } else if let Some(&Descent::Step(step)) = descents.get(&idx) {
+                let (above, below) = if to_level > from_level {
+                    (leaving, landing)
+                } else {
+                    (landing, leaving)
+                };
+                let (entry, exit) = match channel.cmp(&step) {
+                    std::cmp::Ordering::Less => (above, above),
+                    std::cmp::Ordering::Equal if to_level > from_level => (above, below),
+                    std::cmp::Ordering::Equal => (below, above),
+                    std::cmp::Ordering::Greater => (below, below),
+                };
+                Run { entry, exit }
             } else {
-                Run {
-                    entry: at(channel == from_level - 1, leaving),
-                    exit: at(channel == to_level, landing),
+                // Down a corridor: only the first and last channel meet an
+                // anchor, the rest stay in the corridor.
+                let at = |level_touched: bool, anchor: f64| match (level_touched, corridor) {
+                    (true, _) | (_, None) => anchor,
+                    (false, Some(x)) => x,
+                };
+                if to_level > from_level {
+                    Run {
+                        entry: at(channel == from_level, leaving),
+                        exit: at(channel == to_level - 1, landing),
+                    }
+                } else {
+                    Run {
+                        entry: at(channel == from_level - 1, leaving),
+                        exit: at(channel == to_level, landing),
+                    }
                 }
             };
 

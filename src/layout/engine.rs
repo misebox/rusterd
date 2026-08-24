@@ -10,6 +10,7 @@ use super::analysis::{
     calculate_dynamic_channel_gaps, calculate_self_ref_reserve, count_edges_per_node,
 };
 use super::anchors::calculate_edge_anchors;
+use super::descent::plan_descents;
 use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
@@ -158,6 +159,17 @@ impl LayoutEngine {
             self.jog_tolerance,
         );
 
+        // Phase 7b: Where each level-skipping edge steps sideways
+        let descents = plan_descents(
+            ir,
+            &node_level,
+            &node_placement.layout_nodes,
+            levels,
+            &node_exits,
+            self.entity_margin,
+            self.jog_tolerance,
+        );
+
         // Phase 8: Lane assignments
         let channel_lane_assignments = assign_channel_lanes(
             ir,
@@ -166,6 +178,7 @@ impl LayoutEngine {
             &node_level,
             &node_exits,
             &multi_level_corridor_x,
+            &descents,
         );
 
         // Phase 9: Edge routing
@@ -179,6 +192,7 @@ impl LayoutEngine {
             &node_placement,
             levels,
             &multi_level_corridor_x,
+            &descents,
             self.lane_spacing,
             self.channel_gap,
             self.node_gap_x,

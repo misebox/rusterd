@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use super::analysis::edge_sides;
 use super::anchors::{anchor_x, Anchors};
 use super::corridor::find_safe_corridors;
+use super::descent::{Descent, Descents};
 use super::routing::{
     calculate_lane_offset, route_adjacent_level_direct, route_adjacent_level_with_channel,
     route_same_level_adjacent, route_self_ref,
@@ -24,6 +25,7 @@ pub fn route_edges<'a>(
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
     multi_level_corridor_x: &HashMap<usize, Corridor>,
+    descents: &Descents,
     lane_spacing: f64,
     channel_gap: f64,
     node_gap_x: f64,
@@ -72,6 +74,7 @@ pub fn route_edges<'a>(
                 node_placement,
                 levels,
                 multi_level_corridor_x,
+                descents,
                 lane_spacing,
                 channel_gap,
                 node_gap_x,
@@ -104,6 +107,7 @@ fn calculate_waypoints<'a>(
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
     multi_level_corridor_x: &HashMap<usize, Corridor>,
+    descents: &Descents,
     lane_spacing: f64,
     channel_gap: f64,
     node_gap_x: f64,
@@ -162,6 +166,7 @@ fn calculate_waypoints<'a>(
                 node_placement,
                 levels,
                 multi_level_corridor_x,
+                descents,
                 lane_spacing,
                 channel_gap,
                 entity_margin,
@@ -259,11 +264,37 @@ fn route_multi_level<'a>(
     node_placement: &NodePlacement,
     levels: &HashMap<i64, Vec<&'a Node>>,
     multi_level_corridor_x: &HashMap<usize, Corridor>,
+    descents: &Descents,
     lane_spacing: f64,
     channel_gap: f64,
     entity_margin: f64,
 ) -> Vec<(f64, f64)> {
-    let corridor_x = multi_level_corridor_x.get(&idx).map(|c| c.x).unwrap_or_else(|| {
+    // One column down, one step across, one column down again.
+    if let Some(&Descent::Step(channel)) = descents.get(&idx) {
+        let ch_total = *channel_edge_count.get(&channel).unwrap_or(&1);
+        let ch_lane = *channel_lane_assignments.get(&(channel, idx)).unwrap_or(&0);
+        let step_y = *node_placement
+            .channel_y
+            .get(&channel)
+            .unwrap_or(&((from_node.y + to_node.y) / 2.0))
+            + calculate_lane_offset(ch_lane, ch_total, lane_spacing);
+
+        let (leave, land) = if going_down {
+            (from_node.y + from_node.height, to_node.y)
+        } else {
+            (from_node.y, to_node.y + to_node.height)
+        };
+        return vec![
+            (from_cx, leave),
+            (from_cx, step_y),
+            (to_cx, step_y),
+            (to_cx, land),
+        ];
+    }
+
+    let corridor_x = match descents.get(&idx) {
+        Some(&Descent::Detour(x)) => x,
+        _ => multi_level_corridor_x.get(&idx).map(|c| c.x).unwrap_or_else(|| {
         let safe_corridors = find_safe_corridors(
             &node_placement.layout_nodes,
             levels,
@@ -271,11 +302,12 @@ fn route_multi_level<'a>(
             max_level,
             entity_margin,
         );
-        safe_corridors
-            .first()
-            .map(|(l, r)| (l + r) / 2.0)
-            .unwrap_or(100.0)
-    });
+            safe_corridors
+                .first()
+                .map(|(l, r)| (l + r) / 2.0)
+                .unwrap_or(100.0)
+        }),
+    };
 
     let get_channel_lane_offset = |ch_level: i64| -> f64 {
         let ch_total = *channel_edge_count.get(&ch_level).unwrap_or(&1);
