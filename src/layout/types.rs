@@ -66,6 +66,24 @@ impl Layout {
         count
     }
 
+    /// Places where two edges run along each other close enough to read as one
+    /// line, which hides a relation completely rather than merely obscuring it.
+    pub fn parallel_overlaps(&self) -> usize {
+        let mut count = 0;
+        for (i, edge) in self.edges.iter().enumerate() {
+            for other in self.edges.iter().skip(i + 1) {
+                for a in edge.waypoints.windows(2) {
+                    for b in other.waypoints.windows(2) {
+                        if runs_alongside((a[0], a[1]), (b[0], b[1])) {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        count
+    }
+
     /// Crossings that land on the only relation an entity has.
     ///
     /// An entity joined to just one other is read as a unit with it, and a line
@@ -120,16 +138,43 @@ impl Layout {
     /// Whether this drawing reads more easily than `other`: fewer crossings
     /// first, since a crossing costs the reader more than a corner does.
     pub fn is_tidier_than(&self, other: &Layout) -> bool {
+        self.quality() < other.quality()
+    }
+
+    /// What to weigh a drawing by, worst first: a hidden relation, then a line
+    /// cut across a lone relation, then crossings, then corners.
+    fn quality(&self) -> (usize, usize, usize, usize) {
         (
+            self.parallel_overlaps(),
             self.lone_relation_crossings(),
             self.crossings(),
             self.bends(),
-        ) < (
-            other.lone_relation_crossings(),
-            other.crossings(),
-            other.bends(),
         )
     }
+}
+
+/// How far apart two lines have to be to read as two lines.
+const APART: f64 = 6.0;
+
+/// How much of a run they have to share before it matters.
+const SHARED: f64 = 8.0;
+
+/// True when two segments lie along each other close enough, and far enough,
+/// to be mistaken for one line.
+fn runs_alongside(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> bool {
+    let overlap = |(a1, a2): (f64, f64), (b1, b2): (f64, f64)| {
+        a1.max(a2).min(b1.max(b2)) - a1.min(a2).max(b1.min(b2))
+    };
+
+    if a.0 .0 == a.1 .0 && b.0 .0 == b.1 .0 {
+        return (a.0 .0 - b.0 .0).abs() < APART
+            && overlap((a.0 .1, a.1 .1), (b.0 .1, b.1 .1)) > SHARED;
+    }
+    if a.0 .1 == a.1 .1 && b.0 .1 == b.1 .1 {
+        return (a.0 .1 - b.0 .1).abs() < APART
+            && overlap((a.0 .0, a.1 .0), (b.0 .0, b.1 .0)) > SHARED;
+    }
+    false
 }
 
 /// True when two axis-aligned segments cross at a point interior to both.
