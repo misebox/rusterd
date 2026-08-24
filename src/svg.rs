@@ -432,14 +432,21 @@ impl SvgRenderer {
     }
 }
 
-/// Length of the crow's foot prongs, and of the gap before an outer tick.
-const FOOT_LENGTH: f64 = 15.0;
+/// How far out along the line the crow's foot reaches.
+const FOOT_LENGTH: f64 = 13.0;
 
-/// Half the width of a tick, and half the spread of the crow's foot prongs.
+/// Half the width of a tick.
 const SYMBOL_HALF_WIDTH: f64 = 7.5;
+
+/// Half the spread of the crow's foot where it meets the entity. Wider than a
+/// tick, or the two read as the same mark at a glance.
+const FOOT_HALF_WIDTH: f64 = 9.0;
 
 /// Distance from the entity border to a tick drawn on its own.
 const TICK_INSET: f64 = 10.0;
+
+/// Gap between the crow's foot and the tick that makes it "one or more".
+const TICK_GAP: f64 = 6.0;
 
 /// Radius of the "zero" circle.
 const ZERO_RADIUS: f64 = 4.0;
@@ -466,16 +473,19 @@ fn render_crows_foot(svg: &mut String, at: (f64, f64), out: (f64, f64), cardinal
         .unwrap();
     };
 
+    // The toes rest on the entity and the ankle sits out on the line: the line
+    // itself is the middle toe. Drawn the other way up it reads as an arrowhead
+    // pointing at the entity rather than as a foot standing on it.
     let foot = |svg: &mut String| {
-        let (tx, ty) = along(FOOT_LENGTH);
+        let (ankle_x, ankle_y) = along(FOOT_LENGTH);
         for side in [-1.0, 1.0] {
             writeln!(
                 svg,
                 r#"<path class="edge-symbol" d="M {} {} L {} {}" />"#,
-                num(at.0),
-                num(at.1),
-                num(tx + across.0 * SYMBOL_HALF_WIDTH * side),
-                num(ty + across.1 * SYMBOL_HALF_WIDTH * side)
+                num(ankle_x),
+                num(ankle_y),
+                num(at.0 + across.0 * FOOT_HALF_WIDTH * side),
+                num(at.1 + across.1 * FOOT_HALF_WIDTH * side)
             )
             .unwrap();
         }
@@ -503,7 +513,8 @@ fn render_crows_foot(svg: &mut String, at: (f64, f64), out: (f64, f64), cardinal
         Cardinality::Many => foot(svg),
         Cardinality::OneOrMore => {
             foot(svg);
-            tick(svg, FOOT_LENGTH);
+            // Clear of the ankle, or the bar closes the foot into a triangle.
+            tick(svg, FOOT_LENGTH + TICK_GAP);
         }
     }
 }
