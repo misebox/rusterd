@@ -12,10 +12,28 @@
 /// arrangement settles; more than this rarely changes anything.
 const ROUNDS: usize = 8;
 
+/// Shuffle each row, so that the search below starts somewhere else. The same
+/// seed always gives the same shuffle: a diagram must not change between runs.
+pub fn shuffle_levels(rows: &mut [Vec<usize>], seed: u64) {
+    let mut state = seed | 1;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    for row in rows.iter_mut() {
+        for i in (1..row.len()).rev() {
+            let j = (next() % (i as u64 + 1)) as usize;
+            row.swap(i, j);
+        }
+    }
+}
+
 /// Order the entities within each row so that as few relations as possible
 /// cross. `rows` holds entity ids by level, in the order they currently sit;
 /// `links` are the relations between them, in either direction.
-pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)]) {
+pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)], lone_weight: usize) {
     if rows.len() < 2 {
         return;
     }
@@ -37,8 +55,9 @@ pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)]) {
         neighbours[b].push(a);
     }
 
+    let weights = weights(links, node_count, lone_weight);
     let mut best = rows.to_vec();
-    let mut fewest = crossings(rows, links, &level_of, node_count);
+    let mut fewest = crossings(rows, links, &weights, &level_of, node_count);
 
     for round in 0..ROUNDS {
         let downwards = round % 2 == 0;
@@ -51,9 +70,9 @@ pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)]) {
         for level in order {
             sort_by_median(rows, &neighbours, &level_of, level, downwards);
         }
-        transpose(rows, links, &level_of, node_count);
+        transpose(rows, links, &weights, &level_of, node_count);
 
-        let count = crossings(rows, links, &level_of, node_count);
+        let count = crossings(rows, links, &weights, &level_of, node_count);
         if count < fewest {
             fewest = count;
             best = rows.to_vec();
@@ -103,8 +122,14 @@ fn sort_by_median(
 
 /// Swap neighbouring entities wherever that removes a crossing, until none of
 /// the swaps left helps.
-fn transpose(rows: &mut [Vec<usize>], links: &[(usize, usize)], level_of: &[usize], nodes: usize) {
-    let mut best = crossings(rows, links, level_of, nodes);
+fn transpose(
+    rows: &mut [Vec<usize>],
+    links: &[(usize, usize)],
+    weights: &[usize],
+    level_of: &[usize],
+    nodes: usize,
+) {
+    let mut best = crossings(rows, links, weights, level_of, nodes);
     let mut improved = true;
 
     while improved {
@@ -112,7 +137,7 @@ fn transpose(rows: &mut [Vec<usize>], links: &[(usize, usize)], level_of: &[usiz
         for level in 0..rows.len() {
             for i in 0..rows[level].len().saturating_sub(1) {
                 rows[level].swap(i, i + 1);
-                let count = crossings(rows, links, level_of, nodes);
+                let count = crossings(rows, links, weights, level_of, nodes);
                 if count < best {
                     best = count;
                     improved = true;
@@ -142,31 +167,59 @@ fn places(rows: &[Vec<usize>], level_of: &[usize], nodes: usize) -> Vec<f64> {
     places
 }
 
-/// Relations that cross: two of them run over each other when their ends are in
-/// the opposite order at the top and at the bottom, and the levels they span
-/// overlap.
+/// How much each relation costs to cross: `lone` for the only relation an
+/// entity has, one for the rest.
+fn weights(links: &[(usize, usize)], nodes: usize, lone: usize) -> Vec<usize> {
+    let mut degree = vec![0usize; nodes];
+    for &(a, b) in links.iter().filter(|(a, b)| a != b) {
+        degree[a] += 1;
+        degree[b] += 1;
+    }
+    links
+        .iter()
+        .map(|&(a, b)| {
+            if a != b && (degree[a] == 1 || degree[b] == 1) {
+                lone
+            } else {
+                1
+            }
+        })
+        .collect()
+}
+
+/// What the relations that cross cost: two of them run over each other when
+/// their ends are in the opposite order at the top and at the bottom, and the
+/// levels they span overlap.
 fn crossings(
     rows: &[Vec<usize>],
     links: &[(usize, usize)],
+    weights: &[usize],
     level_of: &[usize],
     nodes: usize,
 ) -> usize {
     let places = places(rows, level_of, nodes);
 
-    let spans: Vec<(usize, usize, f64, f64)> = links
+    let spans: Vec<(usize, usize, f64, f64, usize)> = links
         .iter()
-        .filter(|(a, b)| a != b && level_of[*a] != level_of[*b])
-        .map(|&(a, b)| {
+        .zip(weights)
+        .filter(|((a, b), _)| a != b && level_of[*a] != level_of[*b])
+        .map(|(&(a, b), &weight)| {
             let (top, bottom) = if level_of[a] < level_of[b] {
                 (a, b)
             } else {
                 (b, a)
             };
-            (level_of[top], level_of[bottom], places[top], places[bottom])
+            (
+                level_of[top],
+                level_of[bottom],
+                places[top],
+                places[bottom],
+                weight,
+            )
         })
         .collect();
 
-    let mut count = 0;
+    let mut cost = 0;
     for (i, first) in spans.iter().enumerate() {
         for second in spans.iter().skip(i + 1) {
             let overlapping = first.0 < second.1 && second.0 < first.1;
@@ -176,11 +229,11 @@ fn crossings(
             let at_top = first.2 - second.2;
             let at_bottom = first.3 - second.3;
             if at_top * at_bottom < 0.0 {
-                count += 1;
+                cost += first.4 * second.4;
             }
         }
     }
-    count
+    cost
 }
 
 #[cfg(test)]
@@ -190,7 +243,7 @@ mod tests {
     #[test]
     fn uncrosses_a_swapped_pair() {
         let mut rows = vec![vec![0, 1], vec![2, 3]];
-        order_levels(&mut rows, &[(0, 3), (1, 2)]);
+        order_levels(&mut rows, &[(0, 3), (1, 2)], 1);
         assert_eq!(rows, vec![vec![0, 1], vec![3, 2]]);
     }
 
@@ -198,7 +251,7 @@ mod tests {
     fn puts_a_lone_relation_beside_what_it_relates_to() {
         // Two hubs, each with two children, handed over interleaved.
         let mut rows = vec![vec![0, 1], vec![2, 3, 4, 5]];
-        order_levels(&mut rows, &[(0, 2), (1, 3), (0, 4), (1, 5)]);
+        order_levels(&mut rows, &[(0, 2), (1, 3), (0, 4), (1, 5)], 1);
         let children = &rows[1];
         let of_first: Vec<usize> = children
             .iter()
@@ -212,7 +265,7 @@ mod tests {
     #[test]
     fn leaves_a_single_row_alone() {
         let mut rows = vec![vec![2, 0, 1]];
-        order_levels(&mut rows, &[(0, 1)]);
+        order_levels(&mut rows, &[(0, 1)], 1);
         assert_eq!(rows, vec![vec![2, 0, 1]]);
     }
 }

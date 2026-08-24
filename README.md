@@ -11,7 +11,7 @@ Live demo: https://misebox.github.io/rusterd/
 - **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
-- **Layout hints**: Grid-based positioning with `@hint.arrangement`
+- **Automatic layout**: Rows, order and columns are all worked out; `@hint.arrangement` overrides them
 - **Views**: Filter diagrams with `view` blocks
 - **Detail levels**: Control what's shown (tables only, pk, pk+fk, all columns)
 
@@ -20,7 +20,7 @@ Live demo: https://misebox.github.io/rusterd/
 `examples/sample.erd`:
 
 ```erd
-# Grid-based layout
+# Placement is automatic; an arrangement pins it instead
 @hint.arrangement = {
     Category User;
     Product Order

@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../pkg/rusterd.js";
 
 const DEFAULT_SQL = `-- The same schema as the ERD tab: press "SQL → ERD" to regenerate it.
+-- The converted ERD carries no placement: the layout works that out.
 -- Order and Product are many-to-many through the OrderItem table.
 
 CREATE TABLE Category (
@@ -86,7 +87,8 @@ rel {
     Product 1 -- * OrderItem
 }
 
-# Grid placement: one row per level, left to right.
+# Placement is automatic. This pins it instead: one row per level, left to
+# right. Comment it out to see what the layout works out on its own.
 @hint.arrangement = {
     Category User
     Product Order
