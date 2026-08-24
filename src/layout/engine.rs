@@ -6,11 +6,12 @@ use crate::measure::TextMetrics;
 
 use super::align::align_levels;
 use super::analysis::{
-    analyze_channel_edges, analyze_corridors, build_node_level_lookup, build_node_order,
-    calculate_dynamic_channel_gaps, calculate_self_ref_reserve, count_edges_per_node,
+    analyze_channel_edges, analyze_corridors, build_node_order, calculate_dynamic_channel_gaps,
+    calculate_self_ref_reserve, count_edges_per_node,
 };
 use super::anchors::calculate_edge_anchors;
 use super::descent::plan_descents;
+use super::layering::assign_levels;
 use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
@@ -21,6 +22,10 @@ use super::placement::{
 use super::straighten::straighten_edges;
 use super::types::Layout;
 use super::waypoints::route_edges;
+
+/// How many orderings to try before settling. Each one is a whole layout, which
+/// is cheap; past this the drawing rarely improves.
+const ATTEMPTS: usize = 24;
 
 /// Layout engine configuration and computation.
 pub struct LayoutEngine {
@@ -62,14 +67,24 @@ impl LayoutEngine {
     /// two reads more easily is the one returned. The heuristic proposes, the
     /// finished drawing decides.
     pub fn layout(&self, ir: &GraphIR) -> Layout {
-        let (levels, level_keys) = group_nodes_by_level(ir);
+        let node_level = assign_levels(ir);
+        let (levels, level_keys) = group_nodes_by_level(ir, &node_level);
         let mut best = self.arrange(ir, &levels, &level_keys);
 
         if ir.nodes.iter().all(|node| node.order.is_none()) {
-            let reordered = reorder_levels(ir, &levels, &level_keys);
-            let candidate = self.arrange(ir, &reordered, &level_keys);
-            if candidate.is_tidier_than(&best) {
-                best = candidate;
+            // The ordering works on an idealised drawing and settles into
+            // whichever arrangement is nearest to where it started, which is
+            // often not the best one. So it is run again from several starting
+            // points, and the drawing that comes out tidiest wins. The starts
+            // are fixed, so the same source always draws the same diagram.
+            for attempt in 0..ATTEMPTS {
+                let lone_weight = if attempt % 2 == 0 { 1 } else { 4 };
+                let reordered =
+                    reorder_levels(ir, &levels, &level_keys, lone_weight, attempt as u64 / 2);
+                let candidate = self.arrange(ir, &reordered, &level_keys);
+                if candidate.is_tidier_than(&best) {
+                    best = candidate;
+                }
             }
         }
 
@@ -84,7 +99,7 @@ impl LayoutEngine {
         level_keys: &[i64],
     ) -> Layout {
         // Phase 1: Edge analysis
-        let node_level = build_node_level_lookup(ir);
+        let node_level = assign_levels(ir);
         let edge_count_per_node = count_edges_per_node(ir, &node_level);
         let (channel_edges_list, channel_edge_count) = analyze_channel_edges(ir, &node_level);
 

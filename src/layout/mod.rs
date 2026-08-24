@@ -11,6 +11,7 @@ mod descent;
 mod engine;
 mod fit;
 mod lanes;
+mod layering;
 mod placement;
 mod routing;
 mod straighten;

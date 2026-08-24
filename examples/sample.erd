@@ -1,6 +1,6 @@
 # Sample ERD - demonstrates all features
 
-# Grid-based layout
+# Placement is automatic; an arrangement pins it instead
 @hint.arrangement = {
     Category User;
     Product Order

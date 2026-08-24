@@ -2,7 +2,7 @@
 
 use crate::ir::{GraphIR, Node};
 use crate::measure::TextMetrics;
-use crate::ordering::order_levels;
+use crate::ordering::{order_levels, shuffle_levels};
 use std::collections::HashMap;
 
 use super::types::{LayoutNode, NodePlacement};
@@ -46,11 +46,14 @@ pub fn calculate_node_sizes(
 }
 
 /// Group nodes by level, in the order the source asked for.
-pub fn group_nodes_by_level(ir: &GraphIR) -> (HashMap<i64, Vec<&Node>>, Vec<i64>) {
+pub fn group_nodes_by_level<'a>(
+    ir: &'a GraphIR,
+    node_level: &HashMap<&str, i64>,
+) -> (HashMap<i64, Vec<&'a Node>>, Vec<i64>) {
     let mut levels: HashMap<i64, Vec<&Node>> = HashMap::new();
 
     for node in &ir.nodes {
-        let level = node.level.unwrap_or(0);
+        let level = node_level.get(node.id.as_str()).copied().unwrap_or(0);
         levels.entry(level).or_default().push(node);
     }
 
@@ -72,6 +75,8 @@ pub fn reorder_levels<'a>(
     ir: &'a GraphIR,
     levels: &HashMap<i64, Vec<&'a Node>>,
     level_keys: &[i64],
+    lone_weight: usize,
+    seed: u64,
 ) -> HashMap<i64, Vec<&'a Node>> {
     let index: HashMap<&str, usize> = ir
         .nodes
@@ -100,7 +105,10 @@ pub fn reorder_levels<'a>(
         })
         .collect();
 
-    order_levels(&mut rows, &links);
+    if seed != 0 {
+        shuffle_levels(&mut rows, seed);
+    }
+    order_levels(&mut rows, &links, lone_weight);
 
     level_keys
         .iter()

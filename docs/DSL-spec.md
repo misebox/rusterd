@@ -122,9 +122,15 @@ view checkout {
 Several `include` lines are allowed and are concatenated. Views change nothing
 unless the renderer is asked for one by name.
 
-## Layout hints
+## Layout
 
 Placement is a grid: one row per level, entities left to right within a row.
+**Write nothing and it is worked out for you.** An entity goes below the ones
+it references — the `1` end of a relationship is the parent — on the row that
+keeps the relationships as short as possible, and the order within each row is
+searched for the arrangement that crosses least.
+
+Say where things go only when you want something other than that:
 
 ```erd
 @hint.arrangement = {
@@ -134,15 +140,15 @@ Placement is a grid: one row per level, entities left to right within a row.
 }
 ```
 
-Rows are separated by a newline or a `;`. Entities missing from the
-arrangement fall to level 0.
+Rows are separated by a newline or a `;`. Entities missing from the arrangement
+fall to level 0.
 
-Inside an entity, `@hint.level = 2` puts it on that level when there is no
-arrangement block. `@hint.group = "core"` is parsed but currently unused, as is
-any other `@hint.*` key.
+Inside an entity, `@hint.level = 2` puts it on that level. `@hint.group =
+"core"` is parsed but currently unused, as is any other `@hint.*` key.
 
-Without any hint every entity lands on level 0, which draws them in a single
-row — so give a schema of more than a few entities an arrangement.
+An arrangement or a level hint anywhere in the file turns the automatic
+placement off for the whole diagram, so entities you did not mention land on
+level 0. Place all of them or none of them.
 
 ## Render-time options
 
@@ -165,7 +171,7 @@ These are not part of the file. They are chosen when rendering:
 | `0..*` or `1..1` | parse error; use `*` or `1` |
 | Two columns on one line | the second is read as a modifier and fails |
 | Referring to an entity that is not defined | the relationship is dropped silently |
-| Omitting the arrangement in a large schema | everything on one row |
+| Naming only some entities in the arrangement | the rest land on level 0 |
 
 ## Complete example
 

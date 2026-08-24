@@ -3,8 +3,6 @@
 use crate::ast::{
     Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema,
 };
-use crate::ordering::order_levels;
-use std::collections::{HashMap, HashSet};
 
 /// Serialize a Schema to ERD notation string.
 pub fn serialize(schema: &Schema) -> String {
@@ -27,137 +25,7 @@ pub fn serialize(schema: &Schema) -> String {
         output.push_str("}\n");
     }
 
-    // Generate arrangement based on FK dependencies
-    let arrangement = generate_arrangement(schema);
-    if !arrangement.is_empty() {
-        output.push_str("\n@hint.arrangement = {\n");
-        for row in &arrangement {
-            output.push_str("    ");
-            output.push_str(&row.join(" "));
-            output.push_str("\n");
-        }
-        output.push_str("}\n");
-    }
-
     output
-}
-
-/// Generate arrangement based on FK dependencies.
-/// Parent tables (referenced by FK) go to upper levels.
-fn generate_arrangement(schema: &Schema) -> Vec<Vec<String>> {
-    if schema.entities.is_empty() {
-        return vec![];
-    }
-
-    let entity_names: HashSet<&str> = schema.entities.iter().map(|e| e.name.as_str()).collect();
-
-    // Build dependency graph: child -> parents (FK targets)
-    let mut parents: HashMap<&str, HashSet<&str>> = HashMap::new();
-    for entity in &schema.entities {
-        parents.insert(entity.name.as_str(), HashSet::new());
-    }
-
-    for rel in &schema.relationships {
-        // A self-reference says nothing about levels, and treating it as a
-        // dependency would leave the table (and everything below it) unranked.
-        if rel.left == rel.right {
-            continue;
-        }
-        // rel.left is parent (1 side), rel.right is child (* side)
-        if entity_names.contains(rel.left.as_str()) && entity_names.contains(rel.right.as_str()) {
-            if let Some(deps) = parents.get_mut(rel.right.as_str()) {
-                deps.insert(rel.left.as_str());
-            }
-        }
-    }
-
-    // Calculate levels using topological sort
-    // Level 0 = no dependencies (root tables)
-    let mut levels: HashMap<&str, usize> = HashMap::new();
-    let mut changed = true;
-
-    // Initialize: tables with no parents get level 0
-    for (entity, deps) in &parents {
-        if deps.is_empty() {
-            levels.insert(entity, 0);
-        }
-    }
-
-    // Propagate levels
-    while changed {
-        changed = false;
-        for (entity, deps) in &parents {
-            if levels.contains_key(entity) {
-                continue;
-            }
-            // Check if all parents have levels assigned
-            let parent_levels: Vec<usize> = deps
-                .iter()
-                .filter_map(|p| levels.get(p).copied())
-                .collect();
-
-            if parent_levels.len() == deps.len() {
-                // All parents have levels, this entity's level = max(parent_levels) + 1
-                let level = parent_levels.iter().max().copied().unwrap_or(0) + 1;
-                levels.insert(entity, level);
-                changed = true;
-            }
-        }
-    }
-
-    // Handle circular dependencies: assign remaining to max_level + 1
-    let max_level = levels.values().copied().max().unwrap_or(0);
-    for entity in entity_names.iter() {
-        if !levels.contains_key(entity) {
-            levels.insert(entity, max_level + 1);
-        }
-    }
-
-    // Group by level
-    let final_max_level = levels.values().copied().max().unwrap_or(0);
-    let mut rows: Vec<Vec<String>> = vec![vec![]; final_max_level + 1];
-
-    for (entity, level) in &levels {
-        rows[*level].push(entity.to_string());
-    }
-
-    // Alphabetical is the tie-breaker, not the order itself.
-    for row in &mut rows {
-        row.sort();
-    }
-
-    // Order each row so that as few relationships as possible cross.
-    let order: Vec<&str> = schema.entities.iter().map(|e| e.name.as_str()).collect();
-    let index: HashMap<&str, usize> = order
-        .iter()
-        .enumerate()
-        .map(|(i, name)| (*name, i))
-        .collect();
-
-    let mut id_rows: Vec<Vec<usize>> = rows
-        .iter()
-        .map(|row| row.iter().filter_map(|n| index.get(n.as_str()).copied()).collect())
-        .collect();
-    let links: Vec<(usize, usize)> = schema
-        .relationships
-        .iter()
-        .filter_map(|rel| {
-            Some((
-                index.get(rel.left.as_str()).copied()?,
-                index.get(rel.right.as_str()).copied()?,
-            ))
-        })
-        .collect();
-
-    order_levels(&mut id_rows, &links);
-
-    let rows: Vec<Vec<String>> = id_rows
-        .into_iter()
-        .map(|row| row.into_iter().map(|i| order[i].to_string()).collect())
-        .collect();
-
-    // Remove empty rows
-    rows.into_iter().filter(|r| !r.is_empty()).collect()
 }
 
 fn serialize_entity(output: &mut String, entity: &Entity) {

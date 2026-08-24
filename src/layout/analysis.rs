@@ -49,14 +49,6 @@ pub fn calculate_self_ref_reserve<'a>(
         .collect()
 }
 
-/// Build node level lookup: node_id -> level.
-pub fn build_node_level_lookup(ir: &GraphIR) -> HashMap<&str, i64> {
-    ir.nodes
-        .iter()
-        .map(|n| (n.id.as_str(), n.level.unwrap_or(0)))
-        .collect()
-}
-
 /// Which border each end of an edge attaches to: `true` is the bottom of the
 /// entity, `false` the top.
 ///
