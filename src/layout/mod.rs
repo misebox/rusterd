@@ -7,6 +7,7 @@ mod align;
 mod analysis;
 mod anchors;
 mod corridor;
+mod descent;
 mod engine;
 mod fit;
 mod lanes;

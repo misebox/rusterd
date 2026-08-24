@@ -77,6 +77,28 @@ pub fn find_safe_corridors(
     gaps
 }
 
+/// Whether a line running down `x` would clear every entity on `level`.
+pub fn clear_at(
+    layout_nodes: &[LayoutNode],
+    levels: &HashMap<i64, Vec<&Node>>,
+    level: i64,
+    x: f64,
+    entity_margin: f64,
+) -> bool {
+    let Some(nodes) = levels.get(&level) else {
+        return true;
+    };
+    let occupied: HashMap<&str, &LayoutNode> = layout_nodes
+        .iter()
+        .map(|n| (n.id.as_str(), n))
+        .collect();
+
+    nodes.iter().all(|node| match occupied.get(node.id.as_str()) {
+        Some(n) => x < n.x - entity_margin || x > n.x + n.width + entity_margin,
+        None => true,
+    })
+}
+
 /// Pick the corridor that comes closest to `wanted`, and the point in it that
 /// gets there. A corridor containing `wanted` wins outright, which is what lets
 /// an edge run straight down onto what it is aiming for.
