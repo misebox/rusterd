@@ -96,6 +96,9 @@ rusterd render input.erd -d pk_fk -o output.svg
 # Cardinality notation
 rusterd render input.erd -n text -o output.svg
 
+# Add a key to the cardinality symbols
+rusterd render input.erd --legend -o output.svg
+
 # Read from stdin
 cat input.erd | rusterd render - -o output.svg
 
@@ -116,6 +119,9 @@ rusterd convert schema.sql -d postgres
 - `crowsfoot` - Crow's foot symbols drawn on the line (default)
 - `text` - `1`, `0..1`, `*`, `1..*` in a pill beside the line
 
+`-l` / `--legend` adds a key to the four cardinalities below the diagram,
+drawn in whichever notation is in use.
+
 ## Browser Usage (WASM)
 
 ```javascript
@@ -123,10 +129,11 @@ import init, { erdToSvg, erdToDataUri, sqlToErd, sqlToSvg } from 'rusterd';
 
 await init();
 
-erdToSvg(source);                        // SVG markup for the whole diagram
-erdToSvg(source, 'simple');              // a named view
-erdToSvg(source, null, 'pk_fk');         // a detail level
-erdToSvg(source, null, null, 'text');    // text cardinalities, not crow's foot
+erdToSvg(source);                          // SVG markup for the whole diagram
+erdToSvg(source, 'simple');                // a named view
+erdToSvg(source, null, 'pk_fk');           // a detail level
+erdToSvg(source, null, null, 'text');      // text cardinalities, not crow's foot
+erdToSvg(source, null, null, null, true);  // with a key to the cardinalities
 erdToDataUri(source);              // data: URI, ready for <img src={...}>
 sqlToErd(sqlDump, 'postgres');     // SQL dump -> ERD notation
 sqlToSvg(sqlDump, 'postgres');     // SQL dump -> SVG
@@ -149,6 +156,7 @@ let schema = Parser::new(source)?.parse()?;
 let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
 let layout = LayoutEngine::default().layout(&ir);
 let svg = SvgRenderer::default().render(&ir, &layout);
+// or SvgRenderer::default().with_notation(Notation::Text).with_legend(true)
 ```
 
 `rusterd::sql::parse_sql` plus `rusterd::serializer::serialize` cover the SQL

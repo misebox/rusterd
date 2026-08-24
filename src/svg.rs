@@ -30,23 +30,40 @@ impl Notation {
 pub struct SvgRenderer {
     metrics: TextMetrics,
     notation: Notation,
+    legend: bool,
 }
 
 impl SvgRenderer {
-    pub fn with_notation(notation: Notation) -> Self {
-        Self {
-            notation,
-            ..Self::default()
-        }
+    pub fn with_notation(mut self, notation: Notation) -> Self {
+        self.notation = notation;
+        self
+    }
+
+    /// Add a key to the four cardinalities, in the notation being drawn.
+    pub fn with_legend(mut self, legend: bool) -> Self {
+        self.legend = legend;
+        self
     }
 
     pub fn render(&self, ir: &GraphIR, layout: &Layout) -> String {
         let mut svg = String::new();
 
+        // The key stands in a band below the diagram, where it cannot land on
+        // an entity whatever the diagram turns out to look like. A narrow
+        // diagram widens to hold it.
+        let (height, width) = if self.legend {
+            (
+                layout.height + LEGEND_HEIGHT,
+                layout.width.max(self.legend_layout().1),
+            )
+        } else {
+            (layout.height, layout.width)
+        };
+
         writeln!(
             &mut svg,
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}" viewBox="0 0 {} {}">"#,
-            layout.width, layout.height, layout.width, layout.height
+            num(width), num(height), num(width), num(height)
         )
         .unwrap();
 
@@ -132,8 +149,87 @@ impl SvgRenderer {
             render_label(&mut svg, label);
         }
 
+        // 4. The key, if asked for
+        if self.legend {
+            self.render_legend(&mut svg, layout.height, width);
+        }
+
         writeln!(&mut svg, "</svg>").unwrap();
         svg
+    }
+
+    /// Where each entry in the key starts, and how much room the key needs.
+    fn legend_layout(&self) -> (Vec<f64>, f64) {
+        let mut starts = Vec::with_capacity(CARDINALITY_MEANINGS.len());
+        let mut x = LEGEND_MARGIN;
+        for (_, meaning) in CARDINALITY_MEANINGS {
+            starts.push(x);
+            x += LEGEND_STUB
+                + LEGEND_ITEM_GAP / 2.0
+                + monospace_width(meaning, LEGEND_FONT_SIZE)
+                + LEGEND_ITEM_GAP;
+        }
+        (starts, x - LEGEND_ITEM_GAP + LEGEND_MARGIN)
+    }
+
+    /// Draw a key to the four cardinalities, each shown the way the diagram
+    /// draws it, so the reader can match a mark on a line to its meaning.
+    fn render_legend(&self, svg: &mut String, top: f64, width: f64) {
+        let y = top + LEGEND_HEIGHT / 2.0;
+        let (starts, _) = self.legend_layout();
+
+        writeln!(
+            svg,
+            r#"<line class="entity-separator" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+            num(LEGEND_MARGIN),
+            num(top),
+            num(width - LEGEND_MARGIN),
+            num(top)
+        )
+        .unwrap();
+
+        for (&x, (cardinality, meaning)) in starts.iter().zip(CARDINALITY_MEANINGS) {
+            let symbol_x = x + LEGEND_STUB;
+
+            if self.notation == Notation::CrowsFoot {
+                // A stub of line running into a piece of entity border, so the
+                // mark stands exactly as it does in the diagram.
+                writeln!(
+                    svg,
+                    r#"<path class="edge" d="M {} {} L {} {}" />"#,
+                    num(x),
+                    num(y),
+                    num(symbol_x),
+                    num(y)
+                )
+                .unwrap();
+                writeln!(
+                    svg,
+                    r#"<line class="entity-border" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+                    num(symbol_x),
+                    num(y - LEGEND_BORDER_HALF),
+                    num(symbol_x),
+                    num(y + LEGEND_BORDER_HALF)
+                )
+                .unwrap();
+                render_crows_foot(svg, (symbol_x, y), (-1.0, 0.0), *cardinality);
+            } else {
+                let symbol = cardinality_symbol(*cardinality);
+                render_label(
+                    svg,
+                    &plan_cardinality(x + LEGEND_STUB / 2.0, y, symbol, 0, RIGHT, 0.0),
+                );
+            }
+
+            writeln!(
+                svg,
+                r#"<text class="column-text" x="{}" y="{}">{}</text>"#,
+                num(symbol_x + LEGEND_ITEM_GAP / 2.0),
+                num(y + LEGEND_TEXT_BASELINE),
+                escape_xml(meaning)
+            )
+            .unwrap();
+        }
     }
 
     fn render_node(&self, svg: &mut String, layout: &LayoutNode, node: &crate::ir::Node) {
@@ -519,6 +615,35 @@ fn render_crows_foot(svg: &mut String, at: (f64, f64), out: (f64, f64), cardinal
     }
 }
 
+/// Height of the band the key stands in, below the diagram.
+const LEGEND_HEIGHT: f64 = 56.0;
+
+/// Length of the stub of line the key draws each mark on.
+const LEGEND_STUB: f64 = 34.0;
+
+/// Half the height of the piece of entity border in the key.
+const LEGEND_BORDER_HALF: f64 = 14.0;
+
+/// Space between one entry in the key and the next.
+const LEGEND_ITEM_GAP: f64 = 32.0;
+
+/// Margin between the key and the edge of the drawing.
+const LEGEND_MARGIN: f64 = 40.0;
+
+/// Size of the explanations in the key, matching a column of an entity.
+const LEGEND_FONT_SIZE: f64 = 12.0;
+
+/// Where the baseline of an explanation sits relative to the line it labels.
+const LEGEND_TEXT_BASELINE: f64 = 4.0;
+
+/// What each cardinality means, for the key.
+const CARDINALITY_MEANINGS: &[(Cardinality, &str)] = &[
+    (Cardinality::One, "exactly one"),
+    (Cardinality::ZeroOrOne, "zero or one"),
+    (Cardinality::Many, "many"),
+    (Cardinality::OneOrMore, "one or more"),
+];
+
 /// U+2731 HEAVY ASTERISK. The ASCII `*` is drawn small and near the cap height,
 /// so it reads as a footnote mark next to the digits; this one sits centered.
 const MANY: &str = "\u{2731}";
@@ -873,5 +998,48 @@ mod tests {
 
         assert!(svg.contains("places"));
         assert!(svg.contains(r#"class="edge""#));
+    }
+
+    fn render(source: &str, renderer: SvgRenderer) -> String {
+        let schema = Parser::new(source).unwrap().parse().unwrap();
+        let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
+        let layout = LayoutEngine::default().layout(&ir);
+        renderer.render(&ir, &layout)
+    }
+
+    #[test]
+    fn the_legend_explains_every_cardinality_and_stays_out_of_the_diagram() {
+        let source = "entity User { id int pk }";
+        let plain = render(source, SvgRenderer::default());
+        let keyed = render(source, SvgRenderer::default().with_legend(true));
+
+        for (_, meaning) in CARDINALITY_MEANINGS {
+            assert!(!plain.contains(meaning), "{meaning} drawn without asking");
+            assert!(keyed.contains(meaning), "{meaning} missing from the key");
+        }
+
+        let height = |svg: &str| {
+            let start = svg.find("height=\"").unwrap() + 8;
+            let end = svg[start..].find('"').unwrap() + start;
+            svg[start..end].parse::<f64>().unwrap()
+        };
+        assert_eq!(height(&keyed), height(&plain) + LEGEND_HEIGHT);
+    }
+
+    #[test]
+    fn the_legend_is_drawn_in_the_notation_it_explains() {
+        let source = "entity User { id int pk }";
+        let feet = render(source, SvgRenderer::default().with_legend(true));
+        let text = render(
+            source,
+            SvgRenderer::default()
+                .with_notation(Notation::Text)
+                .with_legend(true),
+        );
+
+        assert!(feet.contains(r#"class="edge-symbol-zero""#), "no zero circle");
+        assert!(!feet.contains(">0..1<"), "text cardinality in a crow's foot key");
+        assert!(text.contains(">0..1<"), "no text cardinality in a text key");
+        assert!(!text.contains(r#"class="edge-symbol""#), "a foot in a text key");
     }
 }
