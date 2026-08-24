@@ -66,6 +66,49 @@ impl Layout {
         count
     }
 
+    /// Crossings that land on the only relation an entity has.
+    ///
+    /// An entity joined to just one other is read as a unit with it, and a line
+    /// cutting across that relation breaks the reading for no reason the
+    /// diagram can explain. These crossings are worth more than the others.
+    pub fn lone_relation_crossings(&self) -> usize {
+        let mut degree: HashMap<&str, usize> = HashMap::new();
+        for edge in self.edges.iter().filter(|e| e.from != e.to) {
+            *degree.entry(edge.from.as_str()).or_default() += 1;
+            *degree.entry(edge.to.as_str()).or_default() += 1;
+        }
+        let lone = |edge: &LayoutEdge| {
+            edge.from != edge.to
+                && (degree.get(edge.from.as_str()) == Some(&1)
+                    || degree.get(edge.to.as_str()) == Some(&1))
+        };
+
+        let mut count = 0;
+        for (i, edge) in self.edges.iter().enumerate() {
+            if !lone(edge) {
+                continue;
+            }
+            for (j, other) in self.edges.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                // A crossing between two lone relations is counted once from
+                // each side, which is fair: it spoils both of them.
+                count += edge
+                    .waypoints
+                    .windows(2)
+                    .flat_map(|a| {
+                        other
+                            .waypoints
+                            .windows(2)
+                            .filter(move |b| crosses((a[0], a[1]), (b[0], b[1])))
+                    })
+                    .count();
+            }
+        }
+        count
+    }
+
     /// How many corners the edges turn.
     pub fn bends(&self) -> usize {
         self.edges
@@ -77,7 +120,15 @@ impl Layout {
     /// Whether this drawing reads more easily than `other`: fewer crossings
     /// first, since a crossing costs the reader more than a corner does.
     pub fn is_tidier_than(&self, other: &Layout) -> bool {
-        (self.crossings(), self.bends()) < (other.crossings(), other.bends())
+        (
+            self.lone_relation_crossings(),
+            self.crossings(),
+            self.bends(),
+        ) < (
+            other.lone_relation_crossings(),
+            other.crossings(),
+            other.bends(),
+        )
     }
 }
 

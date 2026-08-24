@@ -157,40 +157,47 @@ fn paths_do_not_run_on_top_of_each_other() {
     }
 }
 
-/// The crossings and bends each example is allowed to draw. These are not
-/// targets, they are ratchets: when a change improves a diagram, tighten its
-/// numbers so the improvement cannot quietly slip away again.
-const BUDGET: &[(&str, usize, usize)] = &[
-    ("01_many_columns.erd", 0, 0),
-    ("02_wide_horizontal.erd", 0, 0),
-    ("03_long_names.erd", 0, 0),
-    ("04_deep_hierarchy.erd", 0, 0),
-    ("05_dense_relations.erd", 1, 12),
-    ("06_unicode_cjk.erd", 0, 4),
-    ("07_all_cardinalities.erd", 0, 8),
-    ("08_mixed_sizes.erd", 0, 0),
-    ("09_orphan_entities.erd", 0, 0),
-    ("10_ecommerce_full.erd", 4, 16),
-    ("11_arrangement.erd", 9, 20),
-    ("21_idp.erd", 16, 22),
-    ("sample.erd", 0, 6),
+/// What each example is allowed to draw: crossings that land on a lone
+/// relation, crossings in total, and bends. These are not targets, they are
+/// ratchets: when a change improves a diagram, tighten its numbers so the
+/// improvement cannot quietly slip away again.
+const BUDGET: &[(&str, usize, usize, usize)] = &[
+    ("01_many_columns.erd", 0, 0, 0),
+    ("02_wide_horizontal.erd", 0, 0, 0),
+    ("03_long_names.erd", 0, 0, 0),
+    ("04_deep_hierarchy.erd", 0, 0, 0),
+    ("05_dense_relations.erd", 0, 1, 12),
+    ("06_unicode_cjk.erd", 0, 0, 4),
+    ("07_all_cardinalities.erd", 0, 0, 8),
+    ("08_mixed_sizes.erd", 0, 0, 0),
+    ("09_orphan_entities.erd", 0, 0, 0),
+    ("10_ecommerce_full.erd", 1, 4, 16),
+    ("11_arrangement.erd", 2, 9, 20),
+    ("21_idp.erd", 9, 16, 22),
+    ("sample.erd", 0, 0, 6),
 ];
 
 #[test]
 fn layouts_stay_within_their_crossing_and_bend_budget() {
     for (name, layout) in examples() {
-        let Some(&(_, max_crossings, max_bends)) = BUDGET.iter().find(|(n, _, _)| *n == name)
+        let Some(&(_, max_lone, max_crossings, max_bends)) =
+            BUDGET.iter().find(|(n, _, _, _)| *n == name)
         else {
             panic!("{name}: no budget recorded; add one to BUDGET");
         };
-        let (crossings, bends) = (layout.crossings(), layout.bends());
-        assert!(
-            crossings <= max_crossings && bends <= max_bends,
-            "{name}: {crossings} crossings and {bends} bends, over the budget of \
-             {max_crossings} and {max_bends}"
+        let drawn = (
+            layout.lone_relation_crossings(),
+            layout.crossings(),
+            layout.bends(),
         );
-        if crossings < max_crossings || bends < max_bends {
-            println!("{name}: down to {crossings} crossings and {bends} bends; tighten BUDGET");
+        let allowed = (max_lone, max_crossings, max_bends);
+        assert!(
+            drawn.0 <= allowed.0 && drawn.1 <= allowed.1 && drawn.2 <= allowed.2,
+            "{name}: {drawn:?} drawn, over the budget of {allowed:?} \
+             (crossings on lone relations, crossings, bends)"
+        );
+        if drawn < allowed {
+            println!("{name}: down to {drawn:?}; tighten BUDGET");
         }
     }
 }
