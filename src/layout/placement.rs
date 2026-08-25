@@ -117,31 +117,29 @@ pub fn reorder_levels<'a>(
         .collect()
 }
 
-/// Place nodes with calculated gap widths.
+/// Place the entities across the page, level by level, packed to the left.
+///
+/// Only the columns are settled here. Where the rows fall depends on how many
+/// edges end up needing room between them, which is not known until the edges
+/// have been planned — and none of that planning needs to know the rows.
 #[allow(clippy::too_many_arguments)]
-pub fn place_nodes(
+pub fn place_columns(
     levels: &HashMap<i64, Vec<&Node>>,
     level_keys: &[i64],
     node_sizes: &HashMap<String, (f64, f64)>,
     gap_extra_width: &HashMap<usize, f64>,
     self_ref_reserve: &HashMap<&str, f64>,
-    dynamic_channel_gap: &HashMap<i64, f64>,
     node_gap_x: f64,
-    node_gap_y: f64,
-    base_channel_gap: f64,
 ) -> NodePlacement {
     let mut layout_nodes = Vec::new();
-    let mut channel_y: HashMap<i64, f64> = HashMap::new();
     let mut rows: Vec<Vec<usize>> = Vec::with_capacity(level_keys.len());
     let mut min_gap: Vec<f64> = Vec::new();
-    let mut y: f64 = 40.0;
     let mut max_width: f64 = 0.0;
 
-    for (i, &level) in level_keys.iter().enumerate() {
+    for &level in level_keys {
         let nodes_in_level = &levels[&level];
         let gap0_extra = *gap_extra_width.get(&0).unwrap_or(&0.0);
         let mut x: f64 = 40.0 + gap0_extra;
-        let mut max_height: f64 = 0.0;
         let mut row: Vec<usize> = Vec::with_capacity(nodes_in_level.len());
 
         for (node_idx, node) in nodes_in_level.iter().enumerate() {
@@ -150,7 +148,7 @@ pub fn place_nodes(
             layout_nodes.push(LayoutNode {
                 id: node.id.clone(),
                 x,
-                y,
+                y: 0.0,
                 width: w,
                 height: h,
             });
@@ -164,34 +162,99 @@ pub fn place_nodes(
             min_gap.push(effective_gap_x);
 
             x += w + effective_gap_x;
-            max_height = max_height.max(h);
         }
 
         rows.push(row);
         max_width = max_width.max(x - node_gap_x + 40.0);
-
-        if i < level_keys.len() - 1 {
-            let gap = *dynamic_channel_gap.get(&level).unwrap_or(&base_channel_gap);
-            let total_space = node_gap_y + gap;
-            let channel_center = y + max_height + total_space / 2.0;
-            channel_y.insert(level, channel_center);
-            y += max_height + total_space;
-        } else {
-            y += max_height + node_gap_y;
-        }
     }
-
-    let total_height = y - node_gap_y + 40.0;
 
     NodePlacement {
         layout_nodes,
         rows,
         min_gap,
-        channel_y,
+        channel_y: HashMap::new(),
         max_width,
-        total_height,
+        total_height: 0.0,
     }
 }
+
+/// Settle the rows down the page, once it is known how much room the edges
+/// between them need.
+///
+/// A level is as tall as its tallest entity, and the shorter ones do not have
+/// to hang from the top of it. An entity with more relations below than above
+/// sits at the foot of its level, where its children are; one with more above
+/// sits at the head. That alone takes a couple of hundred pixels out of the
+/// line from a short entity to its child.
+pub fn place_rows(
+    placement: &mut NodePlacement,
+    level_keys: &[i64],
+    channel_gap: &HashMap<i64, f64>,
+    node_gap_y: f64,
+    base_channel_gap: f64,
+    stands_low: &HashMap<&str, f64>,
+) {
+    let mut y: f64 = 40.0;
+
+    for (i, &level) in level_keys.iter().enumerate() {
+        let row = placement.rows[i].clone();
+        let band = row
+            .iter()
+            .map(|&node| placement.layout_nodes[node].height)
+            .fold(0.0, f64::max);
+
+        for &node in &row {
+            let entity = &mut placement.layout_nodes[node];
+            let low = stands_low
+                .get(entity.id.as_str())
+                .copied()
+                .unwrap_or(HALFWAY);
+            entity.y = y + (band - entity.height) * low;
+        }
+
+        if i < level_keys.len() - 1 {
+            let gap = *channel_gap.get(&level).unwrap_or(&base_channel_gap);
+            let total_space = node_gap_y + gap;
+            placement
+                .channel_y
+                .insert(level, y + band + total_space / 2.0);
+            y += band + total_space;
+        } else {
+            y += band + node_gap_y;
+        }
+    }
+
+    placement.total_height = y - node_gap_y + 40.0;
+}
+
+/// Where in its level each entity stands: 0 at the head, 1 at the foot.
+pub fn stand_low<'a>(
+    ir: &'a GraphIR,
+    edges_per_border: &HashMap<(&str, bool), usize>,
+) -> HashMap<&'a str, f64> {
+    ir.nodes
+        .iter()
+        .map(|node| {
+            let below = edges_per_border
+                .get(&(node.id.as_str(), true))
+                .copied()
+                .unwrap_or(0);
+            let above = edges_per_border
+                .get(&(node.id.as_str(), false))
+                .copied()
+                .unwrap_or(0);
+            let low = match below.cmp(&above) {
+                std::cmp::Ordering::Greater => 1.0,
+                std::cmp::Ordering::Less => 0.0,
+                std::cmp::Ordering::Equal => HALFWAY,
+            };
+            (node.id.as_str(), low)
+        })
+        .collect()
+}
+
+/// Where an entity with as much above it as below stands in its level.
+const HALFWAY: f64 = 0.5;
 
 /// Build node position lookup from layout nodes.
 pub fn build_node_positions(layout_nodes: &[LayoutNode]) -> HashMap<&str, &LayoutNode> {

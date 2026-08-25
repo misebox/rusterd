@@ -126,10 +126,15 @@ pub fn analyze_channel_edges(
     (channel_edges, channel_edge_count)
 }
 
-/// Calculate dynamic channel gaps based on edge count.
+/// How much room to leave between two levels: enough for the edges that step
+/// sideways there to each have a lane, and to keep the outermost of them clear
+/// of both levels.
+///
+/// Edges running straight down through a channel are not counted. They take no
+/// lane, and paying for them stretches every line crossing the channel.
 pub fn calculate_dynamic_channel_gaps(
     level_keys: &[i64],
-    channel_edge_count: &HashMap<i64, usize>,
+    lanes_in_use: &HashMap<i64, usize>,
     entity_margin: f64,
     lane_spacing: f64,
     base_channel_gap: f64,
@@ -138,9 +143,9 @@ pub fn calculate_dynamic_channel_gaps(
 
     for (i, &level) in level_keys.iter().enumerate() {
         if i < level_keys.len() - 1 {
-            let edge_count = *channel_edge_count.get(&level).unwrap_or(&0);
+            let lanes = *lanes_in_use.get(&level).unwrap_or(&0);
             let needed_space =
-                entity_margin * 2.0 + (edge_count.saturating_sub(1) as f64) * lane_spacing;
+                entity_margin * 2.0 + (lanes.saturating_sub(1) as f64) * lane_spacing;
             let gap = needed_space.max(base_channel_gap);
             dynamic_gaps.insert(level, gap);
         }

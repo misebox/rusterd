@@ -26,8 +26,9 @@ pub fn assign_channel_lanes<'a>(
     anchors: &Anchors<'a>,
     corridors: &HashMap<usize, Corridor>,
     descents: &Descents,
-) -> HashMap<(i64, usize), usize> {
+) -> (HashMap<(i64, usize), usize>, HashMap<i64, usize>) {
     let mut lanes: HashMap<(i64, usize), usize> = HashMap::new();
+    let mut used: HashMap<i64, usize> = HashMap::new();
 
     for (&channel, edge_indices) in channel_edges_list {
         let mut from_above: Vec<(usize, Run)> = Vec::new();
@@ -88,6 +89,13 @@ pub fn assign_channel_lanes<'a>(
                 }
             };
 
+            // An edge running straight through a channel needs no lane of its
+            // own: it is the ones that step sideways that have to be kept
+            // apart, and only they should be paid for in the space between the
+            // levels.
+            if (run.entry - run.exit).abs() < 1.0 {
+                continue;
+            }
             if to_level >= from_level {
                 from_above.push((idx, run));
             } else {
@@ -101,9 +109,10 @@ pub fn assign_channel_lanes<'a>(
         for (lane, (idx, _)) in from_above.iter().chain(&from_below).enumerate() {
             lanes.insert((channel, *idx), lane);
         }
+        used.insert(channel, from_above.len() + from_below.len());
     }
 
-    lanes
+    (lanes, used)
 }
 
 /// One edge's passage through one channel: where it arrives and where it goes.
