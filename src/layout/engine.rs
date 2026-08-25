@@ -16,8 +16,8 @@ use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
 use super::placement::{
-    build_node_positions, calculate_node_sizes, group_nodes_by_level, place_nodes,
-    reorder_levels,
+    build_node_positions, calculate_node_sizes, group_nodes_by_level, place_columns, place_rows,
+    reorder_levels, stand_low,
 };
 use super::straighten::straighten_edges;
 use super::types::Layout;
@@ -101,7 +101,7 @@ impl LayoutEngine {
         // Phase 1: Edge analysis
         let node_level = assign_levels(ir);
         let edge_count_per_node = count_edges_per_node(ir, &node_level);
-        let (channel_edges_list, channel_edge_count) = analyze_channel_edges(ir, &node_level);
+        let (channel_edges_list, _) = analyze_channel_edges(ir, &node_level);
 
         // Phase 2: Node grouping
         let node_order = build_node_order(levels);
@@ -110,16 +110,8 @@ impl LayoutEngine {
         let corridor_analysis =
             analyze_corridors(ir, &node_level, &node_order, self.lane_spacing);
 
-        // Phase 4: Dynamic channel gaps
-        let dynamic_channel_gap = calculate_dynamic_channel_gaps(
-            level_keys,
-            &channel_edge_count,
-            self.entity_margin,
-            self.lane_spacing,
-            self.channel_gap,
-        );
-
-        // Phase 5: Node sizing and placement
+        // Phase 4: Node sizing and columns. Nothing between here and the rows
+        // depends on how far down the page anything is.
         let node_sizes = calculate_node_sizes(
             ir,
             &edge_count_per_node,
@@ -129,19 +121,16 @@ impl LayoutEngine {
 
         let self_ref_reserve = calculate_self_ref_reserve(ir, &self.metrics, self.lane_spacing);
 
-        let mut node_placement = place_nodes(
+        let mut node_placement = place_columns(
             levels,
             level_keys,
             &node_sizes,
             &corridor_analysis.gap_extra_width,
             &self_ref_reserve,
-            &dynamic_channel_gap,
             self.node_gap_x,
-            self.node_gap_y,
-            self.channel_gap,
         );
 
-        // Phase 5b: Slide each level under the entities it relates to
+        // Phase 5: Slide each level under the entities it relates to
         align_levels(&mut node_placement, ir, self.node_gap_x);
 
         let node_positions = build_node_positions(&node_placement.layout_nodes);
@@ -185,8 +174,8 @@ impl LayoutEngine {
             self.jog_tolerance,
         );
 
-        // Phase 8: Lane assignments
-        let channel_lane_assignments = assign_channel_lanes(
+        // Phase 8: Lane assignments, which say how much room each channel needs
+        let (channel_lane_assignments, lanes_in_use) = assign_channel_lanes(
             ir,
             &channel_edges_list,
             &node_positions,
@@ -196,13 +185,31 @@ impl LayoutEngine {
             &descents,
         );
 
+        // Phase 8b: Now the rows can be settled
+        let dynamic_channel_gap = calculate_dynamic_channel_gaps(
+            level_keys,
+            &lanes_in_use,
+            self.entity_margin,
+            self.lane_spacing,
+            self.channel_gap,
+        );
+        place_rows(
+            &mut node_placement,
+            level_keys,
+            &dynamic_channel_gap,
+            self.node_gap_y,
+            self.channel_gap,
+            &stand_low(ir, &edge_count_per_node),
+        );
+        let node_positions = build_node_positions(&node_placement.layout_nodes);
+
         // Phase 9: Edge routing
         let mut layout_edges = route_edges(
             ir,
             &node_positions,
             &node_level,
             &node_exits,
-            &channel_edge_count,
+            &lanes_in_use,
             &channel_lane_assignments,
             &node_placement,
             levels,
