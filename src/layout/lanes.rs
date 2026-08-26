@@ -106,13 +106,57 @@ pub fn assign_channel_lanes<'a>(
         from_above.sort_by(|a, b| a.1.lane_order().cmp(&b.1.lane_order()));
         from_below.sort_by(|a, b| b.1.lane_order().cmp(&a.1.lane_order()));
 
-        for (lane, (idx, _)) in from_above.iter().chain(&from_below).enumerate() {
-            lanes.insert((channel, *idx), lane);
+        let (above, above_lanes) = pack(&from_above, 0);
+        let (below, below_lanes) = pack(&from_below, above_lanes);
+        for (idx, lane) in above.into_iter().chain(below) {
+            lanes.insert((channel, idx), lane);
         }
-        used.insert(channel, from_above.len() + from_below.len());
+        used.insert(channel, above_lanes + below_lanes);
     }
 
     (lanes, used)
+}
+
+/// Clear space kept between two runs sharing a lane, so that they read as two
+/// lines end to end rather than one line straight through.
+const RUN_CLEARANCE: f64 = 24.0;
+
+/// Share a lane between runs that never pass over each other.
+///
+/// Two edges stepping across opposite ends of a wide diagram have nothing to do
+/// with one another and can step at the same height. Only the ones passing over
+/// each other need a lane apiece, so a channel ends up as deep as the runs are
+/// piled rather than as numerous as they are.
+///
+/// A run still has to stay below every earlier run it passes over, or the order
+/// worked out above — which is what keeps the edges from crossing — would be
+/// undone by the sharing.
+fn pack(runs: &[(usize, Run)], first_lane: usize) -> (Vec<(usize, usize)>, usize) {
+    let mut lanes: Vec<Vec<&Run>> = Vec::new();
+    let mut placed: Vec<(usize, usize)> = Vec::with_capacity(runs.len());
+
+    for (idx, run) in runs {
+        let below = lanes
+            .iter()
+            .enumerate()
+            .filter(|(_, held)| held.iter().any(|other| !run.clear_of(other)))
+            .map(|(lane, _)| lane + 1)
+            .max()
+            .unwrap_or(0);
+
+        let lane = (below..lanes.len())
+            .find(|&lane| lanes[lane].iter().all(|other| run.clear_of(other)))
+            .unwrap_or_else(|| {
+                while lanes.len() <= below {
+                    lanes.push(Vec::new());
+                }
+                lanes.len() - 1
+            });
+        lanes[lane].push(run);
+        placed.push((*idx, first_lane + lane));
+    }
+
+    (placed, lanes.len())
 }
 
 /// One edge's passage through one channel: where it arrives and where it goes.
@@ -122,6 +166,13 @@ struct Run {
 }
 
 impl Run {
+    /// Whether this run stays clear of another, so the two can share a lane.
+    fn clear_of(&self, other: &Run) -> bool {
+        let (left, right) = (self.entry.min(self.exit), self.entry.max(self.exit));
+        let (their_left, their_right) = (other.entry.min(other.exit), other.entry.max(other.exit));
+        right + RUN_CLEARANCE < their_left || left - RUN_CLEARANCE > their_right
+    }
+
     /// Sorts edges into the order that leaves the fewest crossings behind.
     fn lane_order(&self) -> (u8, ordered_float::Key) {
         let travelling_left = self.exit <= self.entry;
