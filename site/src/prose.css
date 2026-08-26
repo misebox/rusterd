@@ -93,20 +93,8 @@
   max-width: 100%;
 }
 
-/* An example and the diagram it compiles to, side by side where there is room
-   for both and stacked where there is not. */
-.erd-example {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  margin: 1.2em 0;
-}
-/* An example that compiles to nothing has no second column to fill. */
-.erd-example-alone {
-  grid-template-columns: minmax(0, 1fr);
-}
-
+/* The read-only field an example's source is handed over in. Its height is set
+   from the line count, in the markup. */
 .erd-source {
   width: 100%;
   box-sizing: border-box;
@@ -114,21 +102,14 @@
   font-size: 13px;
   line-height: 1.55;
   padding: 14px 16px;
+  /* The lines, the padding, the border, and a couple of pixels so that
+     rounding a line box up does not put a scrollbar on an example that fits. */
+  height: calc(var(--lines, 12) * 1.55em + 28px + 2px + 4px);
   background: #fafafa;
   color: inherit;
   border: 1px solid #e4e4e4;
   border-radius: 6px;
   resize: vertical;
 }
-.erd-drawing {
-  padding: 12px;
-  border: 1px solid #e4e4e4;
-  border-radius: 6px;
-  background: #fff;
-  overflow-x: auto;
-}
-@media (max-width: 860px) {
-  .erd-example {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
+
+
