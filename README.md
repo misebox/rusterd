@@ -11,7 +11,7 @@ Documentation and demo: https://misebox.github.io/rusterd/
 - **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
-- **Automatic layout**: Rows, order and columns are all worked out; hints say what matters, not where things go
+- **Automatic layout**: Levels, order and position are all worked out; hints say what matters, not where things go
 - **Focus**: Draw one part of the schema with a `focus` block
 - **Detail levels**: Control what's shown (tables only, pk, pk+fk, all columns)
 
@@ -102,25 +102,39 @@ rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
 ```
 
-**SQL dialects:** `auto` (default), `generic`, `postgres`, `mysql`
+## Options
 
-**Detail levels:**
-- `tables` - Entity names only
-- `pk` - Primary keys
-- `pk_fk` - Primary and foreign keys
-- `all` - All columns (default)
+The same six wherever they are given: a flag on the command line, a field in
+the options object in the browser. All are optional, and leaving one out is how
+you ask for its default.
 
-**Cardinality notation:**
-- `crowsfoot` - Crow's foot symbols drawn on the line (default)
-- `text` - `1`, `0..1`, `*`, `1..*` in a pill beside the line
+| Option | CLI | Field | Values | Default |
+| --- | --- | --- | --- | --- |
+| Focus | `-f`, `--focus <name>` | `focus` | the name of a `focus` block | the whole diagram |
+| Detail | `-d`, `--detail <level>` | `detail` | `tables`, `pk`, `pk_fk`, `all` | `all` |
+| Notation | `-n`, `--notation <name>` | `notation` | `crowsfoot`, `text` | `crowsfoot` |
+| Legend | `-l`, `--legend` | `legend` | — | off |
+| Dense | `-D`, `--dense` | `dense` | — | off |
+| Dialect | `-d`, `--dialect <name>` | `dialect` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
 
-`-l` / `--legend` adds a key to the four cardinalities below the diagram,
-drawn in whichever notation is in use.
+**Detail** is how much of an entity is drawn: `tables` its name alone, `pk` its
+primary keys, `pk_fk` its keys of both kinds, `all` every column it has.
 
-`-D` / `--dense` closes up the gaps between the entities and around the lines,
-for fitting a large schema on one screen. The text stays the size it has to be
-to read, which is why zooming out is not the same thing. There is no setting
-the other way round.
+**Notation** is how the cardinalities are drawn: `crowsfoot` as symbols on the
+line itself, `text` as `1` / `0..1` / `*` / `1..*` in a pill beside it.
+**Legend** draws a key to the four below the diagram, in whichever notation is
+in use.
+
+**Dense** closes up the gaps between the entities and around the lines, for
+fitting a large schema on one screen. The text stays the size it has to be to
+read, which is why zooming out is not the same thing. There is no setting the
+other way round.
+
+**Dialect** is the only one that is about reading rather than drawing. On the
+command line it belongs to `rusterd convert`, which writes ERD rather than a
+diagram, and the drawing options belong to `rusterd render`; that is why both
+are spelled `-d`. In the browser `sqlToSvg` reads and draws in one call, so it
+takes all six together.
 
 ## Browser Usage (WASM)
 
@@ -148,20 +162,21 @@ sqlToErd(sql: string, dialect?: string | null): string
 sqlToSvg(sql: string, options?: ConvertOptions): string
 
 interface DrawOptions {
-  focus?: string | null;     // name of a focus block; default: the whole diagram
-  detail?: string | null;    // tables | pk | pk_fk | all      default: all
-  notation?: string | null;  // crowsfoot | text               default: crowsfoot
-  legend?: boolean | null;   //                                default: false
-  dense?: boolean | null;    //                                default: false
+  focus?: string | null;
+  detail?: string | null;
+  notation?: string | null;
+  legend?: boolean | null;
+  dense?: boolean | null;
 }
 
 interface ConvertOptions extends DrawOptions {
-  dialect?: string | null;   // auto | generic | postgres | mysql   default: auto
+  dialect?: string | null;
 }
 ```
 
-Say what you mean and leave out the rest; the package ships these types, so an
-editor will say the same.
+What each field takes is in [Options](#options) above. Say what you mean and
+leave out the rest; the package ships these types, so an editor will say the
+same.
 
 ```javascript
 const whole = erdToSvg(source);

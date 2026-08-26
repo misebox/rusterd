@@ -7,12 +7,33 @@ import { Language } from "./i18n";
 
 const REPO = "https://github.com/misebox/rusterd/blob/main";
 
+// Headings carry their own name, so a link to one lands on it. marked stopped
+// doing this itself, and the documents link to their own sections.
+marked.use({
+  renderer: {
+    heading({ tokens, depth }) {
+      const text = this.parser.parseInline(tokens);
+      const name = text
+        .replace(/<[^>]*>/g, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+        .replace(/^-|-$/g, "");
+      return `<h${depth} id="${name}">${text}</h${depth}>\n`;
+    },
+  },
+});
+
 /// Where a link in the documents should go once it is on the site rather than
 /// in the repository.
 const ELSEWHERE: Record<string, string> = {
   "docs/DSL-spec.md": "language.html",
   "DSL-spec.md": "language.html",
+  "../README.md#options": "start.html#options",
 };
+
+/// A link to an example file goes to the page that shows it compiled.
+const EXAMPLE = /^(?:\.\.\/)?examples\/(.+)\.erd$/;
 
 /// Files the site serves itself, so the link hands over the grammar rather than
 /// a page about it.
@@ -85,6 +106,10 @@ function reroute(prose: string): string {
       const file = FILES[href];
       if (file) {
         return `](${file})`;
+      }
+      const example = href.match(EXAMPLE);
+      if (example) {
+        return `](examples.html#${example[1]})`;
       }
       return `](${ELSEWHERE[href] ?? `${REPO}/${href.replace(/^\.\//, "")}`})`;
     });

@@ -43,6 +43,7 @@ const DOCUMENTS = {
     body: sections(overview, [
       "Install",
       "CLI Usage",
+      "Options",
       "Browser Usage (WASM)",
       "Rust Library Usage",
     ]),

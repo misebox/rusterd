@@ -3,7 +3,7 @@
 | 使い方 | コマンド |
 | --- | --- |
 | ブラウザ / バンドラ | `npm i rusterd`（`bun add` / `pnpm add` も可） |
-| コマンドライン | `cargo install --path .` — crates.io には未公開 |
+| コマンドライン | `cargo install rusterd` |
 | Rust ライブラリ | `rusterd = { git = "https://github.com/misebox/rusterd" }` |
 
 ## コマンドライン
@@ -35,19 +35,34 @@ rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
 ```
 
-**SQL の方言:** `auto`（既定）, `generic`, `postgres`, `mysql`
+## オプション
 
-**詳細度:**
-- `tables` — エンティティ名のみ
-- `pk` — 主キー
-- `pk_fk` — 主キーと外部キー
-- `all` — 全列（既定）
+コマンドラインではフラグ、ブラウザではオプションオブジェクトのフィールド。
+名前も値も同じ 6 つです。どれも省略でき、省略することが既定値の指定です。
 
-**多重度の記法:**
-- `crowsfoot` — 線の上にカラスの足で描く（既定）
-- `text` — `1`, `0..1`, `*`, `1..*` を線の脇に文字で置く
+| オプション | コマンドライン | フィールド | 値 | 既定 |
+| --- | --- | --- | --- | --- |
+| フォーカス | `-f`, `--focus <name>` | `focus` | `focus` ブロックの名前 | 図の全体 |
+| 詳細度 | `-d`, `--detail <level>` | `detail` | `tables`, `pk`, `pk_fk`, `all` | `all` |
+| 記法 | `-n`, `--notation <name>` | `notation` | `crowsfoot`, `text` | `crowsfoot` |
+| 凡例 | `-l`, `--legend` | `legend` | — | なし |
+| 密 | `-D`, `--dense` | `dense` | — | なし |
+| 方言 | `-d`, `--dialect <name>` | `dialect` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
 
-`-D` / `--dense` はエンティティ間と線まわりの余白を詰めます。文字は読める大きさのままなので、縮小表示とは別物です。逆に広げる設定はありません。
+**詳細度** はエンティティのどこまでを描くか。`tables` は名前だけ、`pk` は主キー、
+`pk_fk` は主キーと外部キー、`all` は全列です。
+
+**記法** は多重度の描き方。`crowsfoot` は線の上にカラスの足で、`text` は
+`1` / `0..1` / `*` / `1..*` を線の脇に文字で置きます。**凡例** はその 4 つの
+読み方を図の下に付けます。使っている記法で描かれます。
+
+**密** はエンティティ間と線まわりの余白を詰めます。文字は読める大きさのままなので、
+縮小表示とは別物です。逆に広げる設定はありません。
+
+**方言** だけは描画ではなく読み取りの設定です。コマンドラインでは、図ではなく ERD を
+書き出す `rusterd convert` のオプションで、描画のオプションは `rusterd render` に
+付きます。どちらも `-d` なのはそのためです。ブラウザの `sqlToSvg` は読み取りと描画を
+1 回で行うので、6 つすべてを受け取ります。
 
 ## ブラウザ（WASM）
 
@@ -75,20 +90,21 @@ sqlToErd(sql: string, dialect?: string | null): string
 sqlToSvg(sql: string, options?: ConvertOptions): string
 
 interface DrawOptions {
-  focus?: string | null;     // focus ブロックの名前。既定: 図の全体
-  detail?: string | null;    // tables | pk | pk_fk | all      既定: all
-  notation?: string | null;  // crowsfoot | text               既定: crowsfoot
-  legend?: boolean | null;   //                                既定: false
-  dense?: boolean | null;    //                                既定: false
+  focus?: string | null;
+  detail?: string | null;
+  notation?: string | null;
+  legend?: boolean | null;
+  dense?: boolean | null;
 }
 
 interface ConvertOptions extends DrawOptions {
-  dialect?: string | null;   // auto | generic | postgres | mysql   既定: auto
+  dialect?: string | null;
 }
 ```
 
-必要なものだけ書けば済みます。この型定義はパッケージに同梱されているので、
-エディタも同じことを教えてくれます。
+各フィールドが取る値は上の[オプション](#オプション)にあります。必要なものだけ書けば
+済みます。この型定義はパッケージに同梱されているので、エディタも同じことを
+教えてくれます。
 
 ```javascript
 const whole = erdToSvg(source);
