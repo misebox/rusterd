@@ -10,7 +10,6 @@
 #   bin/release patch --check      run every check and stop, changing nothing
 #   bin/release patch --yes        do not ask before the irreversible part
 #   bin/release patch --skip-npm   leave npm out of it
-#   bin/release patch --skip-lint  skip rustfmt and clippy
 #
 # Publishing cannot be undone: crates.io only lets a version be yanked, and npm
 # is little better. So everything that can be checked is checked before the
@@ -110,13 +109,11 @@ esac
 CHECK_ONLY=no
 ASSUME_YES=no
 SKIP_NPM=no
-SKIP_LINT=no
 for arg in "${@:2}"; do
     case "$arg" in
         --check)     CHECK_ONLY=yes ;;
         --yes)       ASSUME_YES=yes ;;
         --skip-npm)  SKIP_NPM=yes ;;
-        --skip-lint) SKIP_LINT=yes ;;
         *)           die "unknown option: $arg" ;;
     esac
 done
@@ -158,13 +155,11 @@ fi
 [ "$BRANCH" = main ] || echo "  note: releasing from $BRANCH, not main"
 echo "ok"
 
-if [ "$SKIP_LINT" = no ]; then
-    step "Formatting"
-    cargo fmt --check
+step "Formatting"
+cargo fmt --check
 
-    step "Lint"
-    cargo clippy --all-targets -- -D warnings
-fi
+step "Lint"
+cargo clippy --all-targets -- -D warnings
 
 step "Tests"
 cargo test
