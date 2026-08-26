@@ -1,140 +1,286 @@
-#!/bin/bash
-# Cut a release: bump the version, commit, tag, publish to crates.io and npm.
+#!/usr/bin/env bash
+# Cut a release: check, bump, tag, publish to crates.io and npm, push.
 #
-#   bin/release patch          # show the plan, change nothing
-#   bin/release patch --yes    # carry it out
-#   bin/release current --yes  # publish the version already in Cargo.toml
+#   bin/release patch              0.3.0 -> 0.3.1
+#   bin/release minor              0.3.0 -> 0.4.0
+#   bin/release major              0.3.0 -> 1.0.0
+#   bin/release 0.4.0              set the version outright
+#   bin/release current            publish the version already in Cargo.toml
 #
-# Publishing cannot be undone, so --yes is required.
+#   bin/release patch --check      run every check and stop, changing nothing
+#   bin/release patch --yes        do not ask before the irreversible part
+#   bin/release patch --skip-npm   leave npm out of it
+#   bin/release patch --skip-lint  skip rustfmt and clippy
+#
+# Publishing cannot be undone: crates.io only lets a version be yanked, and npm
+# is little better. So everything that can be checked is checked before the
+# version is touched, and the part that cannot be taken back asks first.
+#
+# A run that fails halfway can simply be repeated. Whatever is already out —
+# the commit, the tag, a published crate, a published package — is recognised
+# and skipped rather than being an error.
+#
+# crates.io needs `cargo login` (or CARGO_REGISTRY_TOKEN); npm needs `npm login`.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-level="${1:-}"
-confirm="${2:-}"
+CRATE=rusterd
+NPM_PACKAGE=rusterd
+HOMEPAGE=https://misebox.github.io/rusterd/
+# The site loads the module with `init()`, so the package is the web build.
+WASM_TARGET=web
 
-case "$level" in
-    patch | minor | major | current) ;;
-    *)
-        echo "Usage: bin/release <patch|minor|major|current> [--yes]" >&2
-        exit 1
-        ;;
-esac
-
-current=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
-if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Cannot bump version '${current}' automatically. Edit Cargo.toml by hand." >&2
+usage() {
+    # The comment block above is the help text; no line numbers to keep in step.
+    awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"
     exit 1
-fi
+}
 
-IFS=. read -r major minor patch <<<"$current"
-case "$level" in
-    major) major=$((major + 1)) minor=0 patch=0 ;;
-    minor) minor=$((minor + 1)) patch=0 ;;
-    patch) patch=$((patch + 1)) ;;
-    current) ;;
+die() {
+    echo "error: $*" >&2
+    exit 1
+}
+
+step() {
+    echo
+    echo "==> $*"
+}
+
+confirm() {
+    [ "$ASSUME_YES" = yes ] && return 0
+    local reply
+    read -r -p "$1 [y/N] " reply
+    [ "$reply" = y ] || [ "$reply" = Y ] || die "stopped"
+}
+
+current_version() {
+    sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1
+}
+
+# Raise one of major / minor / patch. A prerelease suffix is dropped, except by
+# `patch`, which reads a prerelease as the version it was leading up to.
+bump_version() {
+    local current=$1 kind=$2
+    local core=${current%%-*}
+    local pre=""
+    [ "$core" = "$current" ] || pre=${current#*-}
+
+    [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+        || die "cannot read the version in Cargo.toml: $current"
+
+    local major minor patch
+    IFS=. read -r major minor patch <<<"$core"
+    case "$kind" in
+        major) major=$((major + 1)); minor=0; patch=0 ;;
+        minor) minor=$((minor + 1)); patch=0 ;;
+        patch) [ -n "$pre" ] || patch=$((patch + 1)) ;;
+    esac
+    echo "$major.$minor.$patch"
+}
+
+# GNU sed and BSD sed disagree about -i, and neither is worth arguing with.
+replace_in_file() {
+    local pattern=$1 file=$2 scratch
+    scratch=$(mktemp)
+    sed "$pattern" "$file" >"$scratch"
+    mv "$scratch" "$file"
+}
+
+on_crates_io() {
+    curl -sf -o /dev/null -A "$CRATE-release" \
+        "https://crates.io/api/v1/crates/$CRATE/$1"
+}
+
+on_npm() {
+    npm view "$NPM_PACKAGE@$1" version >/dev/null 2>&1
+}
+
+[ $# -ge 1 ] || usage
+CURRENT=$(current_version)
+[ -n "$CURRENT" ] || die "cannot read the version out of Cargo.toml"
+
+case "$1" in
+    -h|--help)          usage ;;
+    major|minor|patch)  VERSION=$(bump_version "$CURRENT" "$1") ;;
+    current)            VERSION=$CURRENT ;;
+    *)                  VERSION=$1 ;;
 esac
-next="${major}.${minor}.${patch}"
-tag="v${next}"
-branch=$(git branch --show-current)
 
-# Pre-flight checks, so nothing is touched unless the release can go through.
-for tool in cargo wasm-pack npm git; do
-    if ! command -v "$tool" >/dev/null; then
-        echo "Missing ${tool}." >&2
-        exit 1
-    fi
+CHECK_ONLY=no
+ASSUME_YES=no
+SKIP_NPM=no
+SKIP_LINT=no
+for arg in "${@:2}"; do
+    case "$arg" in
+        --check)     CHECK_ONLY=yes ;;
+        --yes)       ASSUME_YES=yes ;;
+        --skip-npm)  SKIP_NPM=yes ;;
+        --skip-lint) SKIP_LINT=yes ;;
+        *)           die "unknown option: $arg" ;;
+    esac
 done
+TAG="v$VERSION"
+BRANCH=$(git branch --show-current)
 
-if [ -n "$(git status --porcelain)" ]; then
-    echo "Working tree is dirty. Commit or stash first." >&2
-    exit 1
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+    || die "not a semver version: $VERSION"
+
+if [ "$VERSION" = "$CURRENT" ]; then
+    echo "$CRATE $VERSION (the version already in Cargo.toml)"
+else
+    echo "$CRATE $CURRENT -> $VERSION"
 fi
 
-tag_exists=false
-if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-    # A half-finished release leaves the tag behind; `current` can retry from it.
-    if [ "$level" = current ] && [ "$(git rev-parse "$tag")" = "$(git rev-parse HEAD)" ]; then
-        tag_exists=true
-    else
-        echo "Tag ${tag} already exists." >&2
-        exit 1
+step "What is here"
+command -v cargo >/dev/null || die "no cargo"
+command -v git   >/dev/null || die "no git"
+command -v curl  >/dev/null || die "no curl"
+if [ "$CHECK_ONLY" = no ]; then
+    [ -n "${CARGO_REGISTRY_TOKEN:-}" ] || [ -f "${CARGO_HOME:-$HOME/.cargo}/credentials.toml" ] \
+        || die "no crates.io credentials: run cargo login, or set CARGO_REGISTRY_TOKEN"
+    if [ "$SKIP_NPM" = no ]; then
+        command -v npm >/dev/null || die "no npm. --skip-npm leaves it out"
+        command -v wasm-pack >/dev/null || die "no wasm-pack. --skip-npm leaves it out"
+        npm whoami >/dev/null 2>&1 || die "not logged in to npm: run npm login, or --skip-npm"
     fi
 fi
+[ -z "$(git status --porcelain)" ] || die "the working tree is dirty; commit or stash first"
 
-if npm view "rusterd@${next}" version >/dev/null 2>&1; then
-    echo "rusterd@${next} is already on npm." >&2
-    exit 1
+# A release that failed halfway leaves its tag behind. That is worth retrying
+# from; a tag anywhere else is a version being cut twice.
+TAG_EXISTS=no
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+    [ "$(git rev-parse "$TAG")" = "$(git rev-parse HEAD)" ] \
+        || die "tag $TAG already exists, and not at HEAD"
+    TAG_EXISTS=yes
+fi
+[ "$BRANCH" = main ] || echo "  note: releasing from $BRANCH, not main"
+echo "ok"
+
+if [ "$SKIP_LINT" = no ]; then
+    step "Formatting"
+    cargo fmt --check
+
+    step "Lint"
+    cargo clippy --all-targets -- -D warnings
 fi
 
-if ! npm whoami >/dev/null 2>&1; then
-    echo "Not logged in to npm. Run: npm login" >&2
-    exit 1
-fi
-
+step "Tests"
 cargo test
 
-echo
-if [ "$level" = current ]; then
-    echo "Release rusterd ${next} (already in Cargo.toml) on branch ${branch}"
-else
-    echo "Release rusterd ${current} -> ${next} on branch ${branch}"
-    echo "  - set version = \"${next}\" in Cargo.toml, commit \"Release ${next}\""
-fi
-if [ "$branch" != "main" ]; then
-    echo "  note: releasing from ${branch}, not main"
-fi
-if [ "$tag_exists" = true ]; then
-    echo "  - tag ${tag} already exists at HEAD, keeping it"
-else
-    echo "  - tag ${tag}"
-fi
-echo "  - cargo publish"
-echo "  - wasm-pack build --target web && npm publish pkg"
-echo "  - git push && git push origin ${tag}"
+step "The diagram in the README is current"
+# Into a scratch file: a check has no business dirtying a tracked one.
+fresh=$(mktemp)
+cargo run -q --release -- render examples/sample.erd -o "$fresh"
+cmp -s "$fresh" docs/sample.svg \
+    || die "docs/sample.svg is out of date: run bin/docs and commit it"
+rm -f "$fresh"
+echo "ok"
 
-if [ "$confirm" != "--yes" ]; then
-    echo
-    echo "Nothing changed. Re-run with --yes to release."
+step "It still builds for the browser"
+if rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown; then
+    cargo check -q --target wasm32-unknown-unknown
+    echo "ok"
+else
+    echo "  no wasm32-unknown-unknown target installed; skipping"
+fi
+
+step "The site still builds"
+if command -v bun >/dev/null; then
+    (cd site && bun install --silent >/dev/null && bun run build >/dev/null)
+    echo "ok"
+else
+    echo "  no bun; skipping"
+fi
+
+step "What would go in the crate"
+echo "  $(cargo package --list | wc -l | tr -d ' ') files"
+
+step "What is published already"
+if on_crates_io "$VERSION"; then
+    echo "  crates.io $VERSION: published (will skip)"
+else
+    echo "  crates.io $VERSION: not published"
+fi
+if [ "$SKIP_NPM" = no ]; then
+    if on_npm "$VERSION"; then
+        echo "  npm $VERSION: published (will skip)"
+    else
+        echo "  npm $VERSION: not published"
+    fi
+fi
+
+if [ "$CHECK_ONLY" = yes ]; then
+    step "Checked only. Nothing was changed"
     exit 0
 fi
 
-echo
-if [ "$level" != current ]; then
-    echo "==> Bumping version"
-    awk -v v="$next" '!done && /^version = "/ { sub(/"[^"]*"/, "\"" v "\""); done = 1 } { print }' \
-        Cargo.toml >Cargo.toml.new
-    mv Cargo.toml.new Cargo.toml
-
-    echo "==> Committing"
-    git add Cargo.toml
-    git commit -m "Release ${next}"
-fi
-
-if [ "$tag_exists" = true ]; then
-    echo "==> Tag ${tag} already points at HEAD"
+if [ "$VERSION" = "$CURRENT" ]; then
+    step "Version stays at $VERSION; no commit to make"
 else
-    echo "==> Tagging ${tag}"
-    git tag "$tag"
+    step "Setting the version to $VERSION"
+    replace_in_file "1,/^version = /s/^version = \"[^\"]*\"$/version = \"$VERSION\"/" Cargo.toml
+    git --no-pager diff --stat Cargo.toml
+    git add Cargo.toml
+    git commit -q -m "Release $TAG"
 fi
 
-echo "==> Publishing to crates.io"
-cargo publish
-
-echo "==> Publishing to npm"
-wasm-pack build --target web
-built=$(grep -m1 '"version"' pkg/package.json | cut -d'"' -f4)
-if [ "$built" != "$next" ]; then
-    echo "pkg/ holds ${built}, expected ${next}. Not publishing." >&2
-    exit 1
+if [ "$TAG_EXISTS" = yes ]; then
+    step "Tag $TAG is already at HEAD"
+else
+    step "Tagging $TAG"
+    git tag -a "$TAG" -m "$TAG"
 fi
-# Publish pkg/ by path: running `wasm-pack publish` from elsewhere in the tree
-# can pick up a different pkg directory.
-npm publish pkg
+echo "  $(git log --oneline -1) / $TAG"
 
-echo "==> Pushing"
-git push
-git push origin "$tag"
+npm_note=""
+[ "$SKIP_NPM" = no ] && npm_note=" and npm $NPM_PACKAGE"
 
-echo
-echo "Released ${next}."
+cat <<EOF
+
+Nothing past this point can be taken back. crates.io cannot unpublish a
+version, only yank it.
+
+  publishing: crates.io $CRATE$npm_note  $VERSION
+  pushing:    $BRANCH and $TAG
+EOF
+confirm "Go on?"
+
+step "Publishing to crates.io"
+if on_crates_io "$VERSION"; then
+    echo "  already published; skipping"
+else
+    cargo publish
+fi
+
+if [ "$SKIP_NPM" = no ]; then
+    step "Publishing to npm"
+    if on_npm "$VERSION"; then
+        echo "  already published; skipping"
+    else
+        wasm-pack build --target "$WASM_TARGET"
+        built=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' pkg/package.json | head -1)
+        [ "$built" = "$VERSION" ] || die "pkg/ holds $built, not $VERSION"
+        # wasm-pack fills the rest in from Cargo.toml, but not this.
+        npm pkg set homepage="$HOMEPAGE" --prefix pkg
+        # By path: `wasm-pack publish` run from elsewhere in the tree can find
+        # a different pkg directory.
+        npm publish pkg
+    fi
+fi
+
+step "Pushing"
+git push origin HEAD
+git push origin "$TAG"
+
+cat <<EOF
+
+Released $VERSION.
+
+  crates.io  https://crates.io/crates/$CRATE
+  npm        https://www.npmjs.com/package/$NPM_PACKAGE
+  site       https://github.com/misebox/rusterd/actions
+
+The push to main redeploys the documentation site.
+EOF
