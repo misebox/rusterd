@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
 import Header from "../Header";
 import Controls, { PLAIN } from "../Drawing";
+import Tabs from "../Tabs";
 import { language, say } from "../i18n";
 import { theme } from "../theme";
 
@@ -103,7 +104,7 @@ focus checkout {
     include User, Order, OrderItem
 }`;
 
-const TABS = ["SQL", "ERD", "SVG Code", "SVG Preview"] as const;
+const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
 type Tab = (typeof TABS)[number];
 
 const DIALECTS = [
@@ -159,20 +160,20 @@ export default function Demo() {
   const sqlToSvgStep = () =>
     convert(() => {
       setSvg(renderErd(erdFromSql()));
-      return "SVG Preview";
+      return "Diagram";
     });
 
   const erdToSvgStep = () =>
     convert(() => {
       setSvg(renderErd(erd()));
-      return "SVG Preview";
+      return "Diagram";
     });
 
   /// Throw away hand edits to the SVG by rendering the ERD tab again.
   const resetSvgStep = () =>
     convert(() => {
       setSvg(renderErd(erd()));
-      return "SVG Code";
+      return "SVG";
     });
 
   onMount(async () => {
@@ -212,16 +213,12 @@ export default function Demo() {
 
       <p style={styles.blurb}>{say("inYourBrowser", language())}</p>
 
-      <div style={styles.tabs}>
-        {TABS.map((name) => (
-          <button
-            style={{ ...styles.tab, ...(tab() === name ? styles.tabActive : {}) }}
-            onClick={() => setTab(name)}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        names={TABS}
+        shown={tab()}
+        choose={(name) => setTab(name as Tab)}
+        label={(name) => (name === "Diagram" ? say("diagram", language()) : name)}
+      />
 
       <div style={styles.toolbar}>
         <Show when={tab() === "SQL"}>
@@ -259,17 +256,17 @@ export default function Demo() {
           </button>
         </Show>
 
-        <Show when={tab() === "SVG Code"}>
+        <Show when={tab() === "SVG"}>
           {controls()}
-          <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
+          <span style={styles.hint}>Edits show up in the Diagram tab as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
             Reset
           </button>
         </Show>
 
-        <Show when={tab() === "SVG Preview"}>
+        <Show when={tab() === "Diagram"}>
           {controls()}
-          <span style={styles.hint}>Rendered from the SVG Code tab.</span>
+          <span style={styles.hint}>Rendered from the SVG tab.</span>
         </Show>
       </div>
 
@@ -294,7 +291,7 @@ export default function Demo() {
             spellcheck={false}
           />
         </Show>
-        <Show when={tab() === "SVG Code"}>
+        <Show when={tab() === "SVG"}>
           <textarea
             style={styles.textarea}
             value={svg()}
@@ -302,7 +299,7 @@ export default function Demo() {
             spellcheck={false}
           />
         </Show>
-        <Show when={tab() === "SVG Preview"}>
+        <Show when={tab() === "Diagram"}>
           <div style={styles.preview} innerHTML={svg()} />
         </Show>
       </div>
@@ -325,30 +322,6 @@ const styles = {
     "font-size": "14px",
     color: theme.faint,
     margin: "0 0 14px",
-  },
-  tabs: {
-    display: "flex",
-    gap: "4px",
-    "border-bottom": "1px solid #ccc",
-  },
-  tab: {
-    "font-family": "system-ui, sans-serif",
-    "font-size": "14px",
-    padding: "8px 14px",
-    border: "1px solid transparent",
-    "border-bottom": "none",
-    "border-radius": "4px 4px 0 0",
-    background: "transparent",
-    color: "#555",
-    cursor: "pointer",
-  },
-  tabActive: {
-    border: "1px solid #ccc",
-    "border-bottom": "1px solid #fff",
-    "margin-bottom": "-1px",
-    background: "#fff",
-    color: "#111",
-    "font-weight": "bold",
   },
   toolbar: {
     display: "flex",
