@@ -16,13 +16,24 @@ use layout::LayoutEngine;
 use parser::Parser;
 use svg::{Notation, SvgRenderer};
 
+/// Runs when the module is instantiated, so that a panic in the compiler shows
+/// up in the console rather than as `unreachable executed`.
 #[wasm_bindgen(start)]
-fn init() {
+fn report_panics() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
 }
 
-/// Render ERD source to SVG
+/// Compile ERD source into an SVG document.
+///
+/// Returns the markup, `<svg ...>...</svg>`, as a string.
+///
+/// Throws the compiler's complaint as a **string**, not an `Error`: the source
+/// would not parse, or `view` names one the source does not define.
+///
+/// Every argument after the source may be `null` or left out. `view` is the
+/// name of a `view` block, `detail` one of `tables`, `pk`, `pk_fk`, `all`, and
+/// `notation` one of `crowsfoot`, `text`.
 #[wasm_bindgen(js_name = "erdToSvg")]
 pub fn render_erd(
     source: &str,
@@ -64,7 +75,10 @@ pub fn render_erd(
     Ok(svg)
 }
 
-/// Render ERD source to SVG data URI (for use with <img src={...}>)
+/// Compile ERD source into an SVG data URI.
+///
+/// Returns `data:image/svg+xml,...` as a string, ready to be the `src` of an
+/// `<img>`. Same arguments, same throw, as `erdToSvg`.
 #[wasm_bindgen(js_name = "erdToDataUri")]
 pub fn render_erd_data_uri(
     source: &str,
@@ -81,7 +95,13 @@ pub fn render_erd_data_uri(
     ))
 }
 
-/// Convert SQL dump to ERD notation
+/// Read a SQL dump and write it out as ERD source.
+///
+/// Returns what a `.erd` file would hold, as a string. `dialect` is one of
+/// `auto`, `generic`, `postgres`, `mysql`, and may be `null`.
+///
+/// Statements it does not recognise are skipped, so a dump it cannot read at
+/// all comes back as an empty string rather than as a throw.
 #[wasm_bindgen(js_name = "sqlToErd")]
 pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, String> {
     let dialect = dialect
@@ -93,7 +113,10 @@ pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, S
     Ok(serializer::serialize(&schema))
 }
 
-/// Convert SQL dump directly to SVG
+/// Read a SQL dump and compile it straight to an SVG document.
+///
+/// `sqlToErd` followed by `erdToSvg`: returns the markup as a string, and
+/// throws a string if either half of that cannot be done.
 #[wasm_bindgen(js_name = "sqlToSvg")]
 pub fn sql_to_svg(
     sql_source: &str,
