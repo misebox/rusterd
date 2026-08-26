@@ -183,6 +183,7 @@ These are not part of the file. They are chosen when rendering:
   crow's foot symbols and `1` / `0..1` / `*` / `1..*` written beside the line.
 - **legend**: `-l` draws a key to the four cardinalities below the diagram, in
   whichever notation is in use.
+- **dense**: `-D` closes up the gaps, for fitting a large schema on one screen.
 
 ## Mistakes to avoid
 

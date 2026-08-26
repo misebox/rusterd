@@ -116,12 +116,6 @@ const DIALECTS = [
   { value: "generic", label: "Generic" },
 ];
 
-const DENSITIES = [
-  { value: "normal", label: "Normal" },
-  { value: "dense", label: "Dense" },
-  { value: "sparse", label: "Sparse" },
-];
-
 const NOTATIONS = [
   { value: "crowsfoot", label: "Crow's foot symbols" },
   { value: "text", label: "Text — 1, 0..1, ✱, 1..✱" },
@@ -136,7 +130,7 @@ export default function App() {
   const [detail, setDetail] = createSignal("all");
   const [notation, setNotation] = createSignal("crowsfoot");
   const [legend, setLegend] = createSignal(false);
-  const [density, setDensity] = createSignal("normal");
+  const [dense, setDense] = createSignal(false);
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
 
@@ -164,7 +158,7 @@ export default function App() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, null, detail(), notation(), legend(), density());
+    return erdToSvg(source, null, detail(), notation(), legend(), dense());
   };
 
   const sqlToErdStep = () =>
@@ -230,21 +224,17 @@ export default function App() {
     </label>
   );
 
-  const densitySelect = () => (
+  const denseToggle = () => (
     <label style={styles.field}>
-      Density
-      <select
-        style={styles.select}
-        value={density()}
+      <input
+        type="checkbox"
+        checked={dense()}
         onChange={(e) => {
-          setDensity(e.currentTarget.value);
+          setDense(e.currentTarget.checked);
           redraw();
         }}
-      >
-        {DENSITIES.map((d) => (
-          <option value={d.value}>{d.label}</option>
-        ))}
-      </select>
+      />
+      Dense
     </label>
   );
 
@@ -321,7 +311,7 @@ export default function App() {
           </label>
           {detailSelect()}
           {notationSelect()}
-          {densitySelect()}
+          {denseToggle()}
           {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
             SQL → ERD
@@ -337,7 +327,7 @@ export default function App() {
         <Show when={tab() === "ERD"}>
           {detailSelect()}
           {notationSelect()}
-          {densitySelect()}
+          {denseToggle()}
           {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
@@ -350,7 +340,7 @@ export default function App() {
         <Show when={tab() === "SVG Code"}>
           {detailSelect()}
           {notationSelect()}
-          {densitySelect()}
+          {denseToggle()}
           {legendToggle()}
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
@@ -361,7 +351,7 @@ export default function App() {
         <Show when={tab() === "SVG Preview"}>
           {detailSelect()}
           {notationSelect()}
-          {densitySelect()}
+          {denseToggle()}
           {legendToggle()}
           <span style={styles.hint}>Rendered from the SVG Code tab.</span>
         </Show>

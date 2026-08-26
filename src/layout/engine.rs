@@ -27,39 +27,12 @@ use super::waypoints::route_edges;
 /// is cheap; past this the drawing rarely improves.
 const ATTEMPTS: usize = 24;
 
-/// Narrowest the anchors may be spread, whatever the density: two cardinality
-/// pills side by side on one border still have to be readable.
+/// What the gaps are multiplied by when the spacing is asked to be dense.
+const DENSE: f64 = 0.6;
+
+/// Narrowest the anchors may be spread, dense or not: two cardinality pills
+/// side by side on one border still have to be readable.
 const MIN_ANCHOR_SPACING: f64 = 40.0;
-
-/// How much air to leave between the entities and around the lines.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Density {
-    /// Everything as close as it can be read at.
-    Dense,
-    #[default]
-    Normal,
-    /// Room to write on.
-    Sparse,
-}
-
-impl Density {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "dense" | "tight" => Some(Self::Dense),
-            "normal" => Some(Self::Normal),
-            "sparse" | "loose" => Some(Self::Sparse),
-            _ => None,
-        }
-    }
-
-    fn scale(self) -> f64 {
-        match self {
-            Self::Dense => 0.6,
-            Self::Normal => 1.0,
-            Self::Sparse => 1.6,
-        }
-    }
-}
 
 /// Layout engine configuration and computation.
 pub struct LayoutEngine {
@@ -94,19 +67,22 @@ impl Default for LayoutEngine {
 }
 
 impl LayoutEngine {
-    /// Leave more or less room between everything.
+    /// Close everything up, for fitting a large schema on one screen.
     ///
-    /// Only the gaps move. What an entity is made of — its text, the space a
-    /// cardinality label needs — is the same size whatever the density, so the
-    /// room for anchors has a floor.
-    pub fn with_density(mut self, density: Density) -> Self {
-        let scale = density.scale();
-        self.node_gap_x *= scale;
-        self.node_gap_y *= scale;
-        self.channel_gap *= scale;
-        self.lane_spacing *= scale;
-        self.entity_margin *= scale;
-        self.anchor_spacing = (self.anchor_spacing * scale).max(MIN_ANCHOR_SPACING);
+    /// Only the gaps move: the text is the size it has to be to read, which is
+    /// why zooming out cannot do this and why the room for anchors has a floor.
+    /// There is no setting the other way — if the ordinary spacing were wrong,
+    /// the thing to change would be the ordinary spacing.
+    pub fn with_dense_spacing(mut self, dense: bool) -> Self {
+        if !dense {
+            return self;
+        }
+        self.node_gap_x *= DENSE;
+        self.node_gap_y *= DENSE;
+        self.channel_gap *= DENSE;
+        self.lane_spacing *= DENSE;
+        self.entity_margin *= DENSE;
+        self.anchor_spacing = (self.anchor_spacing * DENSE).max(MIN_ANCHOR_SPACING);
         self
     }
 
