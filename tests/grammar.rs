@@ -89,7 +89,7 @@ fn spec_examples_compile() {
 
     for (index, block) in blocks.iter().enumerate() {
         // Fragments that are not whole files are marked by their first line.
-        if !block.contains("entity ") && !block.contains("rel ") && !block.contains("view ") {
+        if !block.contains("entity ") && !block.contains("rel ") && !block.contains("focus ") {
             continue;
         }
         Parser::new(block)

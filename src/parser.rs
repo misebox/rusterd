@@ -64,7 +64,7 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Schema, ParseError> {
         let mut entities = Vec::new();
         let mut relationships = Vec::new();
-        let mut views = Vec::new();
+        let mut focuses = Vec::new();
         let mut near: Vec<Vec<String>> = Vec::new();
         let mut omit: Vec<String> = Vec::new();
         let mut brief: Vec<String> = Vec::new();
@@ -83,7 +83,7 @@ impl Parser {
                     _ => {
                         return Err(ParseError::Unexpected(
                             self.peek().clone(),
-                            "entity, rel, view, @hint.near, @hint.omit, or @hint.brief",
+                            "entity, rel, focus, @hint.near, @hint.omit, or @hint.brief",
                         ));
                     }
                 }
@@ -93,13 +93,13 @@ impl Parser {
             } else if self.check_ident("rel") {
                 self.advance();
                 relationships.extend(self.parse_rel_block()?);
-            } else if self.check_ident("view") {
+            } else if self.check_ident("focus") {
                 self.advance();
-                views.push(self.parse_view()?);
+                focuses.push(self.parse_focus()?);
             } else {
                 return Err(ParseError::Unexpected(
                     self.peek().clone(),
-                    "entity, rel, view, @hint.near, @hint.omit, or @hint.brief",
+                    "entity, rel, focus, @hint.near, @hint.omit, or @hint.brief",
                 ));
             }
         }
@@ -107,7 +107,7 @@ impl Parser {
         Ok(Schema {
             entities,
             relationships,
-            views,
+            focuses,
             near,
             omit,
             brief,
@@ -495,7 +495,7 @@ impl Parser {
         }
     }
 
-    fn parse_view(&mut self) -> Result<View, ParseError> {
+    fn parse_focus(&mut self) -> Result<Focus, ParseError> {
         self.skip_newlines();
         let name = self.expect_ident()?;
         self.skip_newlines();
@@ -518,7 +518,7 @@ impl Parser {
 
         self.expect(Token::RBrace)?;
 
-        Ok(View { name, includes })
+        Ok(Focus { name, includes })
     }
 }
 
@@ -557,15 +557,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_view() {
+    fn test_parse_focus() {
         let input = r#"
-            view core {
+            focus core {
                 include User, Order, Product
             }
         "#;
         let schema = Parser::new(input).unwrap().parse().unwrap();
-        assert_eq!(schema.views.len(), 1);
-        assert_eq!(schema.views[0].includes, vec!["User", "Order", "Product"]);
+        assert_eq!(schema.focuses.len(), 1);
+        assert_eq!(schema.focuses[0].includes, vec!["User", "Order", "Product"]);
     }
 
     #[test]

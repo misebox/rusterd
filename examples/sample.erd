@@ -37,7 +37,7 @@ rel {
     User 0..1 -- 1..* Product : "favorites"
 }
 
-# Filtered view
-view simple {
+# A named part of the diagram
+focus simple {
     include User, Order
 }

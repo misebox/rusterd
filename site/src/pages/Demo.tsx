@@ -96,9 +96,9 @@ rel {
 # @hint.omit  = { Category }
 # @hint.brief = { OrderItem }
 
-# ERD only: a named subset of the diagram.
-# rusterd render schema.erd -v checkout
-view checkout {
+# ERD only: a named part of the schema.
+# rusterd render schema.erd -f checkout
+focus checkout {
     include User, Order, OrderItem
 }`;
 
@@ -161,7 +161,12 @@ export default function Demo() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, null, detail(), notation(), legend(), dense());
+    return erdToSvg(source, {
+      detail: detail(),
+      notation: notation(),
+      legend: legend(),
+      dense: dense(),
+    });
   };
 
   const sqlToErdStep = () =>

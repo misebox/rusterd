@@ -124,7 +124,7 @@ function illustrate(host: HTMLElement) {
 
     let svg: string;
     try {
-      svg = erdToSvg(figure.dataset.source ?? "", null, null, null, null, null);
+      svg = erdToSvg(figure.dataset.source ?? "");
     } catch {
       continue;
     }
