@@ -127,21 +127,63 @@ the other way round.
 ```javascript
 import init, { erdToSvg, erdToDataUri, sqlToErd, sqlToSvg } from 'rusterd';
 
-await init();
-
-erdToSvg(source);                          // SVG markup for the whole diagram
-erdToSvg(source, 'simple');                // a named view
-erdToSvg(source, null, 'pk_fk');           // a detail level
-erdToSvg(source, null, null, 'text');      // text cardinalities, not crow's foot
-erdToSvg(source, null, null, null, true);  // with a key to the cardinalities
-erdToSvg(source, null, null, null, null, true);  // closer spacing
-erdToDataUri(source);              // data: URI, ready for <img src={...}>
-sqlToErd(sqlDump, 'postgres');     // SQL dump -> ERD notation
-sqlToSvg(sqlDump, 'postgres');     // SQL dump -> SVG
+await init();  // the default export: loads the wasm, once, before anything else
 ```
 
-Every argument after the source is optional and accepts `null`. Errors (parse
-failures, unknown view names) are thrown as strings.
+**Every function returns a `string`, and throws a `string` when it cannot.**
+There is no result object to unwrap, and what is thrown is a plain string, not
+an `Error` — so `catch (message)`, not `catch (e) { e.message }`.
+
+| Function | Returns |
+| --- | --- |
+| `erdToSvg` | the markup, `<svg …>…</svg>` |
+| `erdToDataUri` | `data:image/svg+xml,…`, ready for `<img src={…}>` |
+| `sqlToErd` | ERD source, as a `.erd` file would hold it |
+| `sqlToSvg` | the markup, converting on the way |
+
+```typescript
+erdToSvg(source: string, view?, detail?, notation?, legend?, dense?): string
+erdToDataUri(source: string, view?, detail?, notation?, legend?, dense?): string
+sqlToErd(sql: string, dialect?): string
+sqlToSvg(sql: string, dialect?, view?, detail?, notation?, legend?, dense?): string
+```
+
+Every argument after the first is optional; pass `null` to skip one and reach a
+later one. The package ships these types, so an editor will say the same.
+
+| Argument | Type | Values | Without it |
+| --- | --- | --- | --- |
+| `view` | `string \| null` | a `view` name the source defines | the whole diagram |
+| `detail` | `string \| null` | `tables`, `pk`, `pk_fk`, `all` | `all` |
+| `notation` | `string \| null` | `crowsfoot`, `text` | `crowsfoot` |
+| `legend` | `boolean \| null` | | no key |
+| `dense` | `boolean \| null` | | ordinary spacing |
+| `dialect` | `string \| null` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+
+```javascript
+const whole = erdToSvg(source);                                // the diagram
+const part = erdToSvg(source, 'checkout');                     // one view of it
+const keys = erdToSvg(source, null, 'pk_fk', 'text');          // keys only, text cardinalities
+const tight = erdToSvg(source, null, null, null, true, true);  // with a key, closer spacing
+
+document.querySelector('img').src = erdToDataUri(source);
+
+try {
+  erdToSvg('entity {');
+} catch (message) {
+  console.error(message);  // "Unexpected token: LBrace, expected identifier"
+}
+```
+
+`sqlToErd` skips statements it does not recognise rather than failing, so a
+dump it cannot read at all comes back as `''`. Check for that before drawing:
+
+```javascript
+const erd = sqlToErd(dump, 'postgres');
+if (!erd.trim()) {
+  throw new Error('No tables found. Check the SQL, or name the dialect.');
+}
+```
 
 ## Rust Library Usage
 

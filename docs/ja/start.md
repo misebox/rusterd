@@ -54,20 +54,64 @@ rusterd convert schema.sql -d postgres
 ```javascript
 import init, { erdToSvg, erdToDataUri, sqlToErd, sqlToSvg } from 'rusterd';
 
-await init();
-
-erdToSvg(source);                          // 図全体の SVG
-erdToSvg(source, 'simple');                // 名前付きビュー
-erdToSvg(source, null, 'pk_fk');           // 詳細度
-erdToSvg(source, null, null, 'text');      // 多重度を文字で
-erdToSvg(source, null, null, null, true);  // 凡例つき
-erdToSvg(source, null, null, null, null, true);  // 間隔を詰める
-erdToDataUri(source);              // data: URI（<img src={...}> にそのまま）
-sqlToErd(sqlDump, 'postgres');     // SQL ダンプ → ERD 記法
-sqlToSvg(sqlDump, 'postgres');     // SQL ダンプ → SVG
+await init();  // デフォルトエクスポート。wasm の読み込み。最初に一度だけ
 ```
 
-ソース以降の引数はすべて省略でき、`null` を渡せます。パースエラーや未知のビュー名は文字列として throw されます。
+**どの関数も `string` を返し、失敗したときは `string` を throw します。**
+包みを開ける結果オブジェクトはありません。throw されるのは `Error` ではなく
+文字列そのものなので、`catch (e) { e.message }` ではなく `catch (message)` です。
+
+| 関数 | 返るもの |
+| --- | --- |
+| `erdToSvg` | `<svg …>…</svg>` のマークアップ |
+| `erdToDataUri` | `data:image/svg+xml,…`。`<img src={…}>` にそのまま渡せる |
+| `sqlToErd` | ERD のソース。`.erd` ファイルの中身と同じもの |
+| `sqlToSvg` | マークアップ。変換を挟むだけ |
+
+```typescript
+erdToSvg(source: string, view?, detail?, notation?, legend?, dense?): string
+erdToDataUri(source: string, view?, detail?, notation?, legend?, dense?): string
+sqlToErd(sql: string, dialect?): string
+sqlToSvg(sql: string, dialect?, view?, detail?, notation?, legend?, dense?): string
+```
+
+第 1 引数より後はすべて省略できます。途中を飛ばして後ろを指定したいときは `null`
+を渡してください。この型定義はパッケージに同梱されているので、エディタも同じことを
+教えてくれます。
+
+| 引数 | 型 | 値 | 省略時 |
+| --- | --- | --- | --- |
+| `view` | `string \| null` | ソースが定義する `view` の名前 | 図の全体 |
+| `detail` | `string \| null` | `tables`, `pk`, `pk_fk`, `all` | `all` |
+| `notation` | `string \| null` | `crowsfoot`, `text` | `crowsfoot` |
+| `legend` | `boolean \| null` | | 凡例なし |
+| `dense` | `boolean \| null` | | 通常の間隔 |
+| `dialect` | `string \| null` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+
+```javascript
+const whole = erdToSvg(source);                                // 図の全体
+const part = erdToSvg(source, 'checkout');                     // ビュー 1 つ
+const keys = erdToSvg(source, null, 'pk_fk', 'text');          // キーのみ・文字表記
+const tight = erdToSvg(source, null, null, null, true, true);  // 凡例つき・間隔を詰める
+
+document.querySelector('img').src = erdToDataUri(source);
+
+try {
+  erdToSvg('entity {');
+} catch (message) {
+  console.error(message);  // "Unexpected token: LBrace, expected identifier"
+}
+```
+
+`sqlToErd` は解釈できない文を読み飛ばすので、まったく読めないダンプは throw ではなく
+`''` が返ります。図を描く前に確かめてください:
+
+```javascript
+const erd = sqlToErd(dump, 'postgres');
+if (!erd.trim()) {
+  throw new Error('テーブルが見つかりません。SQL か、方言の指定を確認してください。');
+}
+```
 
 ## Rust ライブラリ
 
