@@ -49,6 +49,12 @@ entity User {
     name varchar
     created_at timestamp default now()
 }
+
+entity Post {
+    id int pk
+    author_id int fk -> User.id
+    title varchar not null
+}
 ```
 
 A column is `NAME TYPE [MODIFIER ...]` and ends at the end of the line, so
@@ -105,6 +111,8 @@ optional `as role` is parsed but not drawn.
 | `1..*` | one or more | crow's foot and tick |
 
 Those four are the whole set. `0..*`, `1..1` and `2..5` are parse errors.
+[`examples/07_all_cardinalities.erd`](examples/07_all_cardinalities.erd) draws
+one of each, in both notations.
 
 An entity may relate to itself (`Category 0..1 -- * Category`), which draws a
 loop on its right-hand side.
@@ -127,11 +135,12 @@ nothing about the schema is being defined, only what to draw.
 
 ## Layout
 
-**Placement is worked out for you.** An entity goes below the ones it
-references — the `1` end of a relationship is the parent — on the row that keeps
-the relationships as short as possible, the order within each row is searched
-for the arrangement that crosses least, and each entity is slid under the ones
-it relates to.
+**Placement is worked out for you.** The diagram is drawn in levels — bands of
+entities across the page, level 0 at the top, counting downwards. An entity
+goes on a level below the ones it references, the `1` end of a relationship
+being the parent; which level is the one that keeps its relationships shortest.
+The order within a level is searched for the arrangement that crosses least,
+and each entity is then slid across to sit under what it relates to.
 
 There is no way to say where an entity goes. What can be said is what matters
 about the diagram.
@@ -159,32 +168,48 @@ above the other.
 entity and its relationships but draws only its name, for a table whose columns
 are noise. A `focus` is the opposite of `omit`: it names what to keep.
 
-### Rows
+### Choosing the levels
 
 ```erd
-entity Reporting {
-    @hint.level = 3
+entity Team {
+    @hint.level = 0
     id int pk
+    name varchar not null
+}
+
+entity Member {
+    @hint.level = 1
+    id int pk
+    team_id int fk -> Team.id
+}
+
+entity ApiKey {
+    @hint.level = 2
+    id int pk
+    member_id int fk -> Member.id
+}
+
+rel {
+    Team 1 -- * Member
+    Member 1 -- * ApiKey
 }
 ```
 
-`@hint.level` pins an entity to a row. Its order within that row and its
-position across the page are still worked out. A level hint anywhere in the
-file turns the automatic rows off for the whole diagram, so entities you did not
-mention land on row 0 — pin all of them or none of them.
+`@hint.level = N` puts an entity on level N. Its order within that level, and
+its position across the page, are still worked out.
+
+One level hint switches the automatic levels off for the whole file: a number
+cannot be argued with, so nothing else can be shifted to accommodate it, and
+every entity left unpinned lands on level 0. Pin all of them or none of them,
+as above.
 
 ## Render-time options
 
-These are not part of the file. They are chosen when rendering:
-
-- **focus**: `-f checkout` draws only what that focus lists.
-- **detail**: `-d tables | pk | pk_fk | all` (default `all`) filters which
-  columns are drawn.
-- **notation**: `-n crowsfoot | text` (default `crowsfoot`) switches between
-  crow's foot symbols and `1` / `0..1` / `*` / `1..*` written beside the line.
-- **legend**: `-l` draws a key to the four cardinalities below the diagram, in
-  whichever notation is in use.
-- **dense**: `-D` closes up the gaps, for fitting a large schema on one screen.
+Nothing in this document is affected by these: they are chosen when the file is
+rendered rather than written in it. There are six — focus, detail, notation,
+legend, dense, and dialect for reading SQL — and the same six are given as
+flags on the command line or as fields in the browser. The
+[options table](../README.md#options) says what each one takes.
 
 ## Mistakes to avoid
 
