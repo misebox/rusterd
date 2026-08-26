@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import init, { erdToSvg } from "../../../pkg/rusterd.js";
 import Header from "../Header";
 import "../diagram.css";
@@ -40,18 +40,41 @@ const ABOUT: Record<string, string> = {
   sample: "The one in the README",
 };
 
-const TABS = ["Diagram", "ERD", "SVG", "SQL"] as const;
+/// Left to right is the order the compiler works in: a SQL dump converts to
+/// ERD, which compiles to SVG, which the browser draws. The one worth seeing
+/// first is the last of them, so that is where a page opens.
+/// The example the address asks for, if it is one the repository ships.
+function asked(): string | undefined {
+  const name = decodeURIComponent(location.hash.slice(1));
+  return NAMES.includes(name) ? name : undefined;
+}
+
+const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
+const FIRST: Tab = "Diagram";
 type Tab = (typeof TABS)[number];
 
 export default function Examples() {
-  const opened = decodeURIComponent(location.hash.slice(1));
-  const [chosen, setChosen] = createSignal(NAMES.includes(opened) ? opened : NAMES[0]);
-  const [tab, setTab] = createSignal<Tab>("Diagram");
+  const [chosen, setChosen] = createSignal(asked() ?? NAMES[0]);
+  const [tab, setTab] = createSignal<Tab>(FIRST);
   const [ready, setReady] = createSignal(false);
 
   onMount(async () => {
     await init();
     setReady(true);
+  });
+
+  // Changing only the fragment does not reload the page, so the example named
+  // in it has to be followed by hand.
+  onMount(() => {
+    const follow = () => {
+      const name = asked();
+      if (name) {
+        setChosen(name);
+        setTab(FIRST);
+      }
+    };
+    window.addEventListener("hashchange", follow);
+    onCleanup(() => window.removeEventListener("hashchange", follow));
   });
 
   const erd = createMemo(() => SOURCES[chosen()] ?? "");
@@ -69,7 +92,7 @@ export default function Examples() {
 
   const show = (name: string) => {
     setChosen(name);
-    setTab("Diagram");
+    setTab(FIRST);
     history.replaceState(null, "", `#${name}`);
   };
 
