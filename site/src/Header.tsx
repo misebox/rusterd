@@ -61,17 +61,23 @@ export default function Header(props: { here: string; language: Language }) {
 
 const styles = {
   bar: {
+    // Stays put while the page scrolls, which is what a long document wants.
+    // Trimmed down for it: a bar that follows you has to earn its height.
+    position: "sticky",
+    top: "0",
+    "z-index": "10",
+    background: theme.paper,
     display: "flex",
     "flex-direction": "column",
     "align-items": "center",
-    gap: "10px",
-    padding: "22px 0 16px",
+    gap: "6px",
+    padding: "14px 0 10px",
     "border-bottom": `1px solid ${theme.rule}`,
     "margin-bottom": "28px",
   },
   name: {
     "font-family": theme.mono,
-    "font-size": "22px",
+    "font-size": "19px",
     "font-weight": "bold",
     color: theme.ink,
     "text-decoration": "none",
