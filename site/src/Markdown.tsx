@@ -33,6 +33,8 @@ export default function Markdown(props: { source: string; ready: boolean }) {
   onMount(() => {
     host.innerHTML = marked.parse(props.source, { async: false }) as string;
     reroute(host);
+    undraw(host);
+    box(host);
   });
 
   // Drawing has to wait for the compiler to finish loading.
@@ -68,33 +70,68 @@ function reroute(host: HTMLElement) {
   }
 }
 
-/// Compile every ERD example and put the diagram beside its source.
+/// Drop the diagrams the documents point at.
 ///
-/// Some examples are fragments — a `rel` block on its own, a hint — which
-/// compile to nothing. Those are left as they are rather than shown next to an
-/// empty box.
-function illustrate(host: HTMLElement) {
+/// A file has to link to a picture of what an example compiles to. A page
+/// compiles it, right beside the source — so the picture would be the same
+/// diagram a second time.
+function undraw(host: HTMLElement) {
+  for (const image of host.querySelectorAll('img[src$=".svg"]')) {
+    image.parentElement?.remove();
+  }
+}
+
+/// Put every ERD example in a box of its own, so that a long schema takes as
+/// much of the page as a short one and scrolls the rest.
+///
+/// A read-only field rather than the block markdown produced: it is the
+/// familiar way to hand over text that can be selected and copied but not
+/// edited, and it comes with the scrollbar.
+function box(host: HTMLElement) {
   for (const block of host.querySelectorAll("code.language-erd")) {
     const pre = block.parentElement;
-    if (!pre || pre.dataset.drawn) {
+    if (!pre || pre.dataset.boxed) {
       continue;
     }
-    pre.dataset.drawn = "yes";
+
+    const source = block.textContent ?? "";
+    const field = document.createElement("textarea");
+    field.className = "erd-source";
+    field.readOnly = true;
+    field.spellcheck = false;
+    field.value = source;
+    field.rows = Math.min(source.trimEnd().split("\n").length, TALLEST);
+
+    const figure = document.createElement("figure");
+    figure.className = "erd-example";
+    figure.dataset.source = source;
+    pre.replaceWith(figure);
+    figure.append(field);
+  }
+}
+
+/// Compile each example and put the diagram beside its source.
+///
+/// Some examples are fragments — a `rel` block on its own, a hint — which
+/// compile to nothing. Those are left as text alone rather than shown beside an
+/// empty box.
+function illustrate(host: HTMLElement) {
+  for (const figure of host.querySelectorAll<HTMLElement>("figure.erd-example")) {
+    if (figure.dataset.drawn) {
+      continue;
+    }
+    figure.dataset.drawn = "yes";
 
     let svg: string;
     try {
-      svg = erdToSvg(block.textContent ?? "", null, null, null, null, null);
+      svg = erdToSvg(figure.dataset.source ?? "", null, null, null, null, null);
     } catch {
       continue;
     }
     if (!svg.includes("entity-border")) {
+      figure.classList.add("erd-example-alone");
       continue;
     }
-
-    const figure = document.createElement("figure");
-    figure.className = "erd-example";
-    pre.replaceWith(figure);
-    figure.append(pre);
 
     const drawing = document.createElement("div");
     drawing.className = "erd-drawing diagram";
@@ -102,3 +139,6 @@ function illustrate(host: HTMLElement) {
     figure.append(drawing);
   }
 }
+
+/// Lines an example is shown at before it starts scrolling.
+const TALLEST = 18;

@@ -17,7 +17,7 @@ Documentation and demo: https://misebox.github.io/rusterd/
 
 ## Example
 
-`examples/sample.erd`:
+`examples/sample.erd`, and what `rusterd render` makes of it:
 
 ```erd
 # Self-referential entity
@@ -62,8 +62,6 @@ view simple {
     include User, Order
 }
 ```
-
-Rendered with `rusterd render examples/sample.erd -o docs/sample.svg`:
 
 ![Rendered ERD](https://raw.githubusercontent.com/misebox/rusterd/main/docs/sample.svg)
 
