@@ -1,6 +1,7 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import init, { erdToSvg } from "../../../pkg/rusterd.js";
 import Header from "../Header";
+import { language, say } from "../i18n";
 import "../diagram.css";
 import { theme } from "../theme";
 
@@ -24,20 +25,56 @@ const NAMES = Object.keys(SOURCES).sort();
 
 /// What each example is there to show. Anything not named here is listed by its
 /// file name alone.
-const ABOUT: Record<string, string> = {
-  "01_many_columns": "An entity with more columns than fit comfortably",
-  "02_wide_horizontal": "Entities wide enough to push the diagram sideways",
-  "03_long_names": "Names long enough to set the width on their own",
-  "04_deep_hierarchy": "A chain of entities, each below the last",
-  "05_dense_relations": "Enough relationships to crowd every channel",
-  "06_unicode_cjk": "Japanese names, measured by display width",
-  "07_all_cardinalities": "One of each: 1, 0..1, *, 1..*",
-  "08_mixed_sizes": "Entities of very different heights side by side",
-  "09_orphan_entities": "Entities with nothing attached to them",
-  "10_ecommerce_full": "A shop: the shape most schemas end up",
-  "11_near": "@hint.near, keeping related entities together",
-  "21_idp": "An identity provider, converted from its SQL dump",
-  sample: "The one in the README",
+const ABOUT: Record<string, { en: string; ja: string }> = {
+  "01_many_columns": {
+    en: "An entity with more columns than fit comfortably",
+    ja: "列が多すぎるエンティティ",
+  },
+  "02_wide_horizontal": {
+    en: "Entities wide enough to push the diagram sideways",
+    ja: "横に広がるエンティティ",
+  },
+  "03_long_names": {
+    en: "Names long enough to set the width on their own",
+    ja: "名前だけで幅が決まる場合",
+  },
+  "04_deep_hierarchy": {
+    en: "A chain of entities, each below the last",
+    ja: "下へ連なるエンティティの鎖",
+  },
+  "05_dense_relations": {
+    en: "Enough relationships to crowd every channel",
+    ja: "チャネルが混み合うほどの関係",
+  },
+  "06_unicode_cjk": {
+    en: "Japanese names, measured by display width",
+    ja: "日本語の名前を表示幅で測る",
+  },
+  "07_all_cardinalities": {
+    en: "One of each: 1, 0..1, *, 1..*",
+    ja: "多重度 4 種類の見本",
+  },
+  "08_mixed_sizes": {
+    en: "Entities of very different heights side by side",
+    ja: "高さの違うエンティティが並ぶ",
+  },
+  "09_orphan_entities": {
+    en: "Entities with nothing attached to them",
+    ja: "何にも繋がっていないエンティティ",
+  },
+  "10_ecommerce_full": {
+    en: "A shop: the shape most schemas end up",
+    ja: "ショップ。よくあるスキーマの形",
+  },
+  "11_near": {
+    en: "@hint.near, keeping related entities together",
+    ja: "@hint.near で近くに置く",
+  },
+  "21_idp": {
+    en: "An identity provider, converted from its SQL dump",
+    ja: "認証基盤。SQL ダンプから変換したもの",
+  },
+  sample: { en: "The one in the README", ja: "README に載せているもの" },
 };
 
 /// Left to right is the order the compiler works in: a SQL dump converts to
@@ -48,6 +85,8 @@ function asked(): string | undefined {
   const name = decodeURIComponent(location.hash.slice(1));
   return NAMES.includes(name) ? name : undefined;
 }
+
+const LANGUAGE = language();
 
 const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
 const FIRST: Tab = "Diagram";
@@ -100,12 +139,9 @@ export default function Examples() {
 
   return (
     <div style={styles.container}>
-      <Header here="examples.html" />
+      <Header here="examples.html" language={LANGUAGE} />
 
-      <p style={styles.blurb}>
-        Every file in <code>examples/</code>, compiled here in the browser. The
-        diagrams are what <code>rusterd render</code> writes for the same input.
-      </p>
+      <p style={styles.blurb}>{say("everyExample", LANGUAGE)}</p>
 
       <div style={styles.layout}>
         <nav style={styles.list}>
@@ -119,7 +155,7 @@ export default function Examples() {
             >
               <span style={styles.entryName}>{name}</span>
               <Show when={ABOUT[name]}>
-                <span style={styles.entryAbout}>{ABOUT[name]}</span>
+                <span style={styles.entryAbout}>{ABOUT[name][LANGUAGE]}</span>
               </Show>
             </button>
           ))}
@@ -132,7 +168,7 @@ export default function Examples() {
                 style={{ ...styles.tab, ...(tab() === name ? styles.tabActive : {}) }}
                 onClick={() => setTab(name)}
               >
-                {name}
+                {name === "Diagram" ? say("diagram", LANGUAGE) : name}
               </button>
             ))}
             <a
@@ -141,7 +177,7 @@ export default function Examples() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Source
+              {say("source", LANGUAGE)}
             </a>
           </div>
 
