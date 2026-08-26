@@ -1,32 +1,36 @@
+import { onMount } from "solid-js";
+import { choose, inLanguage, Language, LANGUAGES, markPage, say } from "./i18n";
 import { theme } from "./theme";
 
 const PAGES = [
-  { href: "index.html", label: "Overview" },
-  { href: "start.html", label: "Get started" },
-  { href: "language.html", label: "Language" },
-  { href: "examples.html", label: "Examples" },
-  { href: "demo.html", label: "Demo" },
-];
+  { href: "index.html", word: "overview" },
+  { href: "start.html", word: "start" },
+  { href: "language.html", word: "languagePage" },
+  { href: "examples.html", word: "examples" },
+  { href: "demo.html", word: "demo" },
+] as const;
 
 /// The same masthead on every page. `here` is the file name of the page drawing
 /// it, so that page's own link reads as a heading rather than as somewhere to
 /// go.
-export default function Header(props: { here: string }) {
+export default function Header(props: { here: string; language: Language }) {
+  onMount(() => markPage(props.language));
+
   return (
     <header style={styles.bar}>
-      <a href="index.html" style={styles.name}>
+      <a href={inLanguage("index.html", props.language)} style={styles.name}>
         rusterd
       </a>
       <nav style={styles.nav}>
         {PAGES.map((entry) => (
           <a
-            href={entry.href}
+            href={inLanguage(entry.href, props.language)}
             style={{
               ...styles.link,
               ...(entry.href === props.here ? styles.current : {}),
             }}
           >
-            {entry.label}
+            {say(entry.word, props.language)}
           </a>
         ))}
         <a
@@ -37,6 +41,19 @@ export default function Header(props: { here: string }) {
         >
           GitHub
         </a>
+        <span style={styles.languages}>
+          {LANGUAGES.map((entry) => (
+            <button
+              style={{
+                ...styles.language,
+                ...(entry.code === props.language ? styles.current : {}),
+              }}
+              onClick={() => choose(entry.code)}
+            >
+              {entry.name}
+            </button>
+          ))}
+        </span>
       </nav>
     </header>
   );
@@ -64,6 +81,7 @@ const styles = {
     display: "flex",
     "flex-wrap": "wrap",
     "justify-content": "center",
+    "align-items": "center",
     gap: "20px",
     "font-size": "14px",
   },
@@ -74,5 +92,20 @@ const styles = {
   current: {
     color: theme.ink,
     "font-weight": "bold",
+  },
+  languages: {
+    display: "flex",
+    gap: "10px",
+    "padding-left": "20px",
+    "border-left": `1px solid ${theme.rule}`,
+  },
+  language: {
+    "font-family": theme.sans,
+    "font-size": "13px",
+    padding: "0",
+    border: "none",
+    background: "none",
+    color: theme.quiet,
+    cursor: "pointer",
   },
 } as const;

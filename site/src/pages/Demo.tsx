@@ -1,6 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
 import Header from "../Header";
+import { language } from "../i18n";
 import { theme } from "../theme";
 
 const DEFAULT_SQL = `-- The same schema as the ERD tab: press "SQL → ERD" to regenerate it.
@@ -274,7 +275,7 @@ export default function Demo() {
 
   return (
     <div style={styles.container}>
-      <Header here="demo.html" />
+      <Header here="demo.html" language={language()} />
 
       <div style={styles.tabs}>
         {TABS.map((name) => (

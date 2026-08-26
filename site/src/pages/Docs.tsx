@@ -1,24 +1,44 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init from "../../../pkg/rusterd.js";
 import overview from "../../../README.md?raw";
-import language from "../../../docs/DSL-spec.md?raw";
+import reference from "../../../docs/DSL-spec.md?raw";
 import erdGrammar from "../../../docs/erd.gbnf?url";
 import sqlGrammar from "../../../docs/sql.gbnf?url";
 import Header from "../Header";
 import Markdown from "../Markdown";
 import { intro, sections } from "../document";
+import { inLanguage, language, say } from "../i18n";
 import "../prose.css";
 import { theme } from "../theme";
+
+/// The documents that have been translated. A page with nothing here is shown
+/// in English, which is where they are all written.
+const TRANSLATED = translations(
+  import.meta.glob("../../../docs/ja/*.md", { query: "?raw", eager: true }),
+);
+
+function translations(modules: Record<string, unknown>): Record<string, string> {
+  const found: Record<string, string> = {};
+  for (const [path, module] of Object.entries(modules)) {
+    const name = path.split("/").pop()?.replace(/\.md$/, "");
+    if (name) {
+      found[name] = (module as { default: string }).default;
+    }
+  }
+  return found;
+}
 
 /// The three documents, told apart by the file the page was opened as. Reading
 /// the README twice, for different parts of it, is what keeps the front page
 /// short without saying anything twice.
 const DOCUMENTS = {
   "index.html": {
+    name: "overview",
     lead: intro(overview),
     body: sections(overview, ["Features", "Example"]),
   },
   "start.html": {
+    name: "start",
     lead: "",
     body: sections(overview, [
       "Install",
@@ -27,7 +47,7 @@ const DOCUMENTS = {
       "Rust Library Usage",
     ]),
   },
-  "language.html": { lead: "", body: language },
+  "language.html": { name: "language", lead: "", body: reference },
 };
 
 const here = (["start.html", "language.html"] as const).find((name) =>
@@ -35,6 +55,12 @@ const here = (["start.html", "language.html"] as const).find((name) =>
 );
 const HERE = here ?? "index.html";
 const DOCUMENT = DOCUMENTS[HERE];
+const LANGUAGE = language();
+const TRANSLATION = LANGUAGE === "en" ? undefined : TRANSLATED[DOCUMENT.name];
+const TAGLINE =
+  LANGUAGE === "ja"
+    ? "テキストファイルから ER 図を描くコンパイラ。Rust で書かれ、ブラウザ向けに WASM にコンパイルされます。"
+    : DOCUMENT.lead;
 
 export default function Docs() {
   const [ready, setReady] = createSignal(false);
@@ -46,17 +72,20 @@ export default function Docs() {
 
   return (
     <div style={styles.container}>
-      <Header here={HERE} />
+      <Header here={HERE} language={LANGUAGE} />
 
       <Show when={HERE === "index.html"}>
         <div style={styles.lead}>
-          <p style={styles.tagline}>{DOCUMENT.lead}</p>
+          <p style={styles.tagline}>{TAGLINE}</p>
           <div style={styles.actions}>
-            <a style={{ ...styles.button, ...styles.first }} href="start.html">
-              Get started
+            <a
+              style={{ ...styles.button, ...styles.first }}
+              href={inLanguage("start.html", LANGUAGE)}
+            >
+              {say("getStarted", LANGUAGE)}
             </a>
-            <a style={styles.button} href="demo.html">
-              Try it in the browser
+            <a style={styles.button} href={inLanguage("demo.html", LANGUAGE)}>
+              {say("tryIt", LANGUAGE)}
             </a>
           </div>
         </div>
@@ -65,7 +94,7 @@ export default function Docs() {
       <main>
         <Show when={HERE === "language.html"}>
           <div style={styles.grammars}>
-            <span style={styles.grammarsLabel}>Grammars for constrained decoding</span>
+            <span style={styles.grammarsLabel}>{say("grammars", LANGUAGE)}</span>
             <a style={styles.file} href={erdGrammar} download="erd.gbnf">
               erd.gbnf
             </a>
@@ -74,13 +103,13 @@ export default function Docs() {
             </a>
           </div>
         </Show>
-        <Markdown source={DOCUMENT.body} ready={ready()} />
+        <Show when={LANGUAGE !== "en" && !TRANSLATION}>
+          <p style={styles.notice}>{say("untranslated", LANGUAGE)}</p>
+        </Show>
+        <Markdown source={TRANSLATION ?? DOCUMENT.body} ready={ready()} />
       </main>
 
-      <footer style={styles.footer}>
-        Every diagram on this page was compiled in your browser, by the same
-        code the command line runs.
-      </footer>
+      <footer style={styles.footer}>{say("compiledHere", LANGUAGE)}</footer>
     </div>
   );
 }
@@ -149,6 +178,15 @@ const styles = {
     background: theme.paper,
     color: theme.ink,
     "text-decoration": "none",
+  },
+  notice: {
+    "font-size": "14px",
+    color: theme.quiet,
+    padding: "10px 14px",
+    "margin-bottom": "24px",
+    border: `1px solid ${theme.rule}`,
+    "border-radius": "6px",
+    background: theme.panel,
   },
   footer: {
     "margin-top": "60px",
