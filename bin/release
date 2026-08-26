@@ -10,6 +10,7 @@
 #   bin/release patch --check      run every check and stop, changing nothing
 #   bin/release patch --yes        do not ask before the irreversible part
 #   bin/release patch --skip-npm   leave npm out of it
+#   bin/release --npm-only        publish to npm and nothing else
 #
 # Publishing cannot be undone: crates.io only lets a version be yanked, and npm
 # is little better. So everything that can be checked is checked before the
@@ -17,7 +18,9 @@
 #
 # A run that fails halfway can simply be repeated. Whatever is already out —
 # the commit, the tag, a published crate, a published package — is recognised
-# and skipped rather than being an error.
+# and skipped rather than being an error. --npm-only is the narrow case of
+# that: crates.io took the release and npm did not, and only npm needs another
+# go. It bumps nothing, commits nothing, tags nothing and pushes nothing.
 #
 # crates.io needs `cargo login` (or CARGO_REGISTRY_TOKEN); npm needs `npm login`.
 
@@ -95,28 +98,47 @@ on_npm() {
     npm view "$NPM_PACKAGE@$1" version >/dev/null 2>&1
 }
 
+publish_to_npm() {
+    wasm-pack build --target "$WASM_TARGET"
+    local built
+    built=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' pkg/package.json | head -1)
+    [ "$built" = "$VERSION" ] || die "pkg/ holds $built, not $VERSION"
+    # wasm-pack fills the rest in from Cargo.toml, but not this.
+    npm pkg set homepage="$HOMEPAGE" --prefix pkg
+    # ./pkg, not pkg: a bare name is a spec to fetch from the registry, and
+    # there is a package called pkg. Only a path looks like a path.
+    npm publish ./pkg
+}
+
 [ $# -ge 1 ] || usage
 CURRENT=$(current_version)
 [ -n "$CURRENT" ] || die "cannot read the version out of Cargo.toml"
 
+# Options may stand on their own: with nothing to say about the version, the
+# one in the tree is the one meant.
 case "$1" in
     -h|--help)          usage ;;
-    major|minor|patch)  VERSION=$(bump_version "$CURRENT" "$1") ;;
-    current)            VERSION=$CURRENT ;;
-    *)                  VERSION=$1 ;;
+    major|minor|patch)  VERSION=$(bump_version "$CURRENT" "$1"); OPTIONS=("${@:2}") ;;
+    current)            VERSION=$CURRENT;                        OPTIONS=("${@:2}") ;;
+    -*)                 VERSION=$CURRENT;                        OPTIONS=("$@") ;;
+    *)                  VERSION=$1;                              OPTIONS=("${@:2}") ;;
 esac
 
 CHECK_ONLY=no
 ASSUME_YES=no
 SKIP_NPM=no
-for arg in "${@:2}"; do
+NPM_ONLY=no
+for arg in ${OPTIONS[@]+"${OPTIONS[@]}"}; do
     case "$arg" in
         --check)     CHECK_ONLY=yes ;;
         --yes)       ASSUME_YES=yes ;;
         --skip-npm)  SKIP_NPM=yes ;;
+        --npm-only)  NPM_ONLY=yes ;;
         *)           die "unknown option: $arg" ;;
     esac
 done
+[ "$NPM_ONLY" = no ] || [ "$SKIP_NPM" = no ] \
+    || die "--npm-only and --skip-npm ask for opposite things"
 TAG="v$VERSION"
 BRANCH=$(git branch --show-current)
 
@@ -134,8 +156,10 @@ command -v cargo >/dev/null || die "no cargo"
 command -v git   >/dev/null || die "no git"
 command -v curl  >/dev/null || die "no curl"
 if [ "$CHECK_ONLY" = no ]; then
-    [ -n "${CARGO_REGISTRY_TOKEN:-}" ] || [ -f "${CARGO_HOME:-$HOME/.cargo}/credentials.toml" ] \
-        || die "no crates.io credentials: run cargo login, or set CARGO_REGISTRY_TOKEN"
+    if [ "$NPM_ONLY" = no ]; then
+        [ -n "${CARGO_REGISTRY_TOKEN:-}" ] || [ -f "${CARGO_HOME:-$HOME/.cargo}/credentials.toml" ] \
+            || die "no crates.io credentials: run cargo login, or set CARGO_REGISTRY_TOKEN"
+    fi
     if [ "$SKIP_NPM" = no ]; then
         command -v npm >/dev/null || die "no npm. --skip-npm leaves it out"
         command -v wasm-pack >/dev/null || die "no wasm-pack. --skip-npm leaves it out"
@@ -148,14 +172,65 @@ fi
 # from; a tag anywhere else is a version being cut twice.
 TAG_EXISTS=no
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+    TAG_EXISTS=yes
     # ^{commit}: rev-parse on an annotated tag gives the tag object, which is
     # never a commit hash, so the plain comparison would always fail.
-    [ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] \
+    [ "$NPM_ONLY" = yes ] || [ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] \
         || die "tag $TAG already exists, and not at HEAD"
-    TAG_EXISTS=yes
 fi
 [ "$BRANCH" = main ] || echo "  note: releasing from $BRANCH, not main"
 echo "ok"
+
+# Only npm, for a release the registries disagree about. The tests and the
+# builds ran when the release did; what has to be true now is that the code
+# being packaged is still the code that went out under this version.
+if [ "$NPM_ONLY" = yes ]; then
+    [ "$VERSION" = "$CURRENT" ] \
+        || die "--npm-only cannot change the version; the tree holds $CURRENT"
+
+    step "What npm has"
+    if on_npm "$VERSION"; then
+        echo "  $NPM_PACKAGE $VERSION is published already; nothing to do"
+        exit 0
+    fi
+    echo "  $NPM_PACKAGE $VERSION: not published"
+
+    step "What the package would be built from"
+    if [ "$TAG_EXISTS" = no ]; then
+        echo "  no tag $TAG; packaging the tree as it stands"
+    elif git diff --quiet "$TAG" HEAD -- src Cargo.toml; then
+        echo "  src/ and Cargo.toml are unchanged since $TAG"
+    else
+        echo "  warning: src/ or Cargo.toml moved since $TAG, so the package"
+        echo "  would not hold what $VERSION was published from:"
+        git --no-pager diff --stat "$TAG" HEAD -- src Cargo.toml | sed 's/^/    /'
+    fi
+
+    if [ "$CHECK_ONLY" = yes ]; then
+        step "Checked only. Nothing was changed"
+        exit 0
+    fi
+
+    cat <<EOF
+
+Publishing to npm cannot be taken back either.
+
+  publishing: npm $NPM_PACKAGE $VERSION
+  built from: $(git log --oneline -1)
+EOF
+    confirm "Go on?"
+
+    step "Publishing to npm"
+    publish_to_npm
+
+    cat <<EOF
+
+Published $NPM_PACKAGE $VERSION.
+
+  npm  https://www.npmjs.com/package/$NPM_PACKAGE
+EOF
+    exit 0
+fi
 
 step "Formatting"
 cargo fmt --check
@@ -256,14 +331,7 @@ if [ "$SKIP_NPM" = no ]; then
     if on_npm "$VERSION"; then
         echo "  already published; skipping"
     else
-        wasm-pack build --target "$WASM_TARGET"
-        built=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' pkg/package.json | head -1)
-        [ "$built" = "$VERSION" ] || die "pkg/ holds $built, not $VERSION"
-        # wasm-pack fills the rest in from Cargo.toml, but not this.
-        npm pkg set homepage="$HOMEPAGE" --prefix pkg
-        # ./pkg, not pkg: a bare name is a spec to fetch from the registry,
-        # and there is a package called pkg. Only a path looks like a path.
-        npm publish ./pkg
+        publish_to_npm
     fi
 fi
 
