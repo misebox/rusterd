@@ -63,7 +63,7 @@ fn run_render(program: &str, args: &[String]) {
         eprintln!();
         eprintln!("Options:");
         eprintln!("  -o, --output <file>   Output file (default: stdout)");
-        eprintln!("  -v, --view <name>     Render specific view");
+        eprintln!("  -f, --focus <name>    Draw only what a focus block lists");
         eprintln!("  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)");
         eprintln!("  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)");
         eprintln!("  -l, --legend          Draw a key to the cardinality symbols");
@@ -76,7 +76,7 @@ fn run_render(program: &str, args: &[String]) {
 
     let input_path = &args[0];
     let mut output_path: Option<String> = None;
-    let mut view: Option<String> = None;
+    let mut focus: Option<String> = None;
     let mut detail = DetailLevel::All;
     let mut notation = Notation::default();
     let mut legend = false;
@@ -91,10 +91,10 @@ fn run_render(program: &str, args: &[String]) {
                     output_path = Some(args[i].clone());
                 }
             }
-            "-v" | "--view" => {
+            "-f" | "--focus" => {
                 i += 1;
                 if i < args.len() {
-                    view = Some(args[i].clone());
+                    focus = Some(args[i].clone());
                 }
             }
             "-d" | "--detail" => {
@@ -150,20 +150,20 @@ fn run_render(program: &str, args: &[String]) {
         }
     };
 
-    if let Some(name) = view.as_deref() {
-        if schema.find_view(name).is_none() {
-            eprintln!("Unknown view: {}", name);
-            let names = schema.view_names();
+    if let Some(name) = focus.as_deref() {
+        if schema.find_focus(name).is_none() {
+            eprintln!("Unknown focus: {}", name);
+            let names = schema.focus_names();
             if names.is_empty() {
-                eprintln!("This file defines no views.");
+                eprintln!("This file defines no focus blocks.");
             } else {
-                eprintln!("Available views: {}", names.join(", "));
+                eprintln!("Available: {}", names.join(", "));
             }
             process::exit(1);
         }
     }
 
-    let ir = GraphIR::from_schema(&schema, view.as_deref(), detail);
+    let ir = GraphIR::from_schema(&schema, focus.as_deref(), detail);
     let layout = LayoutEngine::default().with_dense_spacing(dense).layout(&ir);
     let svg = SvgRenderer::default().with_notation(notation).with_legend(legend).render(&ir, &layout);
 

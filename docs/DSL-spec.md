@@ -21,7 +21,7 @@ A file is a sequence of these top-level items, in any order:
 | --- | --- |
 | `entity NAME { ... }` | yes, one per entity |
 | `rel { ... }` | yes, all blocks are merged |
-| `view NAME { ... }` | yes, one per view |
+| `focus NAME { ... }` | yes, one per focus |
 | `@hint.near = { ... }` | yes, each is a separate set |
 | `@hint.omit = { ... }` | yes, all are merged |
 | `@hint.brief = { ... }` | yes, all are merged |
@@ -109,20 +109,21 @@ Those four are the whole set. `0..*`, `1..1` and `2..5` are parse errors.
 An entity may relate to itself (`Category 0..1 -- * Category`), which draws a
 loop on its right-hand side.
 
-## Views
+## Focus
 
-A view names a subset of the entities. Relationships are kept when both of
-their entities are in the subset.
+A focus names a part of the schema worth drawing on its own. Relationships are
+kept when both of their entities are in it.
 
 ```erd
-view checkout {
+focus checkout {
     include User, Order
     include OrderItem
 }
 ```
 
-Several `include` lines are allowed and are concatenated. Views change nothing
-unless the renderer is asked for one by name.
+Several `include` lines are allowed and are concatenated. A focus changes
+nothing unless the renderer is asked for one by name. It is not a SQL view —
+nothing about the schema is being defined, only what to draw.
 
 ## Layout
 
@@ -156,7 +157,7 @@ above the other.
 
 `omit` drops an entity and its relationships from the diagram. `brief` keeps the
 entity and its relationships but draws only its name, for a table whose columns
-are noise. A `view` is the opposite of `omit`: it names what to keep.
+are noise. A `focus` is the opposite of `omit`: it names what to keep.
 
 ### Rows
 
@@ -176,7 +177,7 @@ mention land on row 0 — pin all of them or none of them.
 
 These are not part of the file. They are chosen when rendering:
 
-- **view**: `-v checkout` renders only that view.
+- **focus**: `-f checkout` draws only what that focus lists.
 - **detail**: `-d tables | pk | pk_fk | all` (default `all`) filters which
   columns are drawn.
 - **notation**: `-n crowsfoot | text` (default `crowsfoot`) switches between
@@ -243,7 +244,7 @@ rel {
 
 @hint.near = { Order, OrderItem }
 
-view checkout {
+focus checkout {
     include User, Order, OrderItem
 }
 ```

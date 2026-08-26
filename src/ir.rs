@@ -56,10 +56,10 @@ pub struct Edge {
 }
 
 impl GraphIR {
-    pub fn from_schema(schema: &Schema, view: Option<&str>, detail: DetailLevel) -> Self {
+    pub fn from_schema(schema: &Schema, focus: Option<&str>, detail: DetailLevel) -> Self {
 
-        let included_entities: Vec<&str> = match view.and_then(|name| schema.find_view(name)) {
-            Some(view) => view.includes.iter().map(|s| s.as_str()).collect(),
+        let included_entities: Vec<&str> = match focus.and_then(|name| schema.find_focus(name)) {
+            Some(focus) => focus.includes.iter().map(|s| s.as_str()).collect(),
             None => schema.entities.iter().map(|e| e.name.as_str()).collect(),
         };
 
@@ -219,13 +219,13 @@ mod tests {
     }
 
     #[test]
-    fn test_ir_with_view() {
+    fn test_ir_with_focus() {
         let input = r#"
             entity User { id int pk }
             entity Order { id int pk }
             entity Product { id int pk }
 
-            view core {
+            focus core {
                 include User, Order
             }
         "#;

@@ -12,7 +12,7 @@ Documentation and demo: https://misebox.github.io/rusterd/
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
 - **Automatic layout**: Rows, order and columns are all worked out; hints say what matters, not where things go
-- **Views**: Filter diagrams with `view` blocks
+- **Focus**: Draw one part of the schema with a `focus` block
 - **Detail levels**: Control what's shown (tables only, pk, pk+fk, all columns)
 
 ## Example
@@ -57,8 +57,8 @@ rel {
     User 0..1 -- 1..* Product : "favorites"
 }
 
-# Filtered view
-view simple {
+# A named part of the diagram
+focus simple {
     include User, Order
 }
 ```
@@ -79,8 +79,8 @@ view simple {
 # Render to file
 rusterd render input.erd -o output.svg
 
-# Render specific view
-rusterd render input.erd -v simple -o output.svg
+# Draw only what a focus block lists
+rusterd render input.erd -f simple -o output.svg
 
 # Control detail level
 rusterd render input.erd -d pk_fk -o output.svg
@@ -142,31 +142,36 @@ an `Error` — so `catch (message)`, not `catch (e) { e.message }`.
 | `sqlToSvg` | the markup, converting on the way |
 
 ```typescript
-erdToSvg(source: string, view?, detail?, notation?, legend?, dense?): string
-erdToDataUri(source: string, view?, detail?, notation?, legend?, dense?): string
-sqlToErd(sql: string, dialect?): string
-sqlToSvg(sql: string, dialect?, view?, detail?, notation?, legend?, dense?): string
+erdToSvg(source: string, options?: DrawOptions): string
+erdToDataUri(source: string, options?: DrawOptions): string
+sqlToErd(sql: string, dialect?: string | null): string
+sqlToSvg(sql: string, options?: ConvertOptions): string
+
+interface DrawOptions {
+  focus?: string | null;     // name of a focus block; default: the whole diagram
+  detail?: string | null;    // tables | pk | pk_fk | all      default: all
+  notation?: string | null;  // crowsfoot | text               default: crowsfoot
+  legend?: boolean | null;   //                                default: false
+  dense?: boolean | null;    //                                default: false
+}
+
+interface ConvertOptions extends DrawOptions {
+  dialect?: string | null;   // auto | generic | postgres | mysql   default: auto
+}
 ```
 
-Every argument after the first is optional; pass `null` to skip one and reach a
-later one. The package ships these types, so an editor will say the same.
-
-| Argument | Type | Values | Without it |
-| --- | --- | --- | --- |
-| `view` | `string \| null` | a `view` name the source defines | the whole diagram |
-| `detail` | `string \| null` | `tables`, `pk`, `pk_fk`, `all` | `all` |
-| `notation` | `string \| null` | `crowsfoot`, `text` | `crowsfoot` |
-| `legend` | `boolean \| null` | | no key |
-| `dense` | `boolean \| null` | | ordinary spacing |
-| `dialect` | `string \| null` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+Say what you mean and leave out the rest; the package ships these types, so an
+editor will say the same.
 
 ```javascript
-const whole = erdToSvg(source);                                // the diagram
-const part = erdToSvg(source, 'checkout');                     // one view of it
-const keys = erdToSvg(source, null, 'pk_fk', 'text');          // keys only, text cardinalities
-const tight = erdToSvg(source, null, null, null, true, true);  // with a key, closer spacing
+const whole = erdToSvg(source);
+const part = erdToSvg(source, { focus: 'checkout' });
+const keys = erdToSvg(source, { detail: 'pk_fk', notation: 'text' });
+const tight = erdToSvg(source, { legend: true, dense: true });
 
 document.querySelector('img').src = erdToDataUri(source);
+
+const svg = sqlToSvg(dump, { dialect: 'postgres', detail: 'pk_fk' });
 
 try {
   erdToSvg('entity {');
@@ -252,10 +257,10 @@ entity EntityName {
 }
 ```
 
-### Views
+### Focus
 
 ```erd
-view view_name {
+focus focus_name {
     include Entity1, Entity2, Entity3
 }
 ```

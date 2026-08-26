@@ -12,8 +12,8 @@
 # ファイルに書き出す
 rusterd render input.erd -o output.svg
 
-# ビューだけを描く
-rusterd render input.erd -v simple -o output.svg
+# focus ブロックが挙げたものだけを描く
+rusterd render input.erd -f simple -o output.svg
 
 # 詳細度を指定する
 rusterd render input.erd -d pk_fk -o output.svg
@@ -69,32 +69,36 @@ await init();  // デフォルトエクスポート。wasm の読み込み。最
 | `sqlToSvg` | マークアップ。変換を挟むだけ |
 
 ```typescript
-erdToSvg(source: string, view?, detail?, notation?, legend?, dense?): string
-erdToDataUri(source: string, view?, detail?, notation?, legend?, dense?): string
-sqlToErd(sql: string, dialect?): string
-sqlToSvg(sql: string, dialect?, view?, detail?, notation?, legend?, dense?): string
+erdToSvg(source: string, options?: DrawOptions): string
+erdToDataUri(source: string, options?: DrawOptions): string
+sqlToErd(sql: string, dialect?: string | null): string
+sqlToSvg(sql: string, options?: ConvertOptions): string
+
+interface DrawOptions {
+  focus?: string | null;     // focus ブロックの名前。既定: 図の全体
+  detail?: string | null;    // tables | pk | pk_fk | all      既定: all
+  notation?: string | null;  // crowsfoot | text               既定: crowsfoot
+  legend?: boolean | null;   //                                既定: false
+  dense?: boolean | null;    //                                既定: false
+}
+
+interface ConvertOptions extends DrawOptions {
+  dialect?: string | null;   // auto | generic | postgres | mysql   既定: auto
+}
 ```
 
-第 1 引数より後はすべて省略できます。途中を飛ばして後ろを指定したいときは `null`
-を渡してください。この型定義はパッケージに同梱されているので、エディタも同じことを
-教えてくれます。
-
-| 引数 | 型 | 値 | 省略時 |
-| --- | --- | --- | --- |
-| `view` | `string \| null` | ソースが定義する `view` の名前 | 図の全体 |
-| `detail` | `string \| null` | `tables`, `pk`, `pk_fk`, `all` | `all` |
-| `notation` | `string \| null` | `crowsfoot`, `text` | `crowsfoot` |
-| `legend` | `boolean \| null` | | 凡例なし |
-| `dense` | `boolean \| null` | | 通常の間隔 |
-| `dialect` | `string \| null` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+必要なものだけ書けば済みます。この型定義はパッケージに同梱されているので、
+エディタも同じことを教えてくれます。
 
 ```javascript
-const whole = erdToSvg(source);                                // 図の全体
-const part = erdToSvg(source, 'checkout');                     // ビュー 1 つ
-const keys = erdToSvg(source, null, 'pk_fk', 'text');          // キーのみ・文字表記
-const tight = erdToSvg(source, null, null, null, true, true);  // 凡例つき・間隔を詰める
+const whole = erdToSvg(source);
+const part = erdToSvg(source, { focus: 'checkout' });
+const keys = erdToSvg(source, { detail: 'pk_fk', notation: 'text' });
+const tight = erdToSvg(source, { legend: true, dense: true });
 
 document.querySelector('img').src = erdToDataUri(source);
+
+const svg = sqlToSvg(dump, { dialect: 'postgres', detail: 'pk_fk' });
 
 try {
   erdToSvg('entity {');

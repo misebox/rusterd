@@ -110,7 +110,7 @@ impl Parser {
         Ok(Schema {
             entities,
             relationships,
-            views: vec![],
+            focuses: vec![],
             near: Vec::new(),
             omit: Vec::new(),
             brief: Vec::new(),

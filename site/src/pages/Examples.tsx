@@ -123,7 +123,7 @@ export default function Examples() {
       return "";
     }
     try {
-      return erdToSvg(erd(), null, null, null, null, null);
+      return erdToSvg(erd());
     } catch (e) {
       return `<!-- ${String(e)} -->`;
     }

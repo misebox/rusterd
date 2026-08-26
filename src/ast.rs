@@ -2,7 +2,7 @@
 pub struct Schema {
     pub entities: Vec<Entity>,
     pub relationships: Vec<Relationship>,
-    pub views: Vec<View>,
+    pub focuses: Vec<Focus>,
     /// Sets of entities to keep near one another
     pub near: Vec<Vec<String>>,
     /// Entities to leave out of the diagram altogether
@@ -12,12 +12,12 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn find_view(&self, name: &str) -> Option<&View> {
-        self.views.iter().find(|v| v.name == name)
+    pub fn find_focus(&self, name: &str) -> Option<&Focus> {
+        self.focuses.iter().find(|f| f.name == name)
     }
 
-    pub fn view_names(&self) -> Vec<&str> {
-        self.views.iter().map(|v| v.name.as_str()).collect()
+    pub fn focus_names(&self) -> Vec<&str> {
+        self.focuses.iter().map(|f| f.name.as_str()).collect()
     }
 }
 
@@ -93,7 +93,7 @@ pub enum Cardinality {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct View {
+pub struct Focus {
     pub name: String,
     pub includes: Vec<String>,
 }
