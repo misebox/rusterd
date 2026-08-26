@@ -1,7 +1,5 @@
 //! Edge and corridor analysis for layout computation.
 
-#![allow(dead_code)]
-
 use crate::ir::GraphIR;
 use crate::measure::TextMetrics;
 use std::collections::HashMap;
