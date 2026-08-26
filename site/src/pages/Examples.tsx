@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import init, { erdToSvg } from "../../../pkg/rusterd.js";
+import Controls, { Drawing, PLAIN } from "../Drawing";
 import Header from "../Header";
 import Tabs from "../Tabs";
 import { language, say } from "../i18n";
@@ -96,6 +97,8 @@ type Tab = (typeof TABS)[number];
 export default function Examples() {
   const [chosen, setChosen] = createSignal(asked() ?? NAMES[0]);
   const [tab, setTab] = createSignal<Tab>(FIRST);
+  const [actual, setActual] = createSignal(false);
+  const [drawing, setDrawing] = createSignal<Drawing>(PLAIN);
   const [ready, setReady] = createSignal(false);
 
   onMount(async () => {
@@ -124,10 +127,22 @@ export default function Examples() {
       return "";
     }
     try {
-      return erdToSvg(erd());
+      return erdToSvg(erd(), drawing());
     } catch (e) {
       return `<!-- ${String(e)} -->`;
     }
+  });
+
+  // A diagram of its own, for the browser to zoom, save or print — which it
+  // does better than anything this page could offer.
+  const alone = createMemo(() => {
+    const drawn = svg();
+    if (!drawn) {
+      return "";
+    }
+    const address = URL.createObjectURL(new Blob([drawn], { type: "image/svg+xml" }));
+    onCleanup(() => URL.revokeObjectURL(address));
+    return address;
   });
 
   const show = (name: string) => {
@@ -143,6 +158,10 @@ export default function Examples() {
       <Header here="examples.html" language={LANGUAGE} />
 
       <p style={styles.blurb}>{say("everyExample", LANGUAGE)}</p>
+
+      <div style={styles.controls}>
+        <Controls drawing={drawing()} change={setDrawing} language={LANGUAGE} />
+      </div>
 
       <div style={styles.layout}>
         <nav style={styles.list}>
@@ -169,19 +188,38 @@ export default function Examples() {
             choose={(name) => setTab(name as Tab)}
             label={(name) => (name === "Diagram" ? say("diagram", LANGUAGE) : name)}
             trailing={
-              <a
-                style={styles.download}
-                href={`https://github.com/misebox/rusterd/blob/main/examples/${chosen()}.erd`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {say("source", LANGUAGE)}
-              </a>
+              <span style={styles.aside}>
+                <Show when={tab() === "Diagram"}>
+                  <button style={styles.quiet} onClick={() => setActual(!actual())}>
+                    {say(actual() ? "fit" : "actualSize", LANGUAGE)}
+                  </button>
+                  <a
+                    style={styles.quiet}
+                    href={alone()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {say("openAlone", LANGUAGE)}
+                  </a>
+                </Show>
+                <a
+                  style={styles.quiet}
+                  href={`https://github.com/misebox/rusterd/blob/main/examples/${chosen()}.erd`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {say("source", LANGUAGE)}
+                </a>
+              </span>
             }
           />
 
           <Show when={tab() === "Diagram"}>
-            <div class="diagram" style={styles.drawing} innerHTML={svg()} />
+            <div
+              class={actual() ? "diagram" : "diagram diagram-fit"}
+              style={styles.drawing}
+              innerHTML={svg()}
+            />
           </Show>
           <Show when={tab() === "ERD"}>
             <pre style={styles.code}>{erd()}</pre>
@@ -210,6 +248,13 @@ const styles = {
     "font-size": "15px",
     color: theme.quiet,
     margin: "0 0 20px",
+  },
+  controls: {
+    display: "flex",
+    "align-items": "center",
+    "flex-wrap": "wrap",
+    gap: "16px",
+    "margin-bottom": "16px",
   },
   layout: {
     display: "flex",
@@ -254,9 +299,20 @@ const styles = {
     flex: "1 1 640px",
     "min-width": "0",
   },
-  download: {
+  aside: {
+    display: "flex",
+    "align-items": "center",
+    gap: "16px",
+  },
+  quiet: {
+    "font-family": theme.sans,
+    "font-size": "13px",
+    padding: "0",
+    border: "none",
+    background: "none",
     color: theme.quiet,
     "text-decoration": "none",
+    cursor: "pointer",
   },
   drawing: {
     border: `1px solid ${theme.rule}`,

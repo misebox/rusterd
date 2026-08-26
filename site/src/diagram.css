@@ -1,7 +1,12 @@
-/* A compiled diagram, scaled to whatever it is being shown in. The SVG carries
-   its own width and height, so without this it would spill out of the page. */
+/* A compiled diagram. The SVG carries its own width and height, so on its own
+   it would spill out of the page. */
 .diagram svg {
   display: block;
+}
+
+/* Scaled down to whatever it is being shown in. Without this the box scrolls
+   instead, which is the whole of "actual size". */
+.diagram-fit svg {
   max-width: 100%;
   height: auto;
 }

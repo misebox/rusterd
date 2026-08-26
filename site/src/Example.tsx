@@ -65,7 +65,7 @@ export default function Example(props: {
       <div style={beside() ? styles.beside : {}}>
         <Show when={showing(SOURCE)}>{source()}</Show>
         <Show when={showing(DRAWING) && drawable()}>
-          <div class="diagram" style={styles.drawing} innerHTML={svg()} />
+          <div class="diagram diagram-fit" style={styles.drawing} innerHTML={svg()} />
         </Show>
       </div>
     </figure>
