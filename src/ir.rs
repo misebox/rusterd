@@ -24,6 +24,8 @@ impl DetailLevel {
 pub struct GraphIR {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
+    /// Sets of entities the source asked to keep near one another
+    pub near: Vec<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,9 +33,8 @@ pub struct Node {
     pub id: String,
     pub label: String,
     pub columns: Vec<ColumnIR>,
+    /// Row the source pinned this entity to, if it pinned one
     pub level: Option<i64>,
-    pub order: Option<i64>,  // Horizontal order within a level (from arrangement)
-    pub group: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -56,33 +57,17 @@ pub struct Edge {
 
 impl GraphIR {
     pub fn from_schema(schema: &Schema, view: Option<&str>, detail: DetailLevel) -> Self {
-        use std::collections::HashMap;
 
         let included_entities: Vec<&str> = match view.and_then(|name| schema.find_view(name)) {
             Some(view) => view.includes.iter().map(|s| s.as_str()).collect(),
             None => schema.entities.iter().map(|e| e.name.as_str()).collect(),
         };
 
-        // Build arrangement lookup: entity name -> (level, order)
-        let arrangement_lookup: HashMap<&str, (i64, i64)> = schema
-            .arrangement
-            .as_ref()
-            .map(|arr| {
-                arr.iter()
-                    .enumerate()
-                    .flat_map(|(level, row)| {
-                        row.iter()
-                            .enumerate()
-                            .map(move |(order, name)| (name.as_str(), (level as i64, order as i64)))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-
         let nodes: Vec<Node> = schema
             .entities
             .iter()
             .filter(|e| included_entities.contains(&e.name.as_str()))
+            .filter(|e| !schema.omit.contains(&e.name))
             .map(|e| {
                 // A composite key is declared next to the columns, not on them.
                 let composite_pk: Vec<&str> = e
@@ -95,6 +80,13 @@ impl GraphIR {
                     .flatten()
                     .map(|name| name.as_str())
                     .collect();
+
+                // Named as brief: the entity is there, what is in it is not.
+                let detail = if schema.brief.contains(&e.name) {
+                    DetailLevel::Tables
+                } else {
+                    detail
+                };
 
                 let columns: Vec<ColumnIR> = e
                     .columns
@@ -124,30 +116,10 @@ impl GraphIR {
                     })
                     .collect();
 
-                // Arrangement takes priority over @hint.level
-                let (level, order) = if let Some(&(arr_level, arr_order)) =
-                    arrangement_lookup.get(e.name.as_str())
-                {
-                    (Some(arr_level), Some(arr_order))
-                } else {
-                    // Fall back to @hint.level, no order specified
-                    let hint_level = e.hints.iter().find_map(|h| {
-                        if h.key == "hint.level" {
-                            if let crate::ast::HintValue::Int(n) = h.value {
-                                return Some(n);
-                            }
-                        }
-                        None
-                    });
-                    (hint_level, None)
-                };
-
-                let group = e.hints.iter().find_map(|h| {
-                    if h.key == "hint.group" {
-                        match &h.value {
-                            crate::ast::HintValue::Str(s) => return Some(s.clone()),
-                            crate::ast::HintValue::Ident(s) => return Some(s.clone()),
-                            _ => {}
+                let level = e.hints.iter().find_map(|h| {
+                    if h.key == "hint.level" {
+                        if let crate::ast::HintValue::Int(n) = h.value {
+                            return Some(n);
                         }
                     }
                     None
@@ -158,8 +130,6 @@ impl GraphIR {
                     label: e.name.clone(),
                     columns,
                     level,
-                    order,
-                    group,
                 }
             })
             .collect();
@@ -180,7 +150,20 @@ impl GraphIR {
             })
             .collect();
 
-        GraphIR { nodes, edges }
+        // Only what is actually drawn can be kept near anything.
+        let near: Vec<Vec<String>> = schema
+            .near
+            .iter()
+            .map(|set| {
+                set.iter()
+                    .filter(|name| node_ids.contains(&name.as_str()))
+                    .cloned()
+                    .collect::<Vec<String>>()
+            })
+            .filter(|set| set.len() > 1)
+            .collect();
+
+        GraphIR { nodes, edges, near }
     }
 }
 
@@ -252,61 +235,55 @@ mod tests {
         assert_eq!(ir.nodes.len(), 2);
     }
 
-    #[test]
-    fn test_ir_with_arrangement() {
-        let input = r#"
-            @hint.arrangement = {
-                A B C;
-                D E F
-            }
 
-            entity A { id int pk }
-            entity B { id int pk }
-            entity C { id int pk }
-            entity D { id int pk }
-            entity E { id int pk }
-            entity F { id int pk }
+
+    #[test]
+    fn leaves_out_what_the_source_asked_to_omit() {
+        let input = r#"
+            @hint.omit = { migrations }
+            entity migrations { id int pk }
+            entity User { id int pk }
+            rel { User 1 -- * migrations }
         "#;
         let schema = Parser::new(input).unwrap().parse().unwrap();
         let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
 
-        let a = ir.nodes.iter().find(|n| n.id == "A").unwrap();
-        let b = ir.nodes.iter().find(|n| n.id == "B").unwrap();
-        let d = ir.nodes.iter().find(|n| n.id == "D").unwrap();
-        let f = ir.nodes.iter().find(|n| n.id == "F").unwrap();
-
-        // First row: level 0
-        assert_eq!(a.level, Some(0));
-        assert_eq!(a.order, Some(0));
-        assert_eq!(b.level, Some(0));
-        assert_eq!(b.order, Some(1));
-
-        // Second row: level 1
-        assert_eq!(d.level, Some(1));
-        assert_eq!(d.order, Some(0));
-        assert_eq!(f.level, Some(1));
-        assert_eq!(f.order, Some(2));
+        assert_eq!(ir.nodes.len(), 1, "the omitted entity is still drawn");
+        assert!(ir.edges.is_empty(), "its relationships are still drawn");
     }
 
     #[test]
-    fn test_ir_arrangement_overrides_hint() {
+    fn draws_a_brief_entity_as_a_name_alone() {
         let input = r#"
-            @hint.arrangement = {
-                A B
-            }
-
-            entity A {
-                @hint.level = 5
+            @hint.brief = { audit_logs }
+            entity audit_logs {
                 id int pk
+                event string
             }
-            entity B { id int pk }
+            entity User { id int pk }
+            rel { User 1 -- * audit_logs }
         "#;
         let schema = Parser::new(input).unwrap().parse().unwrap();
         let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
 
-        let a = ir.nodes.iter().find(|n| n.id == "A").unwrap();
-        // Arrangement should override @hint.level
-        assert_eq!(a.level, Some(0));
-        assert_eq!(a.order, Some(0));
+        let brief = ir.nodes.iter().find(|n| n.id == "audit_logs").unwrap();
+        let user = ir.nodes.iter().find(|n| n.id == "User").unwrap();
+        assert!(brief.columns.is_empty(), "brief entity kept its columns");
+        assert_eq!(user.columns.len(), 1, "every entity lost its columns");
+        assert_eq!(ir.edges.len(), 1, "the relationship went with the columns");
+    }
+
+    #[test]
+    fn carries_only_the_near_sets_it_can_draw() {
+        let input = r#"
+            @hint.near = { User, Order }
+            @hint.near = { User, gone }
+            entity User { id int pk }
+            entity Order { id int pk }
+        "#;
+        let schema = Parser::new(input).unwrap().parse().unwrap();
+        let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
+
+        assert_eq!(ir.near, vec![vec!["User", "Order"]]);
     }
 }

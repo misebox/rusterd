@@ -137,21 +137,52 @@ impl Layout {
 
     /// Whether this drawing reads more easily than `other`: fewer crossings
     /// first, since a crossing costs the reader more than a corner does.
-    pub fn is_tidier_than(&self, other: &Layout) -> bool {
-        self.quality() < other.quality()
+    pub fn is_tidier_than(&self, other: &Layout, near: &[Vec<String>]) -> bool {
+        self.quality(near) < other.quality(near)
     }
 
     /// What to weigh a drawing by, worst first: a hidden relation, then a line
-    /// cut across a lone relation, then crossings, then corners.
-    fn quality(&self) -> (usize, usize, usize, usize) {
+    /// cut across a lone relation, then crossings, then how far apart the
+    /// entities asked to be near one another ended up, then corners.
+    fn quality(&self, near: &[Vec<String>]) -> (usize, usize, usize, usize, usize) {
         (
             self.parallel_overlaps(),
             self.lone_relation_crossings(),
             self.crossings(),
+            self.spread(near),
             self.bends(),
         )
     }
+
+    /// How much room the entities of each set are spread over, in steps of
+    /// `SPREAD_STEP` so that a pixel here or there does not outweigh a corner.
+    fn spread(&self, near: &[Vec<String>]) -> usize {
+        let mut total = 0.0;
+        for set in near {
+            let placed = || {
+                self.nodes
+                    .iter()
+                    .filter(|node| set.contains(&node.id))
+            };
+            let left = placed().map(|n| n.x).fold(f64::INFINITY, f64::min);
+            let right = placed()
+                .map(|n| n.x + n.width)
+                .fold(f64::NEG_INFINITY, f64::max);
+            let top = placed().map(|n| n.y).fold(f64::INFINITY, f64::min);
+            let bottom = placed()
+                .map(|n| n.y + n.height)
+                .fold(f64::NEG_INFINITY, f64::max);
+            if left.is_finite() && top.is_finite() {
+                total += (right - left) + (bottom - top);
+            }
+        }
+        (total / SPREAD_STEP) as usize
+    }
 }
+
+/// How much closer a set of entities has to be drawn before it counts as an
+/// improvement. Finer than this and the search would chase pixels.
+const SPREAD_STEP: f64 = 50.0;
 
 /// How far apart two lines have to be to read as two lines.
 const APART: f64 = 6.0;

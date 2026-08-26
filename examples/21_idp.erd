@@ -178,11 +178,10 @@ rel {
     tenants 1 -- * users
 }
 
-# @hint.arrangement = {
-#     __drizzle_migrations admins audit_logs tenants
-#     admin_passkeys auth_policies client_apps users
-#     auth_methods client_app_redirect_uris
-#     user_refresh_tokens user_emails user_passkeys user_passwords
-# }
+# Placement is worked out from the relationships. To say what matters about the
+# result instead:
+#     @hint.near  = { users, user_emails, user_passwords }
+#     @hint.omit  = { __drizzle_migrations }
+#     @hint.brief = { audit_logs }
 
 

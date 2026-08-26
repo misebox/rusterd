@@ -14,6 +14,7 @@ use wasm_bindgen::prelude::*;
 use ir::{DetailLevel, GraphIR};
 use layout::LayoutEngine;
 use parser::Parser;
+use layout::Density;
 use svg::{Notation, SvgRenderer};
 
 #[wasm_bindgen(start)]
@@ -30,6 +31,7 @@ pub fn render_erd(
     detail: Option<String>,
     notation: Option<String>,
     legend: Option<bool>,
+    density: Option<String>,
 ) -> Result<String, String> {
     let mut parser = Parser::new(source).map_err(|e| e.to_string())?;
     let schema = parser.parse().map_err(|e| e.to_string())?;
@@ -54,9 +56,13 @@ pub fn render_erd(
         .and_then(Notation::from_str)
         .unwrap_or_default();
     let legend = legend.unwrap_or(false);
+    let density = density
+        .as_deref()
+        .and_then(Density::from_str)
+        .unwrap_or_default();
 
     let ir = GraphIR::from_schema(&schema, view.as_deref(), detail_level);
-    let layout = LayoutEngine::default().layout(&ir);
+    let layout = LayoutEngine::default().with_density(density).layout(&ir);
     let svg = SvgRenderer::default().with_notation(notation).with_legend(legend).render(&ir, &layout);
 
     Ok(svg)
@@ -70,8 +76,9 @@ pub fn render_erd_data_uri(
     detail: Option<String>,
     notation: Option<String>,
     legend: Option<bool>,
+    density: Option<String>,
 ) -> Result<String, String> {
-    let svg = render_erd(source, view, detail, notation, legend)?;
+    let svg = render_erd(source, view, detail, notation, legend, density)?;
     Ok(format!(
         "data:image/svg+xml,{}",
         js_sys::encode_uri_component(&svg)
@@ -99,7 +106,8 @@ pub fn sql_to_svg(
     detail: Option<String>,
     notation: Option<String>,
     legend: Option<bool>,
+    density: Option<String>,
 ) -> Result<String, String> {
     let erd = sql_to_erd(sql_source, dialect)?;
-    render_erd(&erd, view, detail, notation, legend)
+    render_erd(&erd, view, detail, notation, legend, density)
 }

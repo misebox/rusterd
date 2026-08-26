@@ -3,6 +3,7 @@ use rusterd::layout::LayoutEngine;
 use rusterd::parser::Parser;
 use rusterd::serializer;
 use rusterd::sql::{parse_sql, Dialect};
+use rusterd::layout::Density;
 use rusterd::svg::{Notation, SvgRenderer};
 use std::env;
 use std::fs;
@@ -67,6 +68,7 @@ fn run_render(program: &str, args: &[String]) {
         eprintln!("  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)");
         eprintln!("  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)");
         eprintln!("  -l, --legend          Draw a key to the cardinality symbols");
+        eprintln!("  -D, --density <d>     Spacing: dense, normal, sparse (default: normal)");
         if args.is_empty() {
             process::exit(1);
         }
@@ -79,6 +81,7 @@ fn run_render(program: &str, args: &[String]) {
     let mut detail = DetailLevel::All;
     let mut notation = Notation::default();
     let mut legend = false;
+    let mut density = Density::default();
 
     let mut i = 1;
     while i < args.len() {
@@ -115,6 +118,16 @@ fn run_render(program: &str, args: &[String]) {
                 }
             }
             "-l" | "--legend" => legend = true,
+            "-D" | "--density" => {
+                i += 1;
+                if i < args.len() {
+                    density = Density::from_str(&args[i]).unwrap_or_else(|| {
+                        eprintln!("Invalid density: {}", args[i]);
+                        eprintln!("Valid options: dense, normal, sparse");
+                        process::exit(1);
+                    });
+                }
+            }
             _ => {
                 eprintln!("Unknown option: {}", args[i]);
                 process::exit(1);
@@ -161,7 +174,7 @@ fn run_render(program: &str, args: &[String]) {
     }
 
     let ir = GraphIR::from_schema(&schema, view.as_deref(), detail);
-    let layout = LayoutEngine::default().layout(&ir);
+    let layout = LayoutEngine::default().with_density(density).layout(&ir);
     let svg = SvgRenderer::default().with_notation(notation).with_legend(legend).render(&ir, &layout);
 
     match output_path {

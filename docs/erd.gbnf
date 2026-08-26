@@ -6,7 +6,7 @@
 # `ident-start` for other scripts.
 
 root         ::= blank item+
-item         ::= (entity | rel | view | arrangement) blank
+item         ::= (entity | rel | view | nameset) blank
 
 # ---------------------------------------------------------------- whitespace
 # `sp` never crosses a line: columns and relationships end at the newline.
@@ -36,7 +36,6 @@ on-update    ::= sp1 "on" sp1 "update" sp1 ident
 index        ::= "index(" idlist ")" (sp1 "[name=" ident "]")?
 
 hint         ::= "@hint.level" sp "=" sp number
-              | "@hint.group" sp "=" sp (string | ident)
 
 # ---------------------------------------------------------------- relationships
 rel          ::= "rel" sp "{" eol blank relation+ "}" eol
@@ -50,8 +49,8 @@ view         ::= "view" sp1 ident sp "{" eol blank include+ "}" eol
 include      ::= indent "include" sp1 idlist eol blank
 
 # ---------------------------------------------------------------- layout
-arrangement  ::= "@hint.arrangement" sp "=" sp "{" eol blank row+ "}" eol
-row          ::= indent ident (sp1 ident)* eol blank
+nameset      ::= setkey sp "=" sp "{" sp idlist sp "}" eol
+setkey       ::= "@hint.near" | "@hint.omit" | "@hint.brief"
 
 # ---------------------------------------------------------------- tokens
 idlist       ::= ident ("," sp ident)*

@@ -11,6 +11,7 @@ use crate::ir::GraphIR;
 use std::collections::HashMap;
 
 use super::fit::fit_in_order;
+use super::placement::attractions;
 use super::types::NodePlacement;
 
 /// Rounds of relaxation. Each entity follows its neighbours, which have moved
@@ -45,14 +46,16 @@ pub fn align_levels(placement: &mut NodePlacement, ir: &GraphIR, node_gap_x: f64
     }
 
     // Entities on the same level pull sideways rather than up or down, so only
-    // relations that cross a level guide the alignment.
+    // relations that cross a level guide the alignment. Entities asked to be
+    // near one another pull the same way, whether or not anything relates them.
     let mut neighbours: Vec<Vec<usize>> = vec![Vec::new(); placement.layout_nodes.len()];
-    for edge in &ir.edges {
-        let (Some(&from), Some(&to)) =
-            (index.get(edge.from.as_str()), index.get(edge.to.as_str()))
-        else {
-            continue;
-        };
+    let related = ir.edges.iter().filter_map(|edge| {
+        Some((
+            *index.get(edge.from.as_str())?,
+            *index.get(edge.to.as_str())?,
+        ))
+    });
+    for (from, to) in related.chain(attractions(ir, &index)) {
         if from == to || level_of[from] == level_of[to] {
             continue;
         }

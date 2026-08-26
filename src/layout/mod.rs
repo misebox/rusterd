@@ -18,7 +18,7 @@ mod straighten;
 mod types;
 mod waypoints;
 
-pub use engine::LayoutEngine;
+pub use engine::{Density, LayoutEngine};
 pub use types::{Layout, LayoutEdge, LayoutNode};
 
 #[cfg(test)]

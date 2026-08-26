@@ -111,7 +111,9 @@ impl Parser {
             entities,
             relationships,
             views: vec![],
-            arrangement: None,
+            near: Vec::new(),
+            omit: Vec::new(),
+            brief: Vec::new(),
         })
     }
 

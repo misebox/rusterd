@@ -172,7 +172,7 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     ("08_mixed_sizes.erd", 0, 0, 0),
     ("09_orphan_entities.erd", 0, 0, 0),
     ("10_ecommerce_full.erd", 0, 2, 14),
-    ("11_arrangement.erd", 2, 9, 20),
+    ("11_near.erd", 0, 2, 24),
     ("21_idp.erd", 1, 3, 24),
     ("sample.erd", 0, 0, 6),
 ];

@@ -87,13 +87,11 @@ rel {
     Product 1 -- * OrderItem
 }
 
-# Placement is automatic. This pins it instead: one row per level, left to
-# right. Comment it out to see what the layout works out on its own.
-@hint.arrangement = {
-    Category User
-    Product Order
-    OrderItem
-}
+# Placement is worked out. Hints say what matters about the result, not where
+# things go: keep these close, leave that out, draw that one as a name only.
+@hint.near = { Order, OrderItem }
+# @hint.omit  = { Category }
+# @hint.brief = { OrderItem }
 
 # ERD only: a named subset of the diagram.
 # rusterd render schema.erd -v checkout
@@ -118,6 +116,12 @@ const DIALECTS = [
   { value: "generic", label: "Generic" },
 ];
 
+const DENSITIES = [
+  { value: "normal", label: "Normal" },
+  { value: "dense", label: "Dense" },
+  { value: "sparse", label: "Sparse" },
+];
+
 const NOTATIONS = [
   { value: "crowsfoot", label: "Crow's foot symbols" },
   { value: "text", label: "Text — 1, 0..1, ✱, 1..✱" },
@@ -132,6 +136,7 @@ export default function App() {
   const [detail, setDetail] = createSignal("all");
   const [notation, setNotation] = createSignal("crowsfoot");
   const [legend, setLegend] = createSignal(false);
+  const [density, setDensity] = createSignal("normal");
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
 
@@ -159,7 +164,7 @@ export default function App() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, null, detail(), notation(), legend());
+    return erdToSvg(source, null, detail(), notation(), legend(), density());
   };
 
   const sqlToErdStep = () =>
@@ -220,6 +225,24 @@ export default function App() {
       >
         {DETAIL_LEVELS.map((level) => (
           <option value={level.value}>{level.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const densitySelect = () => (
+    <label style={styles.field}>
+      Density
+      <select
+        style={styles.select}
+        value={density()}
+        onChange={(e) => {
+          setDensity(e.currentTarget.value);
+          redraw();
+        }}
+      >
+        {DENSITIES.map((d) => (
+          <option value={d.value}>{d.label}</option>
         ))}
       </select>
     </label>
@@ -298,6 +321,7 @@ export default function App() {
           </label>
           {detailSelect()}
           {notationSelect()}
+          {densitySelect()}
           {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
             SQL → ERD
@@ -313,6 +337,7 @@ export default function App() {
         <Show when={tab() === "ERD"}>
           {detailSelect()}
           {notationSelect()}
+          {densitySelect()}
           {legendToggle()}
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
@@ -325,6 +350,7 @@ export default function App() {
         <Show when={tab() === "SVG Code"}>
           {detailSelect()}
           {notationSelect()}
+          {densitySelect()}
           {legendToggle()}
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
@@ -335,6 +361,7 @@ export default function App() {
         <Show when={tab() === "SVG Preview"}>
           {detailSelect()}
           {notationSelect()}
+          {densitySelect()}
           {legendToggle()}
           <span style={styles.hint}>Rendered from the SVG Code tab.</span>
         </Show>

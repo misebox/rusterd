@@ -33,7 +33,12 @@ pub fn shuffle_levels(rows: &mut [Vec<usize>], seed: u64) {
 /// Order the entities within each row so that as few relations as possible
 /// cross. `rows` holds entity ids by level, in the order they currently sit;
 /// `links` are the relations between them, in either direction.
-pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)], lone_weight: usize) {
+pub fn order_levels(
+    rows: &mut [Vec<usize>],
+    links: &[(usize, usize)],
+    attractions: &[(usize, usize)],
+    lone_weight: usize,
+) {
     if rows.len() < 2 {
         return;
     }
@@ -46,8 +51,11 @@ pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)], lone_weig
         }
     }
 
+    // Entities asked to be near one another pull on each other exactly as a
+    // relationship does — they are simply never counted as crossing, since
+    // there is no line to cross.
     let mut neighbours: Vec<Vec<usize>> = vec![Vec::new(); node_count];
-    for &(a, b) in links {
+    for &(a, b) in links.iter().chain(attractions) {
         if a == b || level_of[a] == level_of[b] {
             continue;
         }
@@ -56,8 +64,12 @@ pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)], lone_weig
     }
 
     let weights = weights(links, node_count, lone_weight);
+    let cost = |rows: &[Vec<usize>]| {
+        crossings(rows, links, &weights, &level_of, node_count)
+            + apartness(rows, attractions, &level_of, node_count)
+    };
     let mut best = rows.to_vec();
-    let mut fewest = crossings(rows, links, &weights, &level_of, node_count);
+    let mut fewest = cost(rows);
 
     for round in 0..ROUNDS {
         let downwards = round % 2 == 0;
@@ -70,9 +82,9 @@ pub fn order_levels(rows: &mut [Vec<usize>], links: &[(usize, usize)], lone_weig
         for level in order {
             sort_by_median(rows, &neighbours, &level_of, level, downwards);
         }
-        transpose(rows, links, &weights, &level_of, node_count);
+        transpose(rows, &cost);
 
-        let count = crossings(rows, links, &weights, &level_of, node_count);
+        let count = cost(rows);
         if count < fewest {
             fewest = count;
             best = rows.to_vec();
@@ -120,16 +132,10 @@ fn sort_by_median(
     rows[level] = ranked.into_iter().map(|(_, _, node)| node).collect();
 }
 
-/// Swap neighbouring entities wherever that removes a crossing, until none of
-/// the swaps left helps.
-fn transpose(
-    rows: &mut [Vec<usize>],
-    links: &[(usize, usize)],
-    weights: &[usize],
-    level_of: &[usize],
-    nodes: usize,
-) {
-    let mut best = crossings(rows, links, weights, level_of, nodes);
+/// Swap neighbouring entities wherever that improves the arrangement, until
+/// none of the swaps left helps.
+fn transpose(rows: &mut [Vec<usize>], cost: &impl Fn(&[Vec<usize>]) -> usize) {
+    let mut best = cost(rows);
     let mut improved = true;
 
     while improved {
@@ -137,7 +143,7 @@ fn transpose(
         for level in 0..rows.len() {
             for i in 0..rows[level].len().saturating_sub(1) {
                 rows[level].swap(i, i + 1);
-                let count = crossings(rows, links, weights, level_of, nodes);
+                let count = cost(rows);
                 if count < best {
                     best = count;
                     improved = true;
@@ -147,6 +153,36 @@ fn transpose(
             }
         }
     }
+}
+
+/// What one place of separation between entities asked to be near one another
+/// is worth against one crossing.
+const APART: usize = 2;
+
+/// How far apart those entities sit. Neighbours in a row cost nothing.
+fn apartness(
+    rows: &[Vec<usize>],
+    attractions: &[(usize, usize)],
+    level_of: &[usize],
+    nodes: usize,
+) -> usize {
+    if attractions.is_empty() {
+        return 0;
+    }
+    let places = places(rows, level_of, nodes);
+
+    attractions
+        .iter()
+        .map(|&(a, b)| {
+            if level_of[a] == level_of[b] {
+                let row = &rows[level_of[a]];
+                let seat = |node| row.iter().position(|&x| x == node).unwrap_or(0);
+                seat(a).abs_diff(seat(b)).saturating_sub(1) * APART
+            } else {
+                ((places[a] - places[b]).abs() * (APART * 2) as f64) as usize
+            }
+        })
+        .sum()
 }
 
 /// Each entity's place in its row, as a fraction of the row's width, so that
@@ -243,7 +279,7 @@ mod tests {
     #[test]
     fn uncrosses_a_swapped_pair() {
         let mut rows = vec![vec![0, 1], vec![2, 3]];
-        order_levels(&mut rows, &[(0, 3), (1, 2)], 1);
+        order_levels(&mut rows, &[(0, 3), (1, 2)], &[], 1);
         assert_eq!(rows, vec![vec![0, 1], vec![3, 2]]);
     }
 
@@ -251,7 +287,7 @@ mod tests {
     fn puts_a_lone_relation_beside_what_it_relates_to() {
         // Two hubs, each with two children, handed over interleaved.
         let mut rows = vec![vec![0, 1], vec![2, 3, 4, 5]];
-        order_levels(&mut rows, &[(0, 2), (1, 3), (0, 4), (1, 5)], 1);
+        order_levels(&mut rows, &[(0, 2), (1, 3), (0, 4), (1, 5)], &[], 1);
         let children = &rows[1];
         let of_first: Vec<usize> = children
             .iter()
@@ -263,9 +299,25 @@ mod tests {
     }
 
     #[test]
+    fn draws_entities_asked_to_be_near_side_by_side() {
+        // Two hubs with a child each, plus a request to keep the two children
+        // together even though nothing relates them.
+        let mut rows = vec![vec![0, 1], vec![2, 3, 4, 5]];
+        let links = [(0, 2), (0, 4), (1, 3), (1, 5)];
+        order_levels(&mut rows, &links, &[(2, 3)], 1);
+        let place = |n: usize| rows[1].iter().position(|&x| x == n).unwrap();
+        assert_eq!(
+            place(2).abs_diff(place(3)),
+            1,
+            "asked to be near: {:?}",
+            rows[1]
+        );
+    }
+
+    #[test]
     fn leaves_a_single_row_alone() {
         let mut rows = vec![vec![2, 0, 1]];
-        order_levels(&mut rows, &[(0, 1)], 1);
+        order_levels(&mut rows, &[(0, 1)], &[], 1);
         assert_eq!(rows, vec![vec![2, 0, 1]]);
     }
 }
