@@ -78,9 +78,6 @@ const ABOUT: Record<string, { en: string; ja: string }> = {
   sample: { en: "The one in the README", ja: "README に載せているもの" },
 };
 
-/// Left to right is the order the compiler works in: a SQL dump converts to
-/// ERD, which compiles to SVG, which the browser draws. The one worth seeing
-/// first is the last of them, so that is where a page opens.
 /// The example the address asks for, if it is one the repository ships.
 function asked(): string | undefined {
   const name = decodeURIComponent(location.hash.slice(1));
@@ -89,6 +86,9 @@ function asked(): string | undefined {
 
 const LANGUAGE = language();
 
+/// Left to right is the order the compiler works in: a SQL dump converts to
+/// ERD, which compiles to SVG, which the browser draws. The one worth seeing
+/// first is the last of them, so that is where a page opens.
 const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
 const FIRST: Tab = "Diagram";
 type Tab = (typeof TABS)[number];

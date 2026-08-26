@@ -1,7 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
 import Header from "../Header";
-import { language } from "../i18n";
+import { language, say } from "../i18n";
 import { theme } from "../theme";
 
 const DEFAULT_SQL = `-- The same schema as the ERD tab: press "SQL → ERD" to regenerate it.
@@ -282,6 +282,8 @@ export default function Demo() {
     <div style={styles.container}>
       <Header here="demo.html" language={language()} />
 
+      <p style={styles.blurb}>{say("inYourBrowser", language())}</p>
+
       <div style={styles.tabs}>
         {TABS.map((name) => (
           <button
@@ -402,6 +404,11 @@ const styles = {
     "box-sizing": "border-box",
     display: "flex",
     "flex-direction": "column",
+  },
+  blurb: {
+    "font-size": "14px",
+    color: theme.faint,
+    margin: "0 0 14px",
   },
   tabs: {
     display: "flex",
