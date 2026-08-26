@@ -94,7 +94,7 @@ pub fn route_edges<'a>(
 
 /// Calculate waypoints for a single edge.
 #[allow(clippy::too_many_arguments)]
-fn calculate_waypoints<'a>(
+fn calculate_waypoints(
     idx: usize,
     from_node: &LayoutNode,
     to_node: &LayoutNode,
@@ -105,7 +105,7 @@ fn calculate_waypoints<'a>(
     channel_edge_count: &HashMap<i64, usize>,
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
     node_placement: &NodePlacement,
-    levels: &HashMap<i64, Vec<&'a Node>>,
+    levels: &HashMap<i64, Vec<&Node>>,
     multi_level_corridor_x: &HashMap<usize, Corridor>,
     descents: &Descents,
     lane_spacing: f64,
@@ -248,7 +248,7 @@ fn route_adjacent_level(
 
 /// Route multi-level edges through corridors.
 #[allow(clippy::too_many_arguments)]
-fn route_multi_level<'a>(
+fn route_multi_level(
     idx: usize,
     from_node: &LayoutNode,
     to_node: &LayoutNode,
@@ -262,7 +262,7 @@ fn route_multi_level<'a>(
     channel_edge_count: &HashMap<i64, usize>,
     channel_lane_assignments: &HashMap<(i64, usize), usize>,
     node_placement: &NodePlacement,
-    levels: &HashMap<i64, Vec<&'a Node>>,
+    levels: &HashMap<i64, Vec<&Node>>,
     multi_level_corridor_x: &HashMap<usize, Corridor>,
     descents: &Descents,
     lane_spacing: f64,

@@ -9,7 +9,8 @@ pub enum DetailLevel {
 }
 
 impl DetailLevel {
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// The name the CLI and the options object use for each level.
+    pub fn from_name(s: &str) -> Option<Self> {
         match s {
             "tables" => Some(Self::Tables),
             "pk" => Some(Self::Pk),
@@ -119,10 +120,10 @@ impl GraphIR {
                     .collect();
 
                 let level = e.hints.iter().find_map(|h| {
-                    if h.key == "hint.level" {
-                        if let crate::ast::HintValue::Int(n) = h.value {
-                            return Some(n);
-                        }
+                    if h.key == "hint.level"
+                        && let crate::ast::HintValue::Int(n) = h.value
+                    {
+                        return Some(n);
                     }
                     None
                 });

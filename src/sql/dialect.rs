@@ -16,7 +16,7 @@ pub enum Dialect {
 
 impl Dialect {
     /// Parse dialect from string.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_name(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "auto" => Some(Self::Auto),
             "generic" => Some(Self::Generic),
