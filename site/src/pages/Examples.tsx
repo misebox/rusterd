@@ -1,6 +1,7 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import init, { erdToSvg } from "../../../pkg/rusterd.js";
 import Header from "../Header";
+import Tabs from "../Tabs";
 import { language, say } from "../i18n";
 import "../diagram.css";
 import { theme } from "../theme";
@@ -162,24 +163,22 @@ export default function Examples() {
         </nav>
 
         <section style={styles.viewer}>
-          <div style={styles.tabs}>
-            {shown().map((name) => (
-              <button
-                style={{ ...styles.tab, ...(tab() === name ? styles.tabActive : {}) }}
-                onClick={() => setTab(name)}
+          <Tabs
+            names={shown()}
+            shown={tab()}
+            choose={(name) => setTab(name as Tab)}
+            label={(name) => (name === "Diagram" ? say("diagram", LANGUAGE) : name)}
+            trailing={
+              <a
+                style={styles.download}
+                href={`https://github.com/misebox/rusterd/blob/main/examples/${chosen()}.erd`}
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                {name === "Diagram" ? say("diagram", LANGUAGE) : name}
-              </button>
-            ))}
-            <a
-              style={styles.download}
-              href={`https://github.com/misebox/rusterd/blob/main/examples/${chosen()}.erd`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {say("source", LANGUAGE)}
-            </a>
-          </div>
+                {say("source", LANGUAGE)}
+              </a>
+            }
+          />
 
           <Show when={tab() === "Diagram"}>
             <div class="diagram" style={styles.drawing} innerHTML={svg()} />
@@ -255,35 +254,7 @@ const styles = {
     flex: "1 1 640px",
     "min-width": "0",
   },
-  tabs: {
-    display: "flex",
-    "align-items": "center",
-    gap: "4px",
-    "border-bottom": `1px solid ${theme.rule}`,
-    "margin-bottom": "12px",
-  },
-  tab: {
-    "font-family": theme.sans,
-    "font-size": "14px",
-    padding: "8px 14px",
-    border: "1px solid transparent",
-    "border-bottom": "none",
-    "border-radius": "4px 4px 0 0",
-    background: "transparent",
-    color: theme.quiet,
-    cursor: "pointer",
-  },
-  tabActive: {
-    border: `1px solid ${theme.rule}`,
-    "border-bottom": `1px solid ${theme.paper}`,
-    "margin-bottom": "-1px",
-    background: theme.paper,
-    color: theme.ink,
-    "font-weight": "bold",
-  },
   download: {
-    "margin-left": "auto",
-    "font-size": "13px",
     color: theme.quiet,
     "text-decoration": "none",
   },

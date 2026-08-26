@@ -106,7 +106,12 @@ export default function Docs() {
         <Show when={LANGUAGE !== "en" && !TRANSLATION}>
           <p style={styles.notice}>{say("untranslated", LANGUAGE)}</p>
         </Show>
-        <Markdown source={TRANSLATION ?? DOCUMENT.body} ready={ready()} />
+        <Markdown
+          source={TRANSLATION ?? DOCUMENT.body}
+          layout={HERE === "language.html" ? "tabs" : "beside"}
+          ready={ready()}
+          language={LANGUAGE}
+        />
       </main>
 
       <footer style={styles.footer}>{say("compiledHere", LANGUAGE)}</footer>
