@@ -148,7 +148,9 @@ fi
 # from; a tag anywhere else is a version being cut twice.
 TAG_EXISTS=no
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-    [ "$(git rev-parse "$TAG")" = "$(git rev-parse HEAD)" ] \
+    # ^{commit}: rev-parse on an annotated tag gives the tag object, which is
+    # never a commit hash, so the plain comparison would always fail.
+    [ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] \
         || die "tag $TAG already exists, and not at HEAD"
     TAG_EXISTS=yes
 fi
@@ -259,9 +261,9 @@ if [ "$SKIP_NPM" = no ]; then
         [ "$built" = "$VERSION" ] || die "pkg/ holds $built, not $VERSION"
         # wasm-pack fills the rest in from Cargo.toml, but not this.
         npm pkg set homepage="$HOMEPAGE" --prefix pkg
-        # By path: `wasm-pack publish` run from elsewhere in the tree can find
-        # a different pkg directory.
-        npm publish pkg
+        # ./pkg, not pkg: a bare name is a spec to fetch from the registry,
+        # and there is a package called pkg. Only a path looks like a path.
+        npm publish ./pkg
     fi
 fi
 
