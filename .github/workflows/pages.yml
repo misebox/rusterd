@@ -1,4 +1,4 @@
-name: Deploy demo to GitHub Pages
+name: Deploy the site to GitHub Pages
 
 on:
   push:
@@ -29,18 +29,18 @@ jobs:
         with:
           tool: wasm-pack
 
-      # Writes pkg/, which demo's `load` script copies into demo/pkg/.
+      # Writes pkg/, which the site reads straight out of the repository root.
       - run: wasm-pack build --target web
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install
-        working-directory: demo
+        working-directory: site
       - run: bun run build
-        working-directory: demo
+        working-directory: site
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: demo/dist
+          path: site/dist
 
   deploy:
     needs: build

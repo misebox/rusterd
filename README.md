@@ -2,7 +2,7 @@
 
 ER diagram DSL compiler that renders to SVG. Written in Rust, compiles to WASM for browser use.
 
-Live demo: https://misebox.github.io/rusterd/
+Documentation and demo: https://misebox.github.io/rusterd/
 
 ## Features
 
@@ -174,7 +174,7 @@ bin/build                     # release binary + wasm-pack build
 bin/svg examples/sample.erd   # render one file next to its source
 bin/dev                       # render every example
 bin/docs                      # regenerate the diagrams in this README
-cd demo && bun run dev        # demo app on the local wasm build
+cd site && bun run dev        # docs and demo on the local wasm build
 
 bin/release patch             # show what a patch release would do
 bin/release minor --yes       # bump, commit, tag, publish to crates.io and npm, push

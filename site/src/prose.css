@@ -1,0 +1,115 @@
+@import "./diagram.css";
+
+/* Styling for the rendered markdown, which arrives as plain HTML and so
+   cannot be reached by the inline styles the rest of the site uses. */
+
+.prose {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  line-height: 1.3;
+  margin: 2em 0 0.6em;
+}
+.prose h1 {
+  font-size: 30px;
+  margin-top: 0;
+}
+.prose h2 {
+  font-size: 22px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eee;
+}
+.prose h3 {
+  font-size: 17px;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin: 0.8em 0;
+}
+.prose li {
+  margin: 0.3em 0;
+}
+
+.prose a {
+  color: #06c;
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: #f3f3f3;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.prose pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: #fafafa;
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.prose table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+.prose th,
+.prose td {
+  border: 1px solid #e4e4e4;
+  padding: 6px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  background: #fafafa;
+}
+
+.prose blockquote {
+  margin: 1em 0;
+  padding-left: 14px;
+  border-left: 3px solid #e4e4e4;
+  color: #666;
+}
+
+.prose img {
+  max-width: 100%;
+}
+
+/* An example and the diagram it compiles to, side by side where there is room
+   for both and stacked where there is not. */
+.erd-example {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin: 1.2em 0;
+}
+.erd-drawing {
+  padding: 12px;
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  background: #fff;
+  overflow-x: auto;
+}
+@media (max-width: 860px) {
+  .erd-example {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
