@@ -6,7 +6,7 @@ import erdGrammar from "../../../docs/erd.gbnf?url";
 import sqlGrammar from "../../../docs/sql.gbnf?url";
 import Header from "../Header";
 import Markdown from "../Markdown";
-import { intro, sections } from "../document";
+import { chunks, intro, sections, withoutHeading } from "../document";
 import { inLanguage, language, say } from "../i18n";
 import "../prose.css";
 import { theme } from "../theme";
@@ -62,6 +62,12 @@ const TAGLINE =
     ? "テキストファイルから ER 図を描くコンパイラ。Rust で書かれ、ブラウザ向けに WASM にコンパイルされます。"
     : DOCUMENT.lead;
 
+/// The front page reads its two sections in the order they are written —
+/// features, then the example — and shows them the other way round. What the
+/// compiler does is quicker to see than to read about, so the diagram comes
+/// first and the list of features stands behind it as the detail.
+const [FEATURES, EXAMPLE] = chunks(TRANSLATION ?? DOCUMENT.body);
+
 export default function Docs() {
   const [ready, setReady] = createSignal(false);
 
@@ -75,20 +81,7 @@ export default function Docs() {
       <Header here={HERE} language={LANGUAGE} />
 
       <Show when={HERE === "index.html"}>
-        <div style={styles.lead}>
-          <p style={styles.tagline}>{TAGLINE}</p>
-          <div style={styles.actions}>
-            <a
-              style={{ ...styles.button, ...styles.first }}
-              href={inLanguage("start.html", LANGUAGE)}
-            >
-              {say("getStarted", LANGUAGE)}
-            </a>
-            <a style={styles.button} href={inLanguage("demo.html", LANGUAGE)}>
-              {say("tryIt", LANGUAGE)}
-            </a>
-          </div>
-        </div>
+        <p style={styles.tagline}>{TAGLINE}</p>
       </Show>
 
       <main>
@@ -106,12 +99,36 @@ export default function Docs() {
         <Show when={LANGUAGE !== "en" && !TRANSLATION}>
           <p style={styles.notice}>{say("untranslated", LANGUAGE)}</p>
         </Show>
-        <Markdown
-          source={TRANSLATION ?? DOCUMENT.body}
-          layout={HERE === "language.html" ? "tabs" : "beside"}
-          ready={ready()}
-          language={LANGUAGE}
-        />
+        <Show
+          when={HERE === "index.html" && EXAMPLE}
+          fallback={
+            <Markdown
+              source={TRANSLATION ?? DOCUMENT.body}
+              layout={HERE === "language.html" ? "tabs" : "beside"}
+              ready={ready()}
+              language={LANGUAGE}
+            />
+          }
+        >
+          <Markdown
+            source={withoutHeading(EXAMPLE)}
+            layout="beside"
+            ready={ready()}
+            language={LANGUAGE}
+          />
+          <Markdown source={FEATURES} layout="beside" ready={ready()} language={LANGUAGE} />
+          <div style={styles.actions}>
+            <a
+              style={{ ...styles.button, ...styles.first }}
+              href={inLanguage("start.html", LANGUAGE)}
+            >
+              {say("getStarted", LANGUAGE)}
+            </a>
+            <a style={styles.button} href={inLanguage("demo.html", LANGUAGE)}>
+              {say("tryIt", LANGUAGE)}
+            </a>
+          </div>
+        </Show>
       </main>
 
       <footer style={styles.footer}>{say("compiledHere", LANGUAGE)}</footer>
@@ -127,22 +144,20 @@ const styles = {
     margin: "0 auto",
     padding: "0 20px 80px",
   },
-  lead: {
-    "text-align": "center",
-    margin: "12px 0 44px",
-  },
   tagline: {
     "font-size": "19px",
     "line-height": "1.6",
+    "text-align": "center",
     color: theme.quiet,
     "max-width": "620px",
-    margin: "0 auto 24px",
+    margin: "12px auto 36px",
   },
   actions: {
     display: "flex",
     "justify-content": "center",
     "flex-wrap": "wrap",
     gap: "12px",
+    "margin-top": "40px",
   },
   button: {
     "font-size": "15px",

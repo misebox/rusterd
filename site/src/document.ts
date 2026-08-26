@@ -29,6 +29,20 @@ export function sections(document: string, headings: string[]): string {
     .join("\n\n");
 }
 
+/// A document cut at its `## ` headings, in the order they are written.
+export function chunks(document: string): string[] {
+  return document
+    .split(/\n(?=## )/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
+/// A section with its heading taken off, for a page that shows what it is
+/// rather than saying it — an example under a word reading "Example".
+export function withoutHeading(section: string): string {
+  return section.replace(/^##\s+.*\n/, "").trim();
+}
+
 /// Where `needle` starts, or the end of the haystack when it is not in it.
 function index(haystack: string, needle: string): number {
   const at = haystack.indexOf(needle);
