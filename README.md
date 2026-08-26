@@ -166,21 +166,6 @@ let svg = SvgRenderer::default().render(&ir, &layout);
 `rusterd::sql::parse_sql` plus `rusterd::serializer::serialize` cover the SQL
 to ERD direction.
 
-## Development
-
-```bash
-cargo test                    # includes routing checks over examples/
-bin/build                     # release binary + wasm-pack build
-bin/svg examples/sample.erd   # render one file next to its source
-bin/dev                       # render every example
-bin/docs                      # regenerate the diagrams in this README
-cd site && bun run dev        # docs and demo on the local wasm build
-
-bin/release patch             # show what a patch release would do
-bin/release minor --yes       # bump, commit, tag, publish to crates.io and npm, push
-bin/release current --yes     # release the version already in Cargo.toml
-```
-
 ## Syntax Reference
 
 Full language reference: [docs/DSL-spec.md](docs/DSL-spec.md), written to be
