@@ -1,6 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
 import Header from "../Header";
+import Controls, { PLAIN } from "../Drawing";
 import { language, say } from "../i18n";
 import { theme } from "../theme";
 
@@ -105,23 +106,11 @@ focus checkout {
 const TABS = ["SQL", "ERD", "SVG Code", "SVG Preview"] as const;
 type Tab = (typeof TABS)[number];
 
-const DETAIL_LEVELS = [
-  { value: "all", label: "All columns" },
-  { value: "pk_fk", label: "PK + FK only" },
-  { value: "pk", label: "PK only" },
-  { value: "tables", label: "Tables only" },
-];
-
 const DIALECTS = [
   { value: "auto", label: "Auto-detect" },
   { value: "postgres", label: "PostgreSQL" },
   { value: "mysql", label: "MySQL" },
   { value: "generic", label: "Generic" },
-];
-
-const NOTATIONS = [
-  { value: "crowsfoot", label: "Crow's foot symbols" },
-  { value: "text", label: "Text — 1, 0..1, ✱, 1..✱" },
 ];
 
 export default function Demo() {
@@ -130,10 +119,7 @@ export default function Demo() {
   const [erd, setErd] = createSignal(DEFAULT_ERD);
   const [svg, setSvg] = createSignal("");
   const [dialect, setDialect] = createSignal("auto");
-  const [detail, setDetail] = createSignal("all");
-  const [notation, setNotation] = createSignal("crowsfoot");
-  const [legend, setLegend] = createSignal(false);
-  const [dense, setDense] = createSignal(false);
+  const [drawing, setDrawing] = createSignal(PLAIN);
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
 
@@ -161,12 +147,7 @@ export default function Demo() {
     if (!source.trim()) {
       throw new Error("Nothing to render: the ERD is empty.");
     }
-    return erdToSvg(source, {
-      detail: detail(),
-      notation: notation(),
-      legend: legend(),
-      dense: dense(),
-    });
+    return erdToSvg(source, drawing());
   };
 
   const sqlToErdStep = () =>
@@ -214,68 +195,15 @@ export default function Demo() {
     });
   };
 
-  const detailSelect = () => (
-    <label style={styles.field}>
-      Detail
-      <select
-        style={styles.select}
-        value={detail()}
-        onChange={(e) => {
-          setDetail(e.currentTarget.value);
-          redraw();
-        }}
-      >
-        {DETAIL_LEVELS.map((level) => (
-          <option value={level.value}>{level.label}</option>
-        ))}
-      </select>
-    </label>
-  );
-
-  const denseToggle = () => (
-    <label style={styles.field}>
-      <input
-        type="checkbox"
-        checked={dense()}
-        onChange={(e) => {
-          setDense(e.currentTarget.checked);
-          redraw();
-        }}
-      />
-      Dense
-    </label>
-  );
-
-  const legendToggle = () => (
-    <label style={styles.field}>
-      <input
-        type="checkbox"
-        checked={legend()}
-        onChange={(e) => {
-          setLegend(e.currentTarget.checked);
-          redraw();
-        }}
-      />
-      Legend
-    </label>
-  );
-
-  const notationSelect = () => (
-    <label style={styles.field}>
-      Notation
-      <select
-        style={styles.select}
-        value={notation()}
-        onChange={(e) => {
-          setNotation(e.currentTarget.value);
-          redraw();
-        }}
-      >
-        {NOTATIONS.map((n) => (
-          <option value={n.value}>{n.label}</option>
-        ))}
-      </select>
-    </label>
+  const controls = () => (
+    <Controls
+      drawing={drawing()}
+      change={(next) => {
+        setDrawing(next);
+        redraw();
+      }}
+      language={language()}
+    />
   );
 
   return (
@@ -309,10 +237,7 @@ export default function Demo() {
               ))}
             </select>
           </label>
-          {detailSelect()}
-          {notationSelect()}
-          {denseToggle()}
-          {legendToggle()}
+          {controls()}
           <button style={styles.action} disabled={!ready()} onClick={sqlToErdStep}>
             SQL → ERD
           </button>
@@ -325,10 +250,7 @@ export default function Demo() {
         </Show>
 
         <Show when={tab() === "ERD"}>
-          {detailSelect()}
-          {notationSelect()}
-          {denseToggle()}
-          {legendToggle()}
+          {controls()}
           <button style={styles.action} disabled={!ready()} onClick={erdToSvgStep}>
             ERD → SVG
           </button>
@@ -338,10 +260,7 @@ export default function Demo() {
         </Show>
 
         <Show when={tab() === "SVG Code"}>
-          {detailSelect()}
-          {notationSelect()}
-          {denseToggle()}
-          {legendToggle()}
+          {controls()}
           <span style={styles.hint}>Edits show up in SVG Preview as you type.</span>
           <button style={styles.reset} disabled={!ready()} onClick={resetSvgStep}>
             Reset
@@ -349,10 +268,7 @@ export default function Demo() {
         </Show>
 
         <Show when={tab() === "SVG Preview"}>
-          {detailSelect()}
-          {notationSelect()}
-          {denseToggle()}
-          {legendToggle()}
+          {controls()}
           <span style={styles.hint}>Rendered from the SVG Code tab.</span>
         </Show>
       </div>
@@ -440,21 +356,6 @@ const styles = {
     gap: "12px",
     padding: "12px 0",
     "min-height": "34px",
-  },
-  field: {
-    display: "flex",
-    "align-items": "center",
-    gap: "6px",
-    "font-size": "13px",
-    color: "#666",
-  },
-  select: {
-    "font-family": "system-ui, sans-serif",
-    "font-size": "13px",
-    padding: "4px 8px",
-    border: "1px solid #ccc",
-    "border-radius": "4px",
-    background: "#fff",
   },
   action: {
     "font-family": "system-ui, sans-serif",

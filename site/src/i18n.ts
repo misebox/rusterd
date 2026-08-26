@@ -86,6 +86,9 @@ const WORDS = {
     ja: "examples/ にあるファイルを、この場でコンパイルしたものです。図は同じ入力に対して rusterd render が書き出すものと同じです。",
   },
   source: { en: "Source", ja: "ソース" },
+  actualSize: { en: "Actual size", ja: "実寸" },
+  fit: { en: "Fit", ja: "全体" },
+  openAlone: { en: "Open on its own", ja: "別タブで開く" },
   inYourBrowser: {
     en: "Nothing here is sent anywhere: the compiler is a WebAssembly build of the same Rust the command line runs, and it compiles as you type.",
     ja: "何もサーバには送られません。コマンドラインと同じ Rust を WebAssembly にビルドしたコンパイラが、この場で変換しています。",
