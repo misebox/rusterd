@@ -2,7 +2,7 @@ use rusterd::ir::{DetailLevel, GraphIR};
 use rusterd::layout::LayoutEngine;
 use rusterd::parser::Parser;
 use rusterd::serializer;
-use rusterd::sql::{parse_sql, Dialect};
+use rusterd::sql::{Dialect, parse_sql};
 use rusterd::svg::{Notation, SvgRenderer};
 use std::env;
 use std::fs;
@@ -51,7 +51,10 @@ fn print_usage(program: &str) {
     eprintln!("  render   Render ERD file to SVG");
     eprintln!("  convert  Convert SQL dump to ERD notation");
     eprintln!();
-    eprintln!("Run '{} <subcommand> --help' for more information.", program);
+    eprintln!(
+        "Run '{} <subcommand> --help' for more information.",
+        program
+    );
 }
 
 fn run_render(program: &str, args: &[String]) {
@@ -65,7 +68,9 @@ fn run_render(program: &str, args: &[String]) {
         eprintln!("  -o, --output <file>   Output file (default: stdout)");
         eprintln!("  -f, --focus <name>    Draw only what a focus block lists");
         eprintln!("  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)");
-        eprintln!("  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)");
+        eprintln!(
+            "  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)"
+        );
         eprintln!("  -l, --legend          Draw a key to the cardinality symbols");
         eprintln!("  -D, --dense           Close up the spacing, to fit more on a screen");
         if args.is_empty() {
@@ -164,8 +169,13 @@ fn run_render(program: &str, args: &[String]) {
     }
 
     let ir = GraphIR::from_schema(&schema, focus.as_deref(), detail);
-    let layout = LayoutEngine::default().with_dense_spacing(dense).layout(&ir);
-    let svg = SvgRenderer::default().with_notation(notation).with_legend(legend).render(&ir, &layout);
+    let layout = LayoutEngine::default()
+        .with_dense_spacing(dense)
+        .layout(&ir);
+    let svg = SvgRenderer::default()
+        .with_notation(notation)
+        .with_legend(legend)
+        .render(&ir, &layout);
 
     match output_path {
         Some(path) => {
@@ -194,7 +204,9 @@ fn run_convert(program: &str, args: &[String]) {
         eprintln!();
         eprintln!("Options:");
         eprintln!("  -o, --output <file>      Output file (default: stdout)");
-        eprintln!("  -d, --dialect <dialect>  SQL dialect: auto, generic, postgres, mysql (default: auto)");
+        eprintln!(
+            "  -d, --dialect <dialect>  SQL dialect: auto, generic, postgres, mysql (default: auto)"
+        );
         if args.is_empty() {
             process::exit(1);
         }

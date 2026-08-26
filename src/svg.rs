@@ -461,8 +461,7 @@ impl SvgRenderer {
             if let Some(label) = &edge.label {
                 let mid_y = (y1 + y2) / 2.0;
                 // Keep the whole label right of the loop, off the entity box.
-                let label_x =
-                    loop_x + monospace_width(label, EDGE_LABEL_FONT_SIZE) / 2.0 + margin;
+                let label_x = loop_x + monospace_width(label, EDGE_LABEL_FONT_SIZE) / 2.0 + margin;
                 let room = (y2 - y1).abs() / 2.0 - EDGE_LABEL_FONT_SIZE;
                 plans.push(plan_edge_label(label_x, mid_y, label, index, DOWN, room));
             }
@@ -478,9 +477,15 @@ impl SvgRenderer {
             // Position cardinality so edge passes through center of background:
             // along the stub, with the other coordinate left on the edge.
             let (from_pos, from_dir) = if dy1.abs() > dx1.abs() {
-                ((x1, y1 + dy1.signum() * (margin + half_font)), (0.0, dy1.signum()))
+                (
+                    (x1, y1 + dy1.signum() * (margin + half_font)),
+                    (0.0, dy1.signum()),
+                )
             } else {
-                ((x1 + dx1.signum() * (margin + half_font), y1), (dx1.signum(), 0.0))
+                (
+                    (x1 + dx1.signum() * (margin + half_font), y1),
+                    (dx1.signum(), 0.0),
+                )
             };
             let from_room = dx1.abs().max(dy1.abs()) - (margin + half_font) - half_font;
             plans.push(plan_cardinality(
@@ -498,18 +503,19 @@ impl SvgRenderer {
             let (dx2, dy2) = (x2 - pn1x, y2 - pn1y);
 
             let (to_pos, to_dir) = if dy2.abs() > dx2.abs() {
-                ((x2, y2 - dy2.signum() * (margin + half_font)), (0.0, -dy2.signum()))
+                (
+                    (x2, y2 - dy2.signum() * (margin + half_font)),
+                    (0.0, -dy2.signum()),
+                )
             } else {
-                ((x2 - dx2.signum() * (margin + half_font), y2), (-dx2.signum(), 0.0))
+                (
+                    (x2 - dx2.signum() * (margin + half_font), y2),
+                    (-dx2.signum(), 0.0),
+                )
             };
             let to_room = dx2.abs().max(dy2.abs()) - (margin + half_font) - half_font;
             plans.push(plan_cardinality(
-                to_pos.0,
-                to_pos.1,
-                to_symbol,
-                index,
-                to_dir,
-                to_room,
+                to_pos.0, to_pos.1, to_symbol, index, to_dir, to_room,
             ));
         }
 
@@ -712,7 +718,6 @@ fn monospace_width(text: &str, font_size: f64) -> f64 {
     UnicodeWidthStr::width(text) as f64 * font_size * 0.6
 }
 
-
 /// Font size of relationship labels, matching the `.edge-label` class.
 const EDGE_LABEL_FONT_SIZE: f64 = 14.0;
 
@@ -879,7 +884,11 @@ fn candidate_offsets(slide: Slide) -> Vec<(f64, f64)> {
     }
 
     let cost = |(a, s): &(f64, f64)| a.abs() + s.abs() * SIDE_COST;
-    offsets.sort_by(|a, b| cost(a).partial_cmp(&cost(b)).unwrap_or(std::cmp::Ordering::Equal));
+    offsets.sort_by(|a, b| {
+        cost(a)
+            .partial_cmp(&cost(b))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     offsets
 }
 
@@ -888,7 +897,10 @@ fn is_clear(plans: &[LabelPlan], i: usize, layout: &Layout) -> bool {
     let plan = &plans[i];
     let (l, t, r, b) = plan.bounds(LABEL_GAP);
 
-    if plans[..i].iter().any(|other| plan.overlaps(other, LABEL_GAP)) {
+    if plans[..i]
+        .iter()
+        .any(|other| plan.overlaps(other, LABEL_GAP))
+    {
         return false;
     }
 
@@ -907,8 +919,14 @@ fn is_clear(plans: &[LabelPlan], i: usize, layout: &Layout) -> bool {
         .flat_map(|edge| edge.waypoints.windows(2))
         .any(|seg| {
             let stroke = 1.0;
-            let (sl, sr) = (seg[0].0.min(seg[1].0) - stroke, seg[0].0.max(seg[1].0) + stroke);
-            let (st, sb) = (seg[0].1.min(seg[1].1) - stroke, seg[0].1.max(seg[1].1) + stroke);
+            let (sl, sr) = (
+                seg[0].0.min(seg[1].0) - stroke,
+                seg[0].0.max(seg[1].0) + stroke,
+            );
+            let (st, sb) = (
+                seg[0].1.min(seg[1].1) - stroke,
+                seg[0].1.max(seg[1].1) + stroke,
+            );
             l < sr && r > sl && t < sb && b > st
         })
 }
@@ -1037,9 +1055,18 @@ mod tests {
                 .with_legend(true),
         );
 
-        assert!(feet.contains(r#"class="edge-symbol-zero""#), "no zero circle");
-        assert!(!feet.contains(">0..1<"), "text cardinality in a crow's foot key");
+        assert!(
+            feet.contains(r#"class="edge-symbol-zero""#),
+            "no zero circle"
+        );
+        assert!(
+            !feet.contains(">0..1<"),
+            "text cardinality in a crow's foot key"
+        );
         assert!(text.contains(">0..1<"), "no text cardinality in a text key");
-        assert!(!text.contains(r#"class="edge-symbol""#), "a foot in a text key");
+        assert!(
+            !text.contains(r#"class="edge-symbol""#),
+            "a foot in a text key"
+        );
     }
 }

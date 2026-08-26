@@ -4,7 +4,7 @@ use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
 use super::analysis::edge_sides;
-use super::anchors::{anchor_x, Anchors};
+use super::anchors::{Anchors, anchor_x};
 use super::corridor::find_safe_corridors;
 use super::descent::{Descent, Descents};
 use super::routing::{
@@ -294,26 +294,27 @@ fn route_multi_level<'a>(
 
     let corridor_x = match descents.get(&idx) {
         Some(&Descent::Detour(x)) => x,
-        _ => multi_level_corridor_x.get(&idx).map(|c| c.x).unwrap_or_else(|| {
-        let safe_corridors = find_safe_corridors(
-            &node_placement.layout_nodes,
-            levels,
-            min_level,
-            max_level,
-            entity_margin,
-        );
-            safe_corridors
-                .first()
-                .map(|(l, r)| (l + r) / 2.0)
-                .unwrap_or(100.0)
-        }),
+        _ => multi_level_corridor_x
+            .get(&idx)
+            .map(|c| c.x)
+            .unwrap_or_else(|| {
+                let safe_corridors = find_safe_corridors(
+                    &node_placement.layout_nodes,
+                    levels,
+                    min_level,
+                    max_level,
+                    entity_margin,
+                );
+                safe_corridors
+                    .first()
+                    .map(|(l, r)| (l + r) / 2.0)
+                    .unwrap_or(100.0)
+            }),
     };
 
     let get_channel_lane_offset = |ch_level: i64| -> f64 {
         let ch_total = *channel_edge_count.get(&ch_level).unwrap_or(&1);
-        let ch_lane = *channel_lane_assignments
-            .get(&(ch_level, idx))
-            .unwrap_or(&0);
+        let ch_lane = *channel_lane_assignments.get(&(ch_level, idx)).unwrap_or(&0);
         calculate_lane_offset(ch_lane, ch_total, lane_spacing)
     };
 

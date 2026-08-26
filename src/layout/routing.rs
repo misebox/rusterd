@@ -44,10 +44,7 @@ pub fn route_self_ref(node: &LayoutNode, loop_index: usize, lane_spacing: f64) -
 }
 
 /// Generate waypoints for adjacent same-level edges (via sides).
-pub fn route_same_level_adjacent(
-    from_node: &LayoutNode,
-    to_node: &LayoutNode,
-) -> Vec<(f64, f64)> {
+pub fn route_same_level_adjacent(from_node: &LayoutNode, to_node: &LayoutNode) -> Vec<(f64, f64)> {
     let (left_node, right_node) = if from_node.x < to_node.x {
         (from_node, to_node)
     } else {
@@ -90,10 +87,7 @@ pub fn route_adjacent_level_direct(
             (to_cx, to_node.y),
         ]
     } else {
-        vec![
-            (from_cx, from_node.y),
-            (to_cx, to_node.y + to_node.height),
-        ]
+        vec![(from_cx, from_node.y), (to_cx, to_node.y + to_node.height)]
     }
 }
 

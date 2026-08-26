@@ -95,7 +95,14 @@ pub fn straighten_edges<'a>(
             let Some(jog) = find_jog(&edge.waypoints, jog_tolerance) else {
                 break;
             };
-            if !absorb_jog(&mut edge.waypoints, jog, from, to, &mut anchors, min_anchor_gap) {
+            if !absorb_jog(
+                &mut edge.waypoints,
+                jog,
+                from,
+                to,
+                &mut anchors,
+                min_anchor_gap,
+            ) {
                 break;
             }
             simplify(&mut edge.waypoints);
@@ -286,7 +293,12 @@ mod tests {
         let mut edges = vec![edge(
             "A",
             "B",
-            vec![(100.0, 124.0), (100.0, 169.0), (108.0, 169.0), (108.0, 214.0)],
+            vec![
+                (100.0, 124.0),
+                (100.0, 169.0),
+                (108.0, 169.0),
+                (108.0, 214.0),
+            ],
         )];
 
         straighten(&nodes, &mut edges);
@@ -318,12 +330,22 @@ mod tests {
             edge(
                 "A",
                 "B",
-                vec![(120.0, 124.0), (120.0, 169.0), (130.0, 169.0), (130.0, 214.0)],
+                vec![
+                    (120.0, 124.0),
+                    (120.0, 169.0),
+                    (130.0, 169.0),
+                    (130.0, 214.0),
+                ],
             ),
             edge(
                 "A",
                 "B",
-                vec![(140.0, 124.0), (140.0, 169.0), (150.0, 169.0), (150.0, 214.0)],
+                vec![
+                    (140.0, 124.0),
+                    (140.0, 169.0),
+                    (150.0, 169.0),
+                    (150.0, 214.0),
+                ],
             ),
         ];
 

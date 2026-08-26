@@ -189,7 +189,9 @@ fn cost(node: &Node, costs: &HashMap<String, usize>) -> Option<usize> {
     match node {
         Node::Literal(_) | Node::Class { .. } => Some(1),
         Node::Rule(name) => costs.get(name).copied(),
-        Node::Seq(items) => items.iter().try_fold(0, |sum, item| Some(sum + cost(item, costs)?)),
+        Node::Seq(items) => items
+            .iter()
+            .try_fold(0, |sum, item| Some(sum + cost(item, costs)?)),
         Node::Alt(choices) => choices.iter().filter_map(|c| cost(c, costs)).min(),
         Node::Repeat { node, min, .. } => {
             if *min == 0 {
@@ -235,7 +237,10 @@ enum Token {
     Name(String),
     Define,
     Literal(String),
-    Class { negated: bool, ranges: Vec<(char, char)> },
+    Class {
+        negated: bool,
+        ranges: Vec<(char, char)>,
+    },
     Open,
     Close,
     Pipe,

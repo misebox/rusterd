@@ -7,23 +7,23 @@ pub enum Token {
     Str(String),
     Num(i64),
 
-    LBrace,   // {
-    RBrace,   // }
-    LParen,   // (
-    RParen,   // )
-    LBracket, // [
-    RBracket, // ]
+    LBrace,    // {
+    RBrace,    // }
+    LParen,    // (
+    RParen,    // )
+    LBracket,  // [
+    RBracket,  // ]
     Comma,     // ,
     Semicolon, // ;
     Colon,     // :
     Eq,        // =
-    At,       // @
-    Star,     // *
-    Dot,      // .
-    Arrow,    // ->
-    Dash,     // --
-    DotDot,   // ..
-    Newline,  // \n (preserved in certain contexts)
+    At,        // @
+    Star,      // *
+    Dot,       // .
+    Arrow,     // ->
+    Dash,      // --
+    DotDot,    // ..
+    Newline,   // \n (preserved in certain contexts)
 
     Eof,
 }
@@ -211,7 +211,9 @@ mod tests {
 
     #[test]
     fn test_unicode_ident() {
-        let tokens = Lexer::new("entity ユーザー { 名前 string }").tokenize().unwrap();
+        let tokens = Lexer::new("entity ユーザー { 名前 string }")
+            .tokenize()
+            .unwrap();
         assert_eq!(tokens[1], Token::Ident("ユーザー".into()));
         assert_eq!(tokens[3], Token::Ident("名前".into()));
     }

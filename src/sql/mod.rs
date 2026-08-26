@@ -6,4 +6,4 @@ mod parser;
 mod types;
 
 pub use dialect::Dialect;
-pub use parser::{parse_sql, SqlParseError};
+pub use parser::{SqlParseError, parse_sql};

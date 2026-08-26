@@ -270,8 +270,5 @@ const HALFWAY: f64 = 0.5;
 
 /// Build node position lookup from layout nodes.
 pub fn build_node_positions(layout_nodes: &[LayoutNode]) -> HashMap<&str, &LayoutNode> {
-    layout_nodes
-        .iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect()
+    layout_nodes.iter().map(|n| (n.id.as_str(), n)).collect()
 }

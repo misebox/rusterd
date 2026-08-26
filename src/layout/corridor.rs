@@ -14,10 +14,8 @@ pub fn find_safe_corridors(
     max_level: i64,
     entity_margin: f64,
 ) -> Vec<(f64, f64)> {
-    let node_positions: HashMap<&str, &LayoutNode> = layout_nodes
-        .iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
+    let node_positions: HashMap<&str, &LayoutNode> =
+        layout_nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
     // Collect all entity boundaries across intermediate levels
     let mut all_boundaries: Vec<(f64, f64)> = Vec::new();
@@ -88,15 +86,15 @@ pub fn clear_at(
     let Some(nodes) = levels.get(&level) else {
         return true;
     };
-    let occupied: HashMap<&str, &LayoutNode> = layout_nodes
-        .iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
+    let occupied: HashMap<&str, &LayoutNode> =
+        layout_nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
-    nodes.iter().all(|node| match occupied.get(node.id.as_str()) {
-        Some(n) => x < n.x - entity_margin || x > n.x + n.width + entity_margin,
-        None => true,
-    })
+    nodes
+        .iter()
+        .all(|node| match occupied.get(node.id.as_str()) {
+            Some(n) => x < n.x - entity_margin || x > n.x + n.width + entity_margin,
+            None => true,
+        })
 }
 
 /// Pick the corridor that comes closest to `wanted`, and the point in it that

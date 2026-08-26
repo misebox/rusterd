@@ -295,7 +295,11 @@ mod tests {
             .filter(|(_, n)| **n == 2 || **n == 4)
             .map(|(i, _)| i)
             .collect();
-        assert_eq!(of_first, vec![0, 1], "children of one hub should sit together");
+        assert_eq!(
+            of_first,
+            vec![0, 1],
+            "children of one hub should sit together"
+        );
     }
 
     #[test]

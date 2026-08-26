@@ -86,10 +86,10 @@ pub struct Relationship {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Cardinality {
-    One,        // 1
-    ZeroOrOne,  // 0..1
-    Many,       // *
-    OneOrMore,  // 1..*
+    One,       // 1
+    ZeroOrOne, // 0..1
+    Many,      // *
+    OneOrMore, // 1..*
 }
 
 #[derive(Debug, Clone, PartialEq)]

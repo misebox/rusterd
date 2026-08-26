@@ -179,7 +179,6 @@ impl Parser {
         Ok(names)
     }
 
-
     fn parse_entity(&mut self) -> Result<Entity, ParseError> {
         self.skip_newlines();
         let name = self.expect_ident()?;
@@ -353,10 +352,7 @@ impl Parser {
         self.expect(Token::RParen)?;
 
         if !self.check_ident("references") {
-            return Err(ParseError::Unexpected(
-                self.peek().clone(),
-                "references",
-            ));
+            return Err(ParseError::Unexpected(self.peek().clone(), "references"));
         }
         self.advance();
 
@@ -491,7 +487,10 @@ impl Parser {
                     Ok(Cardinality::One)
                 }
             }
-            tok => Err(ParseError::Unexpected(tok, "cardinality (1, 0..1, *, 1..*)")),
+            tok => Err(ParseError::Unexpected(
+                tok,
+                "cardinality (1, 0..1, *, 1..*)",
+            )),
         }
     }
 

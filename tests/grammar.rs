@@ -8,7 +8,7 @@ use rusterd::ir::{DetailLevel, GraphIR};
 use rusterd::layout::LayoutEngine;
 use rusterd::parser::Parser;
 use rusterd::serializer;
-use rusterd::sql::{parse_sql, Dialect};
+use rusterd::sql::{Dialect, parse_sql};
 use rusterd::svg::SvgRenderer;
 use std::collections::HashMap;
 use std::fs;
@@ -22,7 +22,9 @@ use gbnf::Grammar;
 const SAMPLES: u64 = 300;
 
 fn grammar(name: &str) -> Grammar {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs").join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("docs")
+        .join(name);
     let source = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
     Grammar::parse(&source).unwrap_or_else(|e| panic!("{name}: {e}"))
 }

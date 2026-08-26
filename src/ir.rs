@@ -57,7 +57,6 @@ pub struct Edge {
 
 impl GraphIR {
     pub fn from_schema(schema: &Schema, focus: Option<&str>, detail: DetailLevel) -> Self {
-
         let included_entities: Vec<&str> = match focus.and_then(|name| schema.find_focus(name)) {
             Some(focus) => focus.includes.iter().map(|s| s.as_str()).collect(),
             None => schema.entities.iter().map(|e| e.name.as_str()).collect(),
@@ -94,7 +93,10 @@ impl GraphIR {
                     .filter_map(|c| {
                         let is_pk = c.modifiers.iter().any(|m| matches!(m, ColumnModifier::Pk))
                             || composite_pk.contains(&c.name.as_str());
-                        let is_fk = c.modifiers.iter().any(|m| matches!(m, ColumnModifier::Fk { .. }));
+                        let is_fk = c
+                            .modifiers
+                            .iter()
+                            .any(|m| matches!(m, ColumnModifier::Fk { .. }));
 
                         let include = match detail {
                             DetailLevel::Tables => false,
@@ -234,8 +236,6 @@ mod tests {
 
         assert_eq!(ir.nodes.len(), 2);
     }
-
-
 
     #[test]
     fn leaves_out_what_the_source_asked_to_omit() {
