@@ -32,7 +32,9 @@ fn map_postgres_type(base: &str) -> String {
         "text" => "text".to_string(),
 
         // Date/time
-        "timestamp" | "timestamptz" | "timestamp with time zone"
+        "timestamp"
+        | "timestamptz"
+        | "timestamp with time zone"
         | "timestamp without time zone" => "timestamp".to_string(),
         "date" => "date".to_string(),
         "time" | "timetz" => "time".to_string(),

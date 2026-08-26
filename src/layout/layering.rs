@@ -75,9 +75,15 @@ fn directed_arcs(ir: &GraphIR, index: &HashMap<&str, usize>) -> Vec<Arc> {
             let to = *index.get(edge.to.as_str())?;
             let parent_leads = single(edge.from_cardinality) || !single(edge.to_cardinality);
             Some(if parent_leads {
-                Arc { tail: from, head: to }
+                Arc {
+                    tail: from,
+                    head: to,
+                }
             } else {
-                Arc { tail: to, head: from }
+                Arc {
+                    tail: to,
+                    head: from,
+                }
             })
         })
         .collect();
@@ -284,7 +290,11 @@ fn tight_tree(group: &[usize], arcs: &[Arc], ranks: &mut [i64]) -> HashSet<usize
         else {
             return tree;
         };
-        let shift = if reached.contains(&arc.head) { -shift } else { shift };
+        let shift = if reached.contains(&arc.head) {
+            -shift
+        } else {
+            shift
+        };
         for &node in &reached {
             ranks[node] += shift;
         }
@@ -301,13 +311,13 @@ fn worst_tree_arc(arcs: &[Arc], tree: &HashSet<usize>) -> Option<(usize, HashSet
         let tail_side = side_of(arcs, tree, cut);
         let value: i64 = arcs
             .iter()
-            .map(|arc| {
-                match (tail_side.contains(&arc.tail), tail_side.contains(&arc.head)) {
+            .map(
+                |arc| match (tail_side.contains(&arc.tail), tail_side.contains(&arc.head)) {
                     (true, false) => 1,
                     (false, true) => -1,
                     _ => 0,
-                }
-            })
+                },
+            )
             .sum();
         if value < 0 {
             return Some((cut, tail_side));
@@ -369,7 +379,7 @@ fn rerank(group: &[usize], arcs: &[Arc], tree: &HashSet<usize>, ranks: &mut [i64
 
 #[cfg(test)]
 mod tests {
-    use super::{rank, Arc};
+    use super::{Arc, rank};
 
     #[test]
     fn puts_a_child_below_its_parent() {

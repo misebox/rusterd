@@ -159,11 +159,7 @@ impl Layout {
     fn spread(&self, near: &[Vec<String>]) -> usize {
         let mut total = 0.0;
         for set in near {
-            let placed = || {
-                self.nodes
-                    .iter()
-                    .filter(|node| set.contains(&node.id))
-            };
+            let placed = || self.nodes.iter().filter(|node| set.contains(&node.id));
             let left = placed().map(|n| n.x).fold(f64::INFINITY, f64::min);
             let right = placed()
                 .map(|n| n.x + n.width)
@@ -197,13 +193,11 @@ fn runs_alongside(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> b
         a1.max(a2).min(b1.max(b2)) - a1.min(a2).max(b1.min(b2))
     };
 
-    if a.0 .0 == a.1 .0 && b.0 .0 == b.1 .0 {
-        return (a.0 .0 - b.0 .0).abs() < APART
-            && overlap((a.0 .1, a.1 .1), (b.0 .1, b.1 .1)) > SHARED;
+    if a.0.0 == a.1.0 && b.0.0 == b.1.0 {
+        return (a.0.0 - b.0.0).abs() < APART && overlap((a.0.1, a.1.1), (b.0.1, b.1.1)) > SHARED;
     }
-    if a.0 .1 == a.1 .1 && b.0 .1 == b.1 .1 {
-        return (a.0 .1 - b.0 .1).abs() < APART
-            && overlap((a.0 .0, a.1 .0), (b.0 .0, b.1 .0)) > SHARED;
+    if a.0.1 == a.1.1 && b.0.1 == b.1.1 {
+        return (a.0.1 - b.0.1).abs() < APART && overlap((a.0.0, a.1.0), (b.0.0, b.1.0)) > SHARED;
     }
     false
 }
@@ -215,10 +209,10 @@ fn crosses(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> bool {
         return false;
     }
     let (v, h) = if vertical(a) { (a, b) } else { (b, a) };
-    let x = v.0 .0;
-    let y = h.0 .1;
-    let (top, bottom) = (v.0 .1.min(v.1 .1), v.0 .1.max(v.1 .1));
-    let (left, right) = (h.0 .0.min(h.1 .0), h.0 .0.max(h.1 .0));
+    let x = v.0.0;
+    let y = h.0.1;
+    let (top, bottom) = (v.0.1.min(v.1.1), v.0.1.max(v.1.1));
+    let (left, right) = (h.0.0.min(h.1.0), h.0.0.max(h.1.0));
     top < y && y < bottom && left < x && x < right
 }
 
@@ -245,7 +239,11 @@ impl Corridor {
     /// allows. Used when it cannot reach `x` at all: a step of a few pixels
     /// reads as a mistake, where a clear one reads as a turn.
     pub fn stand_clear_of(&mut self, x: f64, distance: f64) {
-        let away = if self.x >= x { x + distance } else { x - distance };
+        let away = if self.x >= x {
+            x + distance
+        } else {
+            x - distance
+        };
         self.x = away.clamp(self.left, self.right);
     }
 }
@@ -269,4 +267,3 @@ pub struct NodePlacement {
     pub max_width: f64,
     pub total_height: f64,
 }
-

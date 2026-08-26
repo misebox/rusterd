@@ -22,7 +22,11 @@ fn examples() -> Vec<(String, Layout)> {
     paths
         .into_iter()
         .map(|path| {
-            let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
             let input = fs::read_to_string(&path).expect(&name);
             let schema = Parser::new(&input)
                 .expect(&name)

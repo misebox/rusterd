@@ -4,7 +4,7 @@ use crate::ir::{GraphIR, Node};
 use std::collections::HashMap;
 
 use super::analysis::edge_sides;
-use super::anchors::{anchor_x, Anchors};
+use super::anchors::{Anchors, anchor_x};
 use super::descent::{Descent, Descents};
 
 use super::corridor::{find_safe_corridors, nearest_corridor};
@@ -55,7 +55,10 @@ pub fn assign_channel_lanes<'a>(
             // An edge steps sideways in one channel and runs straight through
             // the rest, so in those it arrives and leaves at the same x.
             let run = if from_level == to_level {
-                Run { entry: leaving, exit: landing }
+                Run {
+                    entry: leaving,
+                    exit: landing,
+                }
             } else if let Some(&Descent::Step(step)) = descents.get(&idx) {
                 let (above, below) = if to_level > from_level {
                     (leaving, landing)
@@ -177,7 +180,11 @@ impl Run {
     fn lane_order(&self) -> (u8, ordered_float::Key) {
         let travelling_left = self.exit <= self.entry;
         let group = if travelling_left { 0 } else { 1 };
-        let reach = if travelling_left { self.exit } else { -self.exit };
+        let reach = if travelling_left {
+            self.exit
+        } else {
+            -self.exit
+        };
         (group, ordered_float::Key(reach))
     }
 }

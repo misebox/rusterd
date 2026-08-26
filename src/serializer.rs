@@ -1,8 +1,6 @@
 //! Serializer for converting AST to ERD notation string.
 
-use crate::ast::{
-    Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema,
-};
+use crate::ast::{Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema};
 
 /// Serialize a Schema to ERD notation string.
 pub fn serialize(schema: &Schema) -> String {
@@ -36,7 +34,9 @@ fn serialize_entity(output: &mut String, entity: &Entity) {
         .constraints
         .iter()
         .filter_map(|c| match c {
-            Constraint::PrimaryKey(cols) if cols.len() > 1 => Some(cols.iter().map(|s| s.as_str()).collect::<Vec<_>>()),
+            Constraint::PrimaryKey(cols) if cols.len() > 1 => {
+                Some(cols.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+            }
             _ => None,
         })
         .flatten()
@@ -61,9 +61,18 @@ fn serialize_column(output: &mut String, column: &Column, composite_pk_columns: 
     let is_composite_pk_member = composite_pk_columns.contains(&column.name.as_str());
 
     // Serialize modifiers in order: pk, unique, not null, fk, default
-    let has_pk = column.modifiers.iter().any(|m| matches!(m, ColumnModifier::Pk));
-    let has_unique = column.modifiers.iter().any(|m| matches!(m, ColumnModifier::Unique));
-    let has_not_null = column.modifiers.iter().any(|m| matches!(m, ColumnModifier::NotNull));
+    let has_pk = column
+        .modifiers
+        .iter()
+        .any(|m| matches!(m, ColumnModifier::Pk));
+    let has_unique = column
+        .modifiers
+        .iter()
+        .any(|m| matches!(m, ColumnModifier::Unique));
+    let has_not_null = column
+        .modifiers
+        .iter()
+        .any(|m| matches!(m, ColumnModifier::NotNull));
 
     if has_pk && !is_composite_pk_member {
         output.push_str(" pk");
@@ -77,7 +86,11 @@ fn serialize_column(output: &mut String, column: &Column, composite_pk_columns: 
 
     // FK modifier
     for modifier in &column.modifiers {
-        if let ColumnModifier::Fk { target, column: col } = modifier {
+        if let ColumnModifier::Fk {
+            target,
+            column: col,
+        } = modifier
+        {
             output.push_str(&format!(" fk -> {}.{}", target, col));
         }
     }

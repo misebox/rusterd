@@ -78,7 +78,9 @@ pub fn count_edges_per_node<'a>(
         let to_level = *node_level.get(edge.to.as_str()).unwrap_or(&0);
         let (from_side, to_side) = edge_sides(from_level, to_level);
 
-        *edge_count.entry((edge.from.as_str(), from_side)).or_insert(0) += 1;
+        *edge_count
+            .entry((edge.from.as_str(), from_side))
+            .or_insert(0) += 1;
         *edge_count.entry((edge.to.as_str(), to_side)).or_insert(0) += 1;
     }
 
@@ -116,10 +118,8 @@ pub fn analyze_channel_edges(
         }
     }
 
-    let channel_edge_count: HashMap<i64, usize> = channel_edges
-        .iter()
-        .map(|(&k, v)| (k, v.len()))
-        .collect();
+    let channel_edge_count: HashMap<i64, usize> =
+        channel_edges.iter().map(|(&k, v)| (k, v.len())).collect();
 
     (channel_edges, channel_edge_count)
 }
@@ -208,4 +208,3 @@ pub fn analyze_corridors(
 
     CorridorAnalysis { gap_extra_width }
 }
-

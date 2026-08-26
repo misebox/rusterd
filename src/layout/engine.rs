@@ -1,8 +1,8 @@
 //! Layout engine core implementation.
 
 use crate::ir::{GraphIR, Node};
-use std::collections::HashMap;
 use crate::measure::TextMetrics;
+use std::collections::HashMap;
 
 use super::align::align_levels;
 use super::analysis::{
@@ -11,10 +11,10 @@ use super::analysis::{
 };
 use super::anchors::calculate_edge_anchors;
 use super::descent::plan_descents;
-use super::layering::assign_levels;
 use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
+use super::layering::assign_levels;
 use super::placement::{
     build_node_positions, calculate_node_sizes, group_nodes_by_level, place_columns, place_rows,
     reorder_levels, stand_low,
@@ -131,17 +131,12 @@ impl LayoutEngine {
         let node_order = build_node_order(levels);
 
         // Phase 3: Corridor analysis
-        let corridor_analysis =
-            analyze_corridors(ir, &node_level, &node_order, self.lane_spacing);
+        let corridor_analysis = analyze_corridors(ir, &node_level, &node_order, self.lane_spacing);
 
         // Phase 4: Node sizing and columns. Nothing between here and the rows
         // depends on how far down the page anything is.
-        let node_sizes = calculate_node_sizes(
-            ir,
-            &edge_count_per_node,
-            &self.metrics,
-            self.anchor_spacing,
-        );
+        let node_sizes =
+            calculate_node_sizes(ir, &edge_count_per_node, &self.metrics, self.anchor_spacing);
 
         let self_ref_reserve = calculate_self_ref_reserve(ir, &self.metrics, self.lane_spacing);
 

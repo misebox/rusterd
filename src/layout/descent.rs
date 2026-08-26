@@ -10,7 +10,7 @@ use crate::ir::GraphIR;
 use std::collections::HashMap;
 
 use super::analysis::edge_sides;
-use super::anchors::{anchor_x, Anchors};
+use super::anchors::{Anchors, anchor_x};
 use super::corridor::{clear_at, find_safe_corridors};
 use super::types::LayoutNode;
 use crate::ir::Node;
@@ -205,16 +205,28 @@ pub fn plan_descents<'a>(
                 // the channels either side of the step, for the edges decided
                 // after it.
                 for channel in top_level..chosen {
-                    standing.push(Standing { channel, x: top_x, cost: weight });
+                    standing.push(Standing {
+                        channel,
+                        x: top_x,
+                        cost: weight,
+                    });
                 }
                 for channel in (chosen + 1)..bottom_level {
-                    standing.push(Standing { channel, x: bottom_x, cost: weight });
+                    standing.push(Standing {
+                        channel,
+                        x: bottom_x,
+                        cost: weight,
+                    });
                 }
                 descents.insert(idx, Descent::Step(chosen));
             }
             (true, _, Some((_, x))) => {
                 for channel in top_level..bottom_level {
-                    standing.push(Standing { channel, x, cost: weight });
+                    standing.push(Standing {
+                        channel,
+                        x,
+                        cost: weight,
+                    });
                 }
                 descents.insert(idx, Descent::Detour(x));
             }

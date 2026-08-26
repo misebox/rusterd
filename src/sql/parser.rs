@@ -3,9 +3,7 @@
 use super::dialect::Dialect;
 use super::lexer::{Lexer, Token};
 use super::types::map_type;
-use crate::ast::{
-    Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema,
-};
+use crate::ast::{Cardinality, Column, ColumnModifier, Constraint, Entity, Relationship, Schema};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -236,7 +234,11 @@ impl Parser {
         // Apply PK modifier to columns
         for col in &mut columns {
             if pk_columns.contains(&col.name) {
-                if !col.modifiers.iter().any(|m| matches!(m, ColumnModifier::Pk)) {
+                if !col
+                    .modifiers
+                    .iter()
+                    .any(|m| matches!(m, ColumnModifier::Pk))
+                {
                     col.modifiers.insert(0, ColumnModifier::Pk);
                 }
             }
@@ -343,7 +345,10 @@ impl Parser {
                     // Inline FK reference
                     self.advance();
                     let (target, col) = self.parse_reference()?;
-                    modifiers.push(ColumnModifier::Fk { target, column: col });
+                    modifiers.push(ColumnModifier::Fk {
+                        target,
+                        column: col,
+                    });
                     // Skip ON DELETE/UPDATE
                     self.skip_on_actions();
                 }
@@ -692,9 +697,9 @@ impl Parser {
                     if let ColumnModifier::Fk { target, .. } = modifier {
                         if entity_names.contains(&target.as_str()) {
                             // Avoid duplicates
-                            let exists = relationships.iter().any(|r| {
-                                r.left == *target && r.right == entity.name
-                            });
+                            let exists = relationships
+                                .iter()
+                                .any(|r| r.left == *target && r.right == entity.name);
                             if !exists {
                                 relationships.push(Relationship {
                                     left: target.clone(),
@@ -820,20 +825,26 @@ mod tests {
         assert_eq!(user.columns.len(), 2);
 
         assert_eq!(user.columns[0].name, "id");
-        assert!(user.columns[0]
-            .modifiers
-            .iter()
-            .any(|m| matches!(m, ColumnModifier::Pk)));
+        assert!(
+            user.columns[0]
+                .modifiers
+                .iter()
+                .any(|m| matches!(m, ColumnModifier::Pk))
+        );
 
         assert_eq!(user.columns[1].name, "email");
-        assert!(user.columns[1]
-            .modifiers
-            .iter()
-            .any(|m| matches!(m, ColumnModifier::NotNull)));
-        assert!(user.columns[1]
-            .modifiers
-            .iter()
-            .any(|m| matches!(m, ColumnModifier::Unique)));
+        assert!(
+            user.columns[1]
+                .modifiers
+                .iter()
+                .any(|m| matches!(m, ColumnModifier::NotNull))
+        );
+        assert!(
+            user.columns[1]
+                .modifiers
+                .iter()
+                .any(|m| matches!(m, ColumnModifier::Unique))
+        );
     }
 
     #[test]
@@ -883,9 +894,11 @@ mod tests {
         let user = &schema.entities[0];
 
         assert_eq!(user.columns[0].name, "id");
-        assert!(user.columns[0]
-            .modifiers
-            .iter()
-            .any(|m| matches!(m, ColumnModifier::Pk)));
+        assert!(
+            user.columns[0]
+                .modifiers
+                .iter()
+                .any(|m| matches!(m, ColumnModifier::Pk))
+        );
     }
 }

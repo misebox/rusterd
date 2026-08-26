@@ -37,9 +37,7 @@ impl Dialect {
         {
             return Self::PostgreSQL;
         }
-        if lower.contains("mysql dump")
-            || lower.contains("mysqldump")
-            || lower.contains("-- mysql")
+        if lower.contains("mysql dump") || lower.contains("mysqldump") || lower.contains("-- mysql")
         {
             return Self::MySQL;
         }

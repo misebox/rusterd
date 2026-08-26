@@ -32,9 +32,9 @@ pub enum Token {
     Index,
     If,
     Exists,
-    Auto,       // For AUTO_INCREMENT
+    Auto, // For AUTO_INCREMENT
     Increment,
-    Serial,     // PostgreSQL
+    Serial, // PostgreSQL
     Check,
 
     // Identifiers and literals
@@ -63,7 +63,10 @@ impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         let mut chars = input.chars().peekable();
         let current_char = chars.next();
-        Self { chars, current_char }
+        Self {
+            chars,
+            current_char,
+        }
     }
 
     fn advance(&mut self) {
