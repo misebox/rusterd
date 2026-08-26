@@ -6,7 +6,8 @@ bin/build                     # release binary + wasm-pack build
 bin/svg examples/sample.erd   # render one file next to its source
 bin/dev                       # render every example
 bin/docs                      # regenerate the diagrams in the README
-cd site && bun run dev        # docs and demo on the local wasm build
+bin/site                      # the documentation site, building the wasm first
+bin/site --no-build           # ...skipping that, when only editing documents
 ```
 
 ## Releasing

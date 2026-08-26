@@ -1,0 +1,22 @@
+#!/bin/bash
+# Serve the documentation site locally, on the current source.
+#
+# The pages read the markdown, the examples and the wasm build straight out of
+# the repository, so editing a document and reloading is enough. The compiler is
+# the exception: it has to be built to be seen, so it is built by default —
+# stale wasm showing an old language is a confusing way to spend an afternoon.
+# Pass --no-build when only the documents are being edited.
+
+set -e
+cd "$(dirname "$0")/.."
+
+if [ "$1" != "--no-build" ] || [ ! -f pkg/rusterd.js ]; then
+    echo "building the wasm package..."
+    wasm-pack build --target web
+fi
+
+if [ ! -d site/node_modules ]; then
+    (cd site && bun install)
+fi
+
+exec bun run --cwd site dev
