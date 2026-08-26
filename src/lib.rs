@@ -85,17 +85,17 @@ impl Asked {
             focus: text("focus"),
             detail: text("detail")
                 .as_deref()
-                .and_then(DetailLevel::from_str)
+                .and_then(DetailLevel::from_name)
                 .unwrap_or(DetailLevel::All),
             notation: text("notation")
                 .as_deref()
-                .and_then(Notation::from_str)
+                .and_then(Notation::from_name)
                 .unwrap_or_default(),
             legend: flag("legend"),
             dense: flag("dense"),
             dialect: text("dialect")
                 .as_deref()
-                .and_then(sql::Dialect::from_str)
+                .and_then(sql::Dialect::from_name)
                 .unwrap_or(sql::Dialect::Auto),
         }
     }
@@ -135,14 +135,14 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
     let mut parser = Parser::new(source).map_err(|e| e.to_string())?;
     let schema = parser.parse().map_err(|e| e.to_string())?;
 
-    if let Some(name) = asked.focus.as_deref() {
-        if schema.find_focus(name).is_none() {
-            return Err(format!(
-                "Unknown focus: {} (available: {})",
-                name,
-                schema.focus_names().join(", ")
-            ));
-        }
+    if let Some(name) = asked.focus.as_deref()
+        && schema.find_focus(name).is_none()
+    {
+        return Err(format!(
+            "Unknown focus: {} (available: {})",
+            name,
+            schema.focus_names().join(", ")
+        ));
     }
 
     let ir = GraphIR::from_schema(&schema, asked.focus.as_deref(), asked.detail);
@@ -170,7 +170,7 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
 pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, String> {
     let dialect = dialect
         .as_deref()
-        .and_then(sql::Dialect::from_str)
+        .and_then(sql::Dialect::from_name)
         .unwrap_or(sql::Dialect::Auto);
 
     let schema = sql::parse_sql(sql_source, dialect).map_err(|e| e.to_string())?;

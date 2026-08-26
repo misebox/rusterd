@@ -105,7 +105,7 @@ fn run_render(program: &str, args: &[String]) {
             "-d" | "--detail" => {
                 i += 1;
                 if i < args.len() {
-                    detail = DetailLevel::from_str(&args[i]).unwrap_or_else(|| {
+                    detail = DetailLevel::from_name(&args[i]).unwrap_or_else(|| {
                         eprintln!("Invalid detail level: {}", args[i]);
                         process::exit(1);
                     });
@@ -114,7 +114,7 @@ fn run_render(program: &str, args: &[String]) {
             "-n" | "--notation" => {
                 i += 1;
                 if i < args.len() {
-                    notation = Notation::from_str(&args[i]).unwrap_or_else(|| {
+                    notation = Notation::from_name(&args[i]).unwrap_or_else(|| {
                         eprintln!("Invalid notation: {}", args[i]);
                         eprintln!("Valid options: crowsfoot, text");
                         process::exit(1);
@@ -155,17 +155,17 @@ fn run_render(program: &str, args: &[String]) {
         }
     };
 
-    if let Some(name) = focus.as_deref() {
-        if schema.find_focus(name).is_none() {
-            eprintln!("Unknown focus: {}", name);
-            let names = schema.focus_names();
-            if names.is_empty() {
-                eprintln!("This file defines no focus blocks.");
-            } else {
-                eprintln!("Available: {}", names.join(", "));
-            }
-            process::exit(1);
+    if let Some(name) = focus.as_deref()
+        && schema.find_focus(name).is_none()
+    {
+        eprintln!("Unknown focus: {}", name);
+        let names = schema.focus_names();
+        if names.is_empty() {
+            eprintln!("This file defines no focus blocks.");
+        } else {
+            eprintln!("Available: {}", names.join(", "));
         }
+        process::exit(1);
     }
 
     let ir = GraphIR::from_schema(&schema, focus.as_deref(), detail);
@@ -185,11 +185,11 @@ fn run_render(program: &str, args: &[String]) {
             }
         }
         None => {
-            if let Err(e) = io::stdout().write_all(svg.as_bytes()) {
-                if e.kind() != io::ErrorKind::BrokenPipe {
-                    eprintln!("Failed to write to stdout: {}", e);
-                    process::exit(1);
-                }
+            if let Err(e) = io::stdout().write_all(svg.as_bytes())
+                && e.kind() != io::ErrorKind::BrokenPipe
+            {
+                eprintln!("Failed to write to stdout: {}", e);
+                process::exit(1);
             }
         }
     }
@@ -229,7 +229,7 @@ fn run_convert(program: &str, args: &[String]) {
             "-d" | "--dialect" => {
                 i += 1;
                 if i < args.len() {
-                    dialect = Dialect::from_str(&args[i]).unwrap_or_else(|| {
+                    dialect = Dialect::from_name(&args[i]).unwrap_or_else(|| {
                         eprintln!("Invalid dialect: {}", args[i]);
                         eprintln!("Valid options: auto, generic, postgres, mysql");
                         process::exit(1);
@@ -270,11 +270,11 @@ fn run_convert(program: &str, args: &[String]) {
             }
         }
         None => {
-            if let Err(e) = io::stdout().write_all(erd.as_bytes()) {
-                if e.kind() != io::ErrorKind::BrokenPipe {
-                    eprintln!("Failed to write to stdout: {}", e);
-                    process::exit(1);
-                }
+            if let Err(e) = io::stdout().write_all(erd.as_bytes())
+                && e.kind() != io::ErrorKind::BrokenPipe
+            {
+                eprintln!("Failed to write to stdout: {}", e);
+                process::exit(1);
             }
         }
     }

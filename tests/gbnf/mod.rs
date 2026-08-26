@@ -340,7 +340,10 @@ fn read_literal(chars: &[char], mut i: usize) -> Result<(String, usize), String>
     Err("unterminated literal".to_string())
 }
 
-fn read_class(chars: &[char], mut i: usize) -> Result<(bool, Vec<(char, char)>, usize), String> {
+/// Whether the class is negated, the ranges in it, and where it ends.
+type CharClass = (bool, Vec<(char, char)>, usize);
+
+fn read_class(chars: &[char], mut i: usize) -> Result<CharClass, String> {
     let negated = chars.get(i) == Some(&'^');
     if negated {
         i += 1;

@@ -233,14 +233,13 @@ impl Parser {
 
         // Apply PK modifier to columns
         for col in &mut columns {
-            if pk_columns.contains(&col.name) {
-                if !col
+            if pk_columns.contains(&col.name)
+                && !col
                     .modifiers
                     .iter()
                     .any(|m| matches!(m, ColumnModifier::Pk))
-                {
-                    col.modifiers.insert(0, ColumnModifier::Pk);
-                }
+            {
+                col.modifiers.insert(0, ColumnModifier::Pk);
             }
         }
 
@@ -605,10 +604,10 @@ impl Parser {
                 }
                 Token::Ident(s) if s.to_uppercase() == "NO" => {
                     self.advance();
-                    if let Token::Ident(a) = self.current() {
-                        if a.to_uppercase() == "ACTION" {
-                            self.advance();
-                        }
+                    if let Token::Ident(a) = self.current()
+                        && a.to_uppercase() == "ACTION"
+                    {
+                        self.advance();
                     }
                 }
                 _ => {}
@@ -694,22 +693,22 @@ impl Parser {
         for entity in entities {
             for col in &entity.columns {
                 for modifier in &col.modifiers {
-                    if let ColumnModifier::Fk { target, .. } = modifier {
-                        if entity_names.contains(&target.as_str()) {
-                            // Avoid duplicates
-                            let exists = relationships
-                                .iter()
-                                .any(|r| r.left == *target && r.right == entity.name);
-                            if !exists {
-                                relationships.push(Relationship {
-                                    left: target.clone(),
-                                    left_cardinality: Cardinality::One,
-                                    right: entity.name.clone(),
-                                    right_cardinality: Cardinality::Many,
-                                    label: None,
-                                    role: None,
-                                });
-                            }
+                    if let ColumnModifier::Fk { target, .. } = modifier
+                        && entity_names.contains(&target.as_str())
+                    {
+                        // Avoid duplicates
+                        let exists = relationships
+                            .iter()
+                            .any(|r| r.left == *target && r.right == entity.name);
+                        if !exists {
+                            relationships.push(Relationship {
+                                left: target.clone(),
+                                left_cardinality: Cardinality::One,
+                                right: entity.name.clone(),
+                                right_cardinality: Cardinality::Many,
+                                label: None,
+                                role: None,
+                            });
                         }
                     }
                 }

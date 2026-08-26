@@ -17,7 +17,8 @@ pub enum Notation {
 }
 
 impl Notation {
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// The name the CLI and the options object use for each notation.
+    pub fn from_name(s: &str) -> Option<Self> {
         match s {
             "crowsfoot" | "crows-foot" | "ie" => Some(Self::CrowsFoot),
             "text" => Some(Self::Text),
@@ -122,10 +123,10 @@ impl SvgRenderer {
         // 1. Render edge lines (behind nodes)
         for edge in &layout.edges {
             self.render_edge_line(&mut svg, edge, layout.corner_radius);
-            if self.notation == Notation::CrowsFoot {
-                if let Some(ir_edge) = ir.edges.get(edge.edge_index) {
-                    self.render_edge_ends(&mut svg, edge, ir_edge);
-                }
+            if self.notation == Notation::CrowsFoot
+                && let Some(ir_edge) = ir.edges.get(edge.edge_index)
+            {
+                self.render_edge_ends(&mut svg, edge, ir_edge);
             }
         }
 
@@ -523,13 +524,19 @@ impl SvgRenderer {
         // room to slide out of the way of other edges.
         if let Some(label) = &edge.label {
             let label_width = monospace_width(label, EDGE_LABEL_FONT_SIZE) + 6.0;
-            let anchor = label_anchor(&layout.waypoints, label_width).unwrap_or((
-                ((x1 + x2) / 2.0, (y1 + y2) / 2.0),
-                RIGHT,
-                MIN_LABEL_ROOM,
+            let anchor = label_anchor(&layout.waypoints, label_width).unwrap_or(LabelAnchor {
+                at: ((x1 + x2) / 2.0, (y1 + y2) / 2.0),
+                along: RIGHT,
+                room: MIN_LABEL_ROOM,
+            });
+            plans.push(plan_edge_label(
+                anchor.at.0,
+                anchor.at.1,
+                label,
+                index,
+                anchor.along,
+                anchor.room,
             ));
-            let ((mid_x, mid_y), dir, room) = anchor;
-            plans.push(plan_edge_label(mid_x, mid_y, label, index, dir, room));
         }
     }
 }
@@ -677,11 +684,19 @@ fn num(v: f64) -> String {
 /// the label itself.
 const MIN_LABEL_ROOM: f64 = 12.0;
 
+/// Where a relationship label sits, and how far it may move from there.
+struct LabelAnchor {
+    /// The middle of the segment the label is centered on.
+    at: (f64, f64),
+    /// The direction it may slide along, away from other edges.
+    along: (f64, f64),
+    /// How far it may slide, either way.
+    room: f64,
+}
+
 /// Where a relationship label sits: centered on the longest segment that can
 /// hold it, preferring horizontal runs so the text reads along the line.
-///
-/// Returns the position, the direction it may slide, and how far.
-fn label_anchor(waypoints: &[(f64, f64)], width: f64) -> Option<((f64, f64), (f64, f64), f64)> {
+fn label_anchor(waypoints: &[(f64, f64)], width: f64) -> Option<LabelAnchor> {
     let segments = waypoints.windows(2).map(|seg| {
         let horizontal = (seg[0].1 - seg[1].1).abs() < 0.5;
         let length = if horizontal {
@@ -710,7 +725,11 @@ fn label_anchor(waypoints: &[(f64, f64)], width: f64) -> Option<((f64, f64), (f6
     // slightly beats covering another edge, and `is_clear` still has the veto.
     let room = (length / 2.0).max(MIN_LABEL_ROOM);
 
-    Some((mid, dir, room))
+    Some(LabelAnchor {
+        at: mid,
+        along: dir,
+        room,
+    })
 }
 
 /// Width of a monospace string in pixels, counting full-width characters twice.
