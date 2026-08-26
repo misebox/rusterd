@@ -2,13 +2,15 @@ import { theme } from "./theme";
 
 const PAGES = [
   { href: "index.html", label: "Overview" },
+  { href: "start.html", label: "Get started" },
   { href: "language.html", label: "Language" },
   { href: "examples.html", label: "Examples" },
   { href: "demo.html", label: "Demo" },
 ];
 
-/// The same bar on every page. `here` is the file name of the page drawing it,
-/// so that page's own link reads as a heading rather than as somewhere to go.
+/// The same masthead on every page. `here` is the file name of the page drawing
+/// it, so that page's own link reads as a heading rather than as somewhere to
+/// go.
 export default function Header(props: { here: string }) {
   return (
     <header style={styles.bar}>
@@ -43,23 +45,25 @@ export default function Header(props: { here: string }) {
 const styles = {
   bar: {
     display: "flex",
-    "align-items": "baseline",
-    "justify-content": "space-between",
-    gap: "24px",
-    "flex-wrap": "wrap",
-    padding: "16px 0",
+    "flex-direction": "column",
+    "align-items": "center",
+    gap: "10px",
+    padding: "22px 0 16px",
     "border-bottom": `1px solid ${theme.rule}`,
-    "margin-bottom": "24px",
+    "margin-bottom": "28px",
   },
   name: {
     "font-family": theme.mono,
-    "font-size": "20px",
+    "font-size": "22px",
     "font-weight": "bold",
     color: theme.ink,
     "text-decoration": "none",
+    "letter-spacing": "0.02em",
   },
   nav: {
     display: "flex",
+    "flex-wrap": "wrap",
+    "justify-content": "center",
     gap: "20px",
     "font-size": "14px",
   },

@@ -8,6 +8,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: "index.html",
+        start: "start.html",
         language: "language.html",
         examples: "examples.html",
         demo: "demo.html",
