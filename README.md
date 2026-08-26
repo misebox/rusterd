@@ -70,7 +70,7 @@ focus simple {
 | Use it as | How |
 | --- | --- |
 | Browser / bundler | `npm i rusterd` (also `bun add` / `pnpm add`) |
-| CLI | `cargo install --path .` — not published to crates.io yet |
+| CLI | `cargo install rusterd` |
 | Rust library | `rusterd = { git = "https://github.com/misebox/rusterd" }` |
 
 ## CLI Usage
