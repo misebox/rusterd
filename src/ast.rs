@@ -3,9 +3,12 @@ pub struct Schema {
     pub entities: Vec<Entity>,
     pub relationships: Vec<Relationship>,
     pub views: Vec<View>,
-    /// Grid-based layout arrangement: rows of entity names
-    /// Each row represents a level, columns represent horizontal order
-    pub arrangement: Option<Vec<Vec<String>>>,
+    /// Sets of entities to keep near one another
+    pub near: Vec<Vec<String>>,
+    /// Entities to leave out of the diagram altogether
+    pub omit: Vec<String>,
+    /// Entities to draw as a name, without their columns
+    pub brief: Vec<String>,
 }
 
 impl Schema {

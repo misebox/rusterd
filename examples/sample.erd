@@ -1,11 +1,5 @@
 # Sample ERD - demonstrates all features
 
-# Placement is automatic; an arrangement pins it instead
-@hint.arrangement = {
-    Category User;
-    Product Order
-}
-
 # Self-referential entity
 entity Category {
     id int pk

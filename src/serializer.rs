@@ -219,7 +219,9 @@ mod tests {
             }],
             relationships: vec![],
             views: vec![],
-            arrangement: None,
+            near: Vec::new(),
+            omit: Vec::new(),
+            brief: Vec::new(),
         };
 
         let result = serialize(&schema);
@@ -256,7 +258,9 @@ mod tests {
             }],
             relationships: vec![],
             views: vec![],
-            arrangement: None,
+            near: Vec::new(),
+            omit: Vec::new(),
+            brief: Vec::new(),
         };
 
         let result = serialize(&schema);
@@ -276,7 +280,9 @@ mod tests {
                 role: None,
             }],
             views: vec![],
-            arrangement: None,
+            near: Vec::new(),
+            omit: Vec::new(),
+            brief: Vec::new(),
         };
 
         let result = serialize(&schema);

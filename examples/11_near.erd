@@ -1,10 +1,8 @@
-# Test: Using @hint.arrangement for grid-based layout
+# Test: asking for entities to be drawn near one another.
+# Placement is worked out; these say what matters about the result.
 
-@hint.arrangement = {
-    Category Customer Address;
-    Product Order Cart Review ;
-    ProductImage OrderItem Payment CartItem
-}
+@hint.near = { Order, OrderItem, Payment }
+@hint.near = { Cart, CartItem }
 
 entity Category {
     id int pk

@@ -11,7 +11,7 @@ Live demo: https://misebox.github.io/rusterd/
 - **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
-- **Automatic layout**: Rows, order and columns are all worked out; `@hint.arrangement` overrides them
+- **Automatic layout**: Rows, order and columns are all worked out; hints say what matters, not where things go
 - **Views**: Filter diagrams with `view` blocks
 - **Detail levels**: Control what's shown (tables only, pk, pk+fk, all columns)
 
@@ -20,12 +20,6 @@ Live demo: https://misebox.github.io/rusterd/
 `examples/sample.erd`:
 
 ```erd
-# Placement is automatic; an arrangement pins it instead
-@hint.arrangement = {
-    Category User;
-    Product Order
-}
-
 # Self-referential entity
 entity Category {
     id int pk
@@ -99,6 +93,9 @@ rusterd render input.erd -n text -o output.svg
 # Add a key to the cardinality symbols
 rusterd render input.erd --legend -o output.svg
 
+# Spacing
+rusterd render input.erd -D dense -o output.svg
+
 # Read from stdin
 cat input.erd | rusterd render - -o output.svg
 
@@ -122,6 +119,9 @@ rusterd convert schema.sql -d postgres
 `-l` / `--legend` adds a key to the four cardinalities below the diagram,
 drawn in whichever notation is in use.
 
+**Density:** `-D dense | normal | sparse` (default `normal`) sets how much room
+to leave between the entities and around the lines.
+
 ## Browser Usage (WASM)
 
 ```javascript
@@ -134,6 +134,7 @@ erdToSvg(source, 'simple');                // a named view
 erdToSvg(source, null, 'pk_fk');           // a detail level
 erdToSvg(source, null, null, 'text');      // text cardinalities, not crow's foot
 erdToSvg(source, null, null, null, true);  // with a key to the cardinalities
+erdToSvg(source, null, null, null, null, 'dense');  // tighter spacing
 erdToDataUri(source);              // data: URI, ready for <img src={...}>
 sqlToErd(sqlDump, 'postgres');     // SQL dump -> ERD notation
 sqlToSvg(sqlDump, 'postgres');     // SQL dump -> SVG
@@ -156,6 +157,7 @@ let schema = Parser::new(source)?.parse()?;
 let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
 let layout = LayoutEngine::default().layout(&ir);
 let svg = SvgRenderer::default().render(&ir, &layout);
+// or LayoutEngine::default().with_density(Density::Dense)
 // or SvgRenderer::default().with_notation(Notation::Text).with_legend(true)
 ```
 
@@ -205,14 +207,18 @@ Cardinalities: `1`, `*`, `0..1`, `1..*`
 
 ### Layout Hints
 
-```erd
-# Grid-based arrangement (semicolons separate rows)
-@hint.arrangement = {
-    Entity1 Entity2;
-    Entity3 Entity4
-}
+Placement is automatic. The hints say what matters about the diagram:
 
-# Entity-specific level hint (inside the entity body)
+```erd
+# Draw these close to one another
+@hint.near = { Order, OrderItem, Payment }
+
+# Leave these out entirely / draw only their name
+@hint.omit  = { schema_migrations }
+@hint.brief = { audit_logs }
+
+# Pin an entity to a row (inside the entity body); its order and
+# position across the page are still worked out
 entity EntityName {
     @hint.level = 2
     column_name type

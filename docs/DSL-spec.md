@@ -22,7 +22,9 @@ A file is a sequence of these top-level items, in any order:
 | `entity NAME { ... }` | yes, one per entity |
 | `rel { ... }` | yes, all blocks are merged |
 | `view NAME { ... }` | yes, one per view |
-| `@hint.arrangement = { ... }` | once (a second one replaces the first) |
+| `@hint.near = { ... }` | yes, each is a separate set |
+| `@hint.omit = { ... }` | yes, all are merged |
+| `@hint.brief = { ... }` | yes, all are merged |
 
 Line comments start with `#` and run to the end of the line. Blank lines are
 free. Anything else at the top level is an error.
@@ -124,31 +126,51 @@ unless the renderer is asked for one by name.
 
 ## Layout
 
-Placement is a grid: one row per level, entities left to right within a row.
-**Write nothing and it is worked out for you.** An entity goes below the ones
-it references — the `1` end of a relationship is the parent — on the row that
-keeps the relationships as short as possible, and the order within each row is
-searched for the arrangement that crosses least.
+**Placement is worked out for you.** An entity goes below the ones it
+references — the `1` end of a relationship is the parent — on the row that keeps
+the relationships as short as possible, the order within each row is searched
+for the arrangement that crosses least, and each entity is slid under the ones
+it relates to.
 
-Say where things go only when you want something other than that:
+There is no way to say where an entity goes. What can be said is what matters
+about the diagram.
+
+### Keeping entities together
 
 ```erd
-@hint.arrangement = {
-    Category User
-    Product Order
-    OrderItem
+@hint.near = { Order, OrderItem, Payment }
+@hint.near = { User, UserProfile }
+```
+
+Entities in a set are drawn close to one another. Write as many sets as you
+like; an entity may be in several. This does not draw anything — it is read as
+if those entities were related, so the layout keeps them side by side or one
+above the other.
+
+### Leaving things out
+
+```erd
+@hint.omit  = { schema_migrations, ar_internal_metadata }
+@hint.brief = { audit_logs, events }
+```
+
+`omit` drops an entity and its relationships from the diagram. `brief` keeps the
+entity and its relationships but draws only its name, for a table whose columns
+are noise. A `view` is the opposite of `omit`: it names what to keep.
+
+### Rows
+
+```erd
+entity Reporting {
+    @hint.level = 3
+    id int pk
 }
 ```
 
-Rows are separated by a newline or a `;`. Entities missing from the arrangement
-fall to level 0.
-
-Inside an entity, `@hint.level = 2` puts it on that level. `@hint.group =
-"core"` is parsed but currently unused, as is any other `@hint.*` key.
-
-An arrangement or a level hint anywhere in the file turns the automatic
-placement off for the whole diagram, so entities you did not mention land on
-level 0. Place all of them or none of them.
+`@hint.level` pins an entity to a row. Its order within that row and its
+position across the page are still worked out. A level hint anywhere in the
+file turns the automatic rows off for the whole diagram, so entities you did not
+mention land on row 0 — pin all of them or none of them.
 
 ## Render-time options
 
@@ -171,7 +193,7 @@ These are not part of the file. They are chosen when rendering:
 | `0..*` or `1..1` | parse error; use `*` or `1` |
 | Two columns on one line | the second is read as a modifier and fails |
 | Referring to an entity that is not defined | the relationship is dropped silently |
-| Naming only some entities in the arrangement | the rest land on level 0 |
+| Pinning the level of only some entities | the rest land on level 0 |
 
 ## Complete example
 
@@ -218,11 +240,7 @@ rel {
     Product 1 -- * OrderItem
 }
 
-@hint.arrangement = {
-    Category User
-    Product Order
-    OrderItem
-}
+@hint.near = { Order, OrderItem }
 
 view checkout {
     include User, Order, OrderItem

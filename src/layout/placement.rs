@@ -45,7 +45,7 @@ pub fn calculate_node_sizes(
     node_sizes
 }
 
-/// Group nodes by level, in the order the source asked for.
+/// Group nodes by level, in the order they were written.
 pub fn group_nodes_by_level<'a>(
     ir: &'a GraphIR,
     node_level: &HashMap<&str, i64>,
@@ -55,10 +55,6 @@ pub fn group_nodes_by_level<'a>(
     for node in &ir.nodes {
         let level = node_level.get(node.id.as_str()).copied().unwrap_or(0);
         levels.entry(level).or_default().push(node);
-    }
-
-    for nodes in levels.values_mut() {
-        nodes.sort_by_key(|n| n.order.unwrap_or(i64::MAX));
     }
 
     let mut level_keys: Vec<i64> = levels.keys().copied().collect();
@@ -104,17 +100,33 @@ pub fn reorder_levels<'a>(
             ))
         })
         .collect();
+    let attractions = attractions(ir, &index);
 
     if seed != 0 {
         shuffle_levels(&mut rows, seed);
     }
-    order_levels(&mut rows, &links, lone_weight);
+    order_levels(&mut rows, &links, &attractions, lone_weight);
 
     level_keys
         .iter()
         .zip(rows)
         .map(|(&level, row)| (level, row.into_iter().map(|i| &ir.nodes[i]).collect()))
         .collect()
+}
+
+/// Every pair of entities the source asked to keep near one another.
+pub fn attractions(ir: &GraphIR, index: &HashMap<&str, usize>) -> Vec<(usize, usize)> {
+    let mut pairs = Vec::new();
+    for set in &ir.near {
+        for (i, one) in set.iter().enumerate() {
+            for other in &set[i + 1..] {
+                if let (Some(&a), Some(&b)) = (index.get(one.as_str()), index.get(other.as_str())) {
+                    pairs.push((a, b));
+                }
+            }
+        }
+    }
+    pairs
 }
 
 /// Place the entities across the page, level by level, packed to the left.

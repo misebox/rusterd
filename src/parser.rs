@@ -65,7 +65,9 @@ impl Parser {
         let mut entities = Vec::new();
         let mut relationships = Vec::new();
         let mut views = Vec::new();
-        let mut arrangement = None;
+        let mut near: Vec<Vec<String>> = Vec::new();
+        let mut omit: Vec<String> = Vec::new();
+        let mut brief: Vec<String> = Vec::new();
 
         loop {
             self.skip_newlines();
@@ -74,14 +76,16 @@ impl Parser {
             }
 
             if *self.peek() == Token::At {
-                // Could be @hint.arrangement at top level
-                if self.try_parse_arrangement()? {
-                    arrangement = Some(self.parse_arrangement_block()?);
-                } else {
-                    return Err(ParseError::Unexpected(
-                        self.peek().clone(),
-                        "entity, rel, view, or @hint.arrangement",
-                    ));
+                match self.parse_hint_key()?.as_deref() {
+                    Some("near") => near.push(self.parse_name_set()?),
+                    Some("omit") => omit.extend(self.parse_name_set()?),
+                    Some("brief") => brief.extend(self.parse_name_set()?),
+                    _ => {
+                        return Err(ParseError::Unexpected(
+                            self.peek().clone(),
+                            "entity, rel, view, @hint.near, @hint.omit, or @hint.brief",
+                        ));
+                    }
                 }
             } else if self.check_ident("entity") {
                 self.advance();
@@ -95,7 +99,7 @@ impl Parser {
             } else {
                 return Err(ParseError::Unexpected(
                     self.peek().clone(),
-                    "entity, rel, view, or @hint.arrangement",
+                    "entity, rel, view, @hint.near, @hint.omit, or @hint.brief",
                 ));
             }
         }
@@ -104,84 +108,77 @@ impl Parser {
             entities,
             relationships,
             views,
-            arrangement,
+            near,
+            omit,
+            brief,
         })
     }
 
-    /// Check if we're at @hint.arrangement and consume those tokens if so
-    fn try_parse_arrangement(&mut self) -> Result<bool, ParseError> {
+    /// Read `@hint.<key> = ` at the top level, and say which key it was.
+    ///
+    /// Nothing is consumed unless the whole opening is there, so a stray `@`
+    /// still reports itself as unexpected rather than as a broken hint.
+    fn parse_hint_key(&mut self) -> Result<Option<String>, ParseError> {
+        let start = self.pos;
+        let rewind = |parser: &mut Self| {
+            parser.pos = start;
+            Ok(None)
+        };
+
         if *self.peek() != Token::At {
-            return Ok(false);
+            return rewind(self);
         }
+        self.advance();
 
-        // Look ahead: @ hint . arrangement =
-        let start_pos = self.pos;
-
-        self.advance(); // @
         if !self.check_ident("hint") {
-            self.pos = start_pos;
-            return Ok(false);
+            return rewind(self);
         }
-        self.advance(); // hint
+        self.advance();
 
         if *self.peek() != Token::Dot {
-            self.pos = start_pos;
-            return Ok(false);
+            return rewind(self);
         }
-        self.advance(); // .
+        self.advance();
 
-        if !self.check_ident("arrangement") {
-            self.pos = start_pos;
-            return Ok(false);
-        }
-        self.advance(); // arrangement
+        let Token::Ident(key) = self.peek().clone() else {
+            return rewind(self);
+        };
+        self.advance();
 
         if *self.peek() != Token::Eq {
-            self.pos = start_pos;
-            return Ok(false);
+            return rewind(self);
         }
-        self.advance(); // =
+        self.advance();
 
-        Ok(true)
+        Ok(Some(key))
     }
 
-    /// Parse arrangement block: { Entity1 Entity2; Entity3 Entity4; ... }
-    /// Rows can be separated by semicolons or newlines.
-    fn parse_arrangement_block(&mut self) -> Result<Vec<Vec<String>>, ParseError> {
+    /// Parse `{ Entity, Entity, Entity }`. Commas, newlines and plain spaces
+    /// all separate; which one is used says nothing.
+    fn parse_name_set(&mut self) -> Result<Vec<String>, ParseError> {
         self.skip_newlines();
         self.expect(Token::LBrace)?;
 
-        let mut rows: Vec<Vec<String>> = Vec::new();
-        let mut current_row: Vec<String> = Vec::new();
-
+        let mut names = Vec::new();
         loop {
             match self.peek().clone() {
                 Token::RBrace => break,
                 Token::Ident(name) => {
                     self.advance();
-                    current_row.push(name);
+                    names.push(name);
                 }
-                Token::Semicolon | Token::Newline => {
+                Token::Comma | Token::Semicolon | Token::Newline => {
                     self.advance();
-                    if !current_row.is_empty() {
-                        rows.push(current_row);
-                        current_row = Vec::new();
-                    }
                 }
-                tok => {
-                    return Err(ParseError::Unexpected(tok, "entity name, semicolon, or newline"));
-                }
+                tok => return Err(ParseError::Unexpected(tok, "entity name")),
             }
         }
-
-        // Don't forget the last row (no trailing semicolon required)
-        if !current_row.is_empty() {
-            rows.push(current_row);
-        }
-
         self.expect(Token::RBrace)?;
-        Ok(rows)
+        self.skip_newlines();
+
+        Ok(names)
     }
+
 
     fn parse_entity(&mut self) -> Result<Entity, ParseError> {
         self.skip_newlines();
@@ -584,33 +581,34 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_arrangement() {
+    fn reads_the_sets_a_diagram_asks_for() {
         let input = r#"
-            @hint.arrangement = {
-                Category Address Customer;
-                Product Order Review Cart;
-                ProductImage OrderItem CartItem Payment
+            @hint.near = { Order, OrderItem, Payment }
+            @hint.near = {
+                User
+                UserProfile
             }
+            @hint.omit = { migrations }
+            @hint.brief = { audit_logs, events }
 
-            entity Category { id int pk }
-            entity Address { id int pk }
-            entity Customer { id int pk }
-            entity Product { id int pk }
             entity Order { id int pk }
-            entity Review { id int pk }
-            entity Cart { id int pk }
-            entity ProductImage { id int pk }
-            entity OrderItem { id int pk }
-            entity CartItem { id int pk }
-            entity Payment { id int pk }
         "#;
         let schema = Parser::new(input).unwrap().parse().unwrap();
 
-        assert!(schema.arrangement.is_some());
-        let arr = schema.arrangement.unwrap();
-        assert_eq!(arr.len(), 3);
-        assert_eq!(arr[0], vec!["Category", "Address", "Customer"]);
-        assert_eq!(arr[1], vec!["Product", "Order", "Review", "Cart"]);
-        assert_eq!(arr[2], vec!["ProductImage", "OrderItem", "CartItem", "Payment"]);
+        assert_eq!(
+            schema.near,
+            vec![
+                vec!["Order", "OrderItem", "Payment"],
+                vec!["User", "UserProfile"],
+            ]
+        );
+        assert_eq!(schema.omit, vec!["migrations"]);
+        assert_eq!(schema.brief, vec!["audit_logs", "events"]);
+    }
+
+    #[test]
+    fn refuses_a_hint_it_does_not_know() {
+        let input = "@hint.arrangement = { A B }\nentity A { id int pk }";
+        assert!(Parser::new(input).unwrap().parse().is_err());
     }
 }

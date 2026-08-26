@@ -27,6 +27,40 @@ use super::waypoints::route_edges;
 /// is cheap; past this the drawing rarely improves.
 const ATTEMPTS: usize = 24;
 
+/// Narrowest the anchors may be spread, whatever the density: two cardinality
+/// pills side by side on one border still have to be readable.
+const MIN_ANCHOR_SPACING: f64 = 40.0;
+
+/// How much air to leave between the entities and around the lines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Density {
+    /// Everything as close as it can be read at.
+    Dense,
+    #[default]
+    Normal,
+    /// Room to write on.
+    Sparse,
+}
+
+impl Density {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "dense" | "tight" => Some(Self::Dense),
+            "normal" => Some(Self::Normal),
+            "sparse" | "loose" => Some(Self::Sparse),
+            _ => None,
+        }
+    }
+
+    fn scale(self) -> f64 {
+        match self {
+            Self::Dense => 0.6,
+            Self::Normal => 1.0,
+            Self::Sparse => 1.6,
+        }
+    }
+}
+
 /// Layout engine configuration and computation.
 pub struct LayoutEngine {
     pub(crate) metrics: TextMetrics,
@@ -60,6 +94,22 @@ impl Default for LayoutEngine {
 }
 
 impl LayoutEngine {
+    /// Leave more or less room between everything.
+    ///
+    /// Only the gaps move. What an entity is made of — its text, the space a
+    /// cardinality label needs — is the same size whatever the density, so the
+    /// room for anchors has a floor.
+    pub fn with_density(mut self, density: Density) -> Self {
+        let scale = density.scale();
+        self.node_gap_x *= scale;
+        self.node_gap_y *= scale;
+        self.channel_gap *= scale;
+        self.lane_spacing *= scale;
+        self.entity_margin *= scale;
+        self.anchor_spacing = (self.anchor_spacing * scale).max(MIN_ANCHOR_SPACING);
+        self
+    }
+
     /// Compute layout for the given graph.
     ///
     /// Where the source did not say how to arrange its entities, an arrangement
@@ -71,20 +121,18 @@ impl LayoutEngine {
         let (levels, level_keys) = group_nodes_by_level(ir, &node_level);
         let mut best = self.arrange(ir, &levels, &level_keys);
 
-        if ir.nodes.iter().all(|node| node.order.is_none()) {
-            // The ordering works on an idealised drawing and settles into
-            // whichever arrangement is nearest to where it started, which is
-            // often not the best one. So it is run again from several starting
-            // points, and the drawing that comes out tidiest wins. The starts
-            // are fixed, so the same source always draws the same diagram.
-            for attempt in 0..ATTEMPTS {
-                let lone_weight = if attempt % 2 == 0 { 1 } else { 4 };
-                let reordered =
-                    reorder_levels(ir, &levels, &level_keys, lone_weight, attempt as u64 / 2);
-                let candidate = self.arrange(ir, &reordered, &level_keys);
-                if candidate.is_tidier_than(&best) {
-                    best = candidate;
-                }
+        // The ordering works on an idealised drawing and settles into whichever
+        // arrangement is nearest to where it started, which is often not the
+        // best one. So it is run again from several starting points, and the
+        // drawing that comes out tidiest wins. The starts are fixed, so the
+        // same source always draws the same diagram.
+        for attempt in 0..ATTEMPTS {
+            let lone_weight = if attempt % 2 == 0 { 1 } else { 4 };
+            let reordered =
+                reorder_levels(ir, &levels, &level_keys, lone_weight, attempt as u64 / 2);
+            let candidate = self.arrange(ir, &reordered, &level_keys);
+            if candidate.is_tidier_than(&best, &ir.near) {
+                best = candidate;
             }
         }
 
