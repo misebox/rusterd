@@ -1,5 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
-import init, { erdToSvg, sqlToErd } from "../../pkg/rusterd.js";
+import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
+import Header from "../Header";
+import { theme } from "../theme";
 
 const DEFAULT_SQL = `-- The same schema as the ERD tab: press "SQL → ERD" to regenerate it.
 -- The converted ERD carries no placement: the layout works that out.
@@ -121,7 +123,7 @@ const NOTATIONS = [
   { value: "text", label: "Text — 1, 0..1, ✱, 1..✱" },
 ];
 
-export default function App() {
+export default function Demo() {
   const [tab, setTab] = createSignal<Tab>("ERD");
   const [sql, setSql] = createSignal(DEFAULT_SQL);
   const [erd, setErd] = createSignal(DEFAULT_ERD);
@@ -272,17 +274,7 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Rusterd Demo</h1>
-        <a
-          style={styles.repoLink}
-          href="https://github.com/misebox/rusterd"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub
-        </a>
-      </div>
+      <Header here="demo.html" />
 
       <div style={styles.tabs}>
         {TABS.map((name) => (
@@ -396,29 +388,14 @@ export default function App() {
 
 const styles = {
   container: {
-    "font-family": "system-ui, sans-serif",
-    padding: "20px",
+    "font-family": theme.sans,
+    padding: "0 20px 20px",
     "max-width": "1400px",
     margin: "0 auto",
     height: "100vh",
     "box-sizing": "border-box",
     display: "flex",
     "flex-direction": "column",
-  },
-  header: {
-    display: "flex",
-    "justify-content": "space-between",
-    "align-items": "baseline",
-    gap: "16px",
-    "margin-bottom": "16px",
-  },
-  title: {
-    margin: "0",
-    color: "#333",
-  },
-  repoLink: {
-    "font-size": "14px",
-    color: "#555",
   },
   tabs: {
     display: "flex",

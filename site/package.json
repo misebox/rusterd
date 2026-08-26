@@ -1,5 +1,5 @@
 {
-  "name": "rusterd-demo",
+  "name": "rusterd-site",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "marked": "^18.0.11",
     "solid-js": "^1.9.0"
   },
   "devDependencies": {

@@ -1,0 +1,7 @@
+/* A compiled diagram, scaled to whatever it is being shown in. The SVG carries
+   its own width and height, so without this it would spill out of the page. */
+.diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
