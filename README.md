@@ -156,27 +156,38 @@ an `Error` — so `catch (message)`, not `catch (e) { e.message }`.
 | `sqlToSvg` | the markup, converting on the way |
 
 ```typescript
-erdToSvg(source: string, options?: DrawOptions): string
-erdToDataUri(source: string, options?: DrawOptions): string
-sqlToErd(sql: string, dialect?: string | null): string
-sqlToSvg(sql: string, options?: ConvertOptions): string
+type Detail = "tables" | "pk" | "pk_fk" | "all";
+type Notation = "crowsfoot" | "text";
+type Dialect = "auto" | "generic" | "postgres" | "mysql";
+
+erdToSvg(source: string, options?: DrawOptions | null): string
+erdToDataUri(source: string, options?: DrawOptions | null): string
+sqlToErd(sql: string, dialect?: Dialect | null): string
+sqlToSvg(sql: string, options?: ConvertOptions | null): string
 
 interface DrawOptions {
   focus?: string | null;
-  detail?: string | null;
-  notation?: string | null;
+  detail?: Detail | null;
+  notation?: Notation | null;
   legend?: boolean | null;
   dense?: boolean | null;
 }
 
 interface ConvertOptions extends DrawOptions {
-  dialect?: string | null;
+  dialect?: Dialect | null;
 }
 ```
 
-What each field takes is in [Options](#options) above. Say what you mean and
-leave out the rest; the package ships these types, so an editor will say the
-same.
+The package ships these, so an editor completes the values and TypeScript
+refuses a misspelt one. JavaScript is told at run time instead: a value that is
+not one of these throws, rather than quietly drawing the default.
+
+```javascript
+erdToSvg(source, { detail: 'pkfk' });
+// Unknown detail: "pkfk" (expected "tables", "pk", "pk_fk", "all")
+```
+
+Say what you mean and leave out the rest.
 
 ```javascript
 const whole = erdToSvg(source);
