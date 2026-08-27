@@ -326,6 +326,7 @@ const styles = {
   toolbar: {
     display: "flex",
     "align-items": "center",
+    "flex-wrap": "wrap",
     gap: "12px",
     padding: "12px 0",
     "min-height": "34px",

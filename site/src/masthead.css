@@ -1,0 +1,18 @@
+/* The one thing the masthead cannot say in its own styles.
+ *
+ * It sticks to the top so a long document keeps its navigation within reach.
+ * On a phone that same bar is two rows tall and would spend a quarter of the
+ * screen following the reader around, which is a poor trade on pages this
+ * short. A media query is the only way to ask that question, and inline styles
+ * would win over this rule, so the sticking lives here rather than there. */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+@media (max-width: 700px) {
+  .masthead {
+    position: static;
+  }
+}

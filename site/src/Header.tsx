@@ -1,5 +1,6 @@
 import { onMount } from "solid-js";
 import { choose, inLanguage, Language, LANGUAGES, markPage, say } from "./i18n";
+import "./masthead.css";
 import { theme } from "./theme";
 
 const PAGES = [
@@ -17,7 +18,7 @@ export default function Header(props: { here: string; language: Language }) {
   onMount(() => markPage(props.language));
 
   return (
-    <header style={styles.bar}>
+    <header class="masthead" style={styles.bar}>
       <a href={inLanguage("index.html", props.language)} style={styles.name}>
         rusterd
       </a>
@@ -61,11 +62,9 @@ export default function Header(props: { here: string; language: Language }) {
 
 const styles = {
   bar: {
-    // Stays put while the page scrolls, which is what a long document wants.
-    // Trimmed down for it: a bar that follows you has to earn its height.
-    position: "sticky",
-    top: "0",
-    "z-index": "10",
+    // Whether it follows the reader is decided in masthead.css, which can ask
+    // how wide the screen is. Trimmed down either way: a bar that follows you
+    // has to earn its height.
     background: theme.paper,
     display: "flex",
     "flex-direction": "column",
@@ -88,8 +87,10 @@ const styles = {
     "flex-wrap": "wrap",
     "justify-content": "center",
     "align-items": "center",
-    gap: "20px",
-    "font-size": "14px",
+    // Closes up on a narrow screen, so the row wraps later and reads smaller
+    // rather than filling the page with itself.
+    gap: "clamp(12px, 3.4vw, 20px)",
+    "font-size": "clamp(13px, 3.4vw, 14px)",
   },
   link: {
     color: theme.quiet,
@@ -102,7 +103,7 @@ const styles = {
   languages: {
     display: "flex",
     gap: "10px",
-    "padding-left": "20px",
+    "padding-left": "clamp(12px, 3.4vw, 20px)",
     "border-left": `1px solid ${theme.rule}`,
   },
   language: {
