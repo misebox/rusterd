@@ -10,7 +10,14 @@
 /// is for a reader of the file rather than of the site.
 export function intro(document: string): string {
   const body = document.replace(/^#\s+.*\n/, "").trim();
-  return body.slice(0, index(body, "\n\n")).trim();
+  return body.split(/\n{2,}/).find(sentences)?.trim() ?? "";
+}
+
+/// Whether a paragraph says anything. A row of badges is a paragraph like any
+/// other, and belongs under the title of a file rather than at the head of a
+/// page: it is pictures and links and not a sentence.
+function sentences(paragraph: string): boolean {
+  return paragraph.replace(/\[?!\[[^\]]*\]\([^)]*\)\]?(\([^)]*\))?/g, "").trim() !== "";
 }
 
 /// The named sections, in the order asked for. A heading that is not there is
