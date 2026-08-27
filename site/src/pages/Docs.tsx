@@ -61,6 +61,10 @@ const TAGLINE =
     ? "テキストファイルから ER 図を描くコンパイラ。Rust で書かれ、ブラウザ向けに WASM にコンパイルされます。"
     : DOCUMENT.lead;
 
+/// Worth saying only where the page drew something. Get started is prose and
+/// code samples in other languages: it has no diagram to have compiled.
+const COMPILED = /```erd/.test(TRANSLATION ?? DOCUMENT.body);
+
 /// The front page reads its two sections in the order they are written —
 /// features, then the example — and shows them the other way round. What the
 /// compiler does is quicker to see than to read about, so the diagram comes
@@ -135,7 +139,9 @@ export default function Docs() {
         </Show>
       </main>
 
-      <footer style={styles.footer}>{say("compiledHere", LANGUAGE)}</footer>
+      <Show when={COMPILED}>
+        <footer style={styles.footer}>{say("compiledHere", LANGUAGE)}</footer>
+      </Show>
     </div>
   );
 }
