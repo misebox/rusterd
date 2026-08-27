@@ -117,7 +117,7 @@ export default function Docs() {
             ready={ready()}
             language={LANGUAGE}
           />
-          <Markdown source={FEATURES} layout="beside" ready={ready()} language={LANGUAGE} />
+
           <div style={styles.actions}>
             <a
               style={{ ...styles.button, ...styles.first }}
@@ -129,6 +129,8 @@ export default function Docs() {
               {say("tryIt", LANGUAGE)}
             </a>
           </div>
+
+          <Markdown source={FEATURES} layout="beside" ready={ready()} language={LANGUAGE} />
         </Show>
       </main>
 
