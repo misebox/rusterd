@@ -1,7 +1,5 @@
 import { marked } from "marked";
 import { For } from "solid-js";
-import erdGrammar from "../../docs/erd.gbnf?url";
-import sqlGrammar from "../../docs/sql.gbnf?url";
 import Example from "./Example";
 import { Language } from "./i18n";
 
@@ -38,10 +36,10 @@ const EXAMPLE = /^(?:\.\.\/)?examples\/(.+)\.erd$/;
 /// Files the site serves itself, so the link hands over the grammar rather than
 /// a page about it.
 const FILES: Record<string, string> = {
-  "erd.gbnf": erdGrammar,
-  "docs/erd.gbnf": erdGrammar,
-  "sql.gbnf": sqlGrammar,
-  "docs/sql.gbnf": sqlGrammar,
+  "erd.gbnf": "erd.gbnf",
+  "docs/erd.gbnf": "erd.gbnf",
+  "sql.gbnf": "sql.gbnf",
+  "docs/sql.gbnf": "sql.gbnf",
 };
 
 /// Render one of the project's markdown documents.

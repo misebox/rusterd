@@ -68,9 +68,9 @@ const WORDS = {
   getStarted: { en: "Get started", ja: "はじめる" },
   tryIt: { en: "Try it in the browser", ja: "ブラウザで試す" },
 
-  grammars: {
-    en: "Grammars for constrained decoding",
-    ja: "制約付き生成のための文法ファイル",
+  forModels: {
+    en: "For a model writing .erd files",
+    ja: ".erd を書くモデルに渡すもの",
   },
   compiledHere: {
     en: "Every diagram on this page was compiled in your browser, by the same code the command line runs.",
