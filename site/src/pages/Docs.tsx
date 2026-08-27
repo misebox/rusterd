@@ -2,8 +2,6 @@ import { createSignal, onMount, Show } from "solid-js";
 import init from "../../../pkg/rusterd.js";
 import overview from "../../../README.md?raw";
 import reference from "../../../docs/DSL-spec.md?raw";
-import erdGrammar from "../../../docs/erd.gbnf?url";
-import sqlGrammar from "../../../docs/sql.gbnf?url";
 import Header from "../Header";
 import Markdown from "../Markdown";
 import { chunks, intro, sections, withoutHeading } from "../document";
@@ -87,12 +85,15 @@ export default function Docs() {
 
       <main>
         <Show when={HERE === "language.html"}>
-          <div style={styles.grammars}>
-            <span style={styles.grammarsLabel}>{say("grammars", LANGUAGE)}</span>
-            <a style={styles.file} href={erdGrammar} download="erd.gbnf">
+          <div style={styles.forModels}>
+            <span style={styles.forModelsLabel}>{say("forModels", LANGUAGE)}</span>
+            <a style={styles.file} href="llms-full.txt">
+              llms-full.txt
+            </a>
+            <a style={styles.file} href="erd.gbnf" download="erd.gbnf">
               erd.gbnf
             </a>
-            <a style={styles.file} href={sqlGrammar} download="sql.gbnf">
+            <a style={styles.file} href="sql.gbnf" download="sql.gbnf">
               sql.gbnf
             </a>
           </div>
@@ -176,7 +177,7 @@ const styles = {
     "border-color": theme.ink,
     color: theme.paper,
   },
-  grammars: {
+  forModels: {
     display: "flex",
     "align-items": "center",
     gap: "12px",
@@ -188,7 +189,7 @@ const styles = {
     background: theme.panel,
     "font-size": "14px",
   },
-  grammarsLabel: {
+  forModelsLabel: {
     color: theme.quiet,
     "margin-right": "auto",
   },

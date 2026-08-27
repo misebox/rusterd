@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import llms from "./llms";
 
 export default defineConfig({
   // Three pages, each its own entry: plain links between them, no router, and
@@ -18,7 +19,7 @@ export default defineConfig({
   // Relative asset paths, so the build works both locally and under the
   // /rusterd/ prefix GitHub Pages serves a project site from.
   base: "./",
-  plugins: [solid()],
+  plugins: [solid(), llms()],
   // The wasm package, the markdown documents and the examples are all read
   // straight out of the repository, so the dev server has to be allowed to
   // serve files from its root.
