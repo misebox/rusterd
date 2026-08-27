@@ -78,7 +78,8 @@ const styles = {
   },
   beside: {
     display: "grid",
-    "grid-template-columns": "minmax(0, 1fr) minmax(0, 1fr)",
+    // Two columns where they fit, one where they would only squeeze.
+    "grid-template-columns": "repeat(auto-fit, minmax(260px, 1fr))",
     gap: "16px",
     "align-items": "start",
   },

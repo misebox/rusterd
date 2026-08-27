@@ -145,10 +145,17 @@ export default function Examples() {
     return address;
   });
 
+  let viewer: HTMLElement | undefined;
+
   const show = (name: string) => {
     setChosen(name);
     setTab(FIRST);
     history.replaceState(null, "", `#${name}`);
+    // On a narrow screen the list is the whole page and the diagram is under
+    // it, so choosing one would otherwise change something out of sight.
+    if (viewer && viewer.getBoundingClientRect().top > window.innerHeight / 2) {
+      viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   const shown = createMemo(() => TABS.filter((name) => name !== "SQL" || sql()));
@@ -181,7 +188,7 @@ export default function Examples() {
           ))}
         </nav>
 
-        <section style={styles.viewer}>
+        <section ref={viewer} style={styles.viewer}>
           <Tabs
             names={shown()}
             shown={tab()}
