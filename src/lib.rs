@@ -27,14 +27,23 @@ fn report_panics() {
 /// What the TypeScript definitions say a caller may pass.
 #[wasm_bindgen(typescript_custom_section)]
 const OPTIONS: &'static str = r#"
+/** How much of an entity to draw. */
+export type Detail = "tables" | "pk" | "pk_fk" | "all";
+
+/** How to draw the cardinalities. */
+export type Notation = "crowsfoot" | "text";
+
+/** Which SQL a dump is written in. */
+export type Dialect = "auto" | "generic" | "postgres" | "mysql";
+
 /** How to draw the diagram. Every field may be left out. */
 export interface DrawOptions {
     /** Name of a `focus` block: draw only the entities it lists. */
     focus?: string | null;
-    /** Which columns to draw: "tables", "pk", "pk_fk" or "all". Default "all". */
-    detail?: string | null;
-    /** How to draw cardinalities: "crowsfoot" or "text". Default "crowsfoot". */
-    notation?: string | null;
+    /** Which columns to draw. Default "all". */
+    detail?: Detail | null;
+    /** How to draw cardinalities. Default "crowsfoot". */
+    notation?: Notation | null;
     /** Draw a key to the cardinality symbols below the diagram. */
     legend?: boolean | null;
     /** Close up the spacing, to fit a large schema on one screen. */
@@ -43,8 +52,8 @@ export interface DrawOptions {
 
 /** How to read the SQL, and then how to draw it. */
 export interface ConvertOptions extends DrawOptions {
-    /** "auto", "generic", "postgres" or "mysql". Default "auto". */
-    dialect?: string | null;
+    /** Default "auto", which reads the dump and decides. */
+    dialect?: Dialect | null;
 }
 "#;
 
@@ -55,6 +64,10 @@ extern "C" {
 
     #[wasm_bindgen(typescript_type = "ConvertOptions")]
     pub type ConvertOptions;
+
+    /// The one option that is also asked for on its own, by `sqlToErd`.
+    #[wasm_bindgen(typescript_type = "Dialect")]
+    pub type DialectName;
 }
 
 /// Everything the caller asked for, read out of the object they passed.
@@ -62,6 +75,10 @@ extern "C" {
 /// An object is read field by field rather than taken apart wholesale, so a
 /// field spelled wrong is ignored instead of refused — and, more to the point,
 /// so that a caller writes what they mean rather than counting commas.
+///
+/// A field whose *value* is not one this compiler knows is refused, though.
+/// TypeScript stops that spelling ever being written; JavaScript has to be
+/// told, and quietly drawing something else is the worst of the answers.
 struct Asked {
     focus: Option<String>,
     detail: DetailLevel,
@@ -72,7 +89,7 @@ struct Asked {
 }
 
 impl Asked {
-    fn from(options: Option<impl AsRef<JsValue>>) -> Self {
+    fn from(options: Option<impl AsRef<JsValue>>) -> Result<Self, String> {
         let object = options.map(|given| given.as_ref().clone());
         let field = |name: &str| -> Option<JsValue> {
             let object = object.as_ref()?;
@@ -81,23 +98,44 @@ impl Asked {
         let text = |name: &str| -> Option<String> { field(name)?.as_string() };
         let flag = |name: &str| -> bool { field(name).and_then(|v| v.as_bool()).unwrap_or(false) };
 
-        Self {
+        Ok(Self {
             focus: text("focus"),
-            detail: text("detail")
-                .as_deref()
-                .and_then(DetailLevel::from_name)
-                .unwrap_or(DetailLevel::All),
-            notation: text("notation")
-                .as_deref()
-                .and_then(Notation::from_name)
-                .unwrap_or_default(),
+            detail: match text("detail") {
+                Some(name) => named(&name, DetailLevel::from_name, "detail", DETAIL)?,
+                None => DetailLevel::All,
+            },
+            notation: match text("notation") {
+                Some(name) => named(&name, Notation::from_name, "notation", NOTATION)?,
+                None => Notation::default(),
+            },
             legend: flag("legend"),
             dense: flag("dense"),
-            dialect: text("dialect")
-                .as_deref()
-                .and_then(sql::Dialect::from_name)
-                .unwrap_or(sql::Dialect::Auto),
-        }
+            dialect: read_dialect(text("dialect"))?,
+        })
+    }
+}
+
+/// What each option will answer to, for the message when it is given something
+/// else. The same words the types offer and the documentation lists.
+const DETAIL: &str = r#""tables", "pk", "pk_fk", "all""#;
+const NOTATION: &str = r#""crowsfoot", "text""#;
+const DIALECT: &str = r#""auto", "generic", "postgres", "mysql""#;
+
+/// One option's value, or a complaint naming what it would have taken.
+fn named<T>(
+    value: &str,
+    read: impl Fn(&str) -> Option<T>,
+    option: &str,
+    allowed: &str,
+) -> Result<T, String> {
+    read(value).ok_or_else(|| format!("Unknown {option}: {value:?} (expected {allowed})"))
+}
+
+/// The dialect, which is asked for on its own as well as inside an object.
+fn read_dialect(given: Option<String>) -> Result<sql::Dialect, String> {
+    match given {
+        Some(name) => named(&name, sql::Dialect::from_name, "dialect", DIALECT),
+        None => Ok(sql::Dialect::Auto),
     }
 }
 
@@ -114,7 +152,7 @@ impl Asked {
 /// ```
 #[wasm_bindgen(js_name = "erdToSvg")]
 pub fn render_erd(source: &str, options: Option<DrawOptions>) -> Result<String, String> {
-    draw(source, &Asked::from(options))
+    draw(source, &Asked::from(options)?)
 }
 
 /// Compile ERD source into an SVG data URI.
@@ -167,13 +205,9 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
 /// sqlToErd(dump, "postgres");
 /// ```
 #[wasm_bindgen(js_name = "sqlToErd")]
-pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, String> {
-    let dialect = dialect
-        .as_deref()
-        .and_then(sql::Dialect::from_name)
-        .unwrap_or(sql::Dialect::Auto);
-
-    let schema = sql::parse_sql(sql_source, dialect).map_err(|e| e.to_string())?;
+pub fn sql_to_erd(sql_source: &str, dialect: Option<DialectName>) -> Result<String, String> {
+    let named = dialect.and_then(|given| AsRef::<JsValue>::as_ref(&given).as_string());
+    let schema = sql::parse_sql(sql_source, read_dialect(named)?).map_err(|e| e.to_string())?;
     Ok(serializer::serialize(&schema))
 }
 
@@ -188,9 +222,31 @@ pub fn sql_to_erd(sql_source: &str, dialect: Option<String>) -> Result<String, S
 /// ```
 #[wasm_bindgen(js_name = "sqlToSvg")]
 pub fn sql_to_svg(sql_source: &str, options: Option<ConvertOptions>) -> Result<String, String> {
-    let asked = Asked::from(options);
+    let asked = Asked::from(options)?;
     let erd = sql::parse_sql(sql_source, asked.dialect)
         .map(|schema| serializer::serialize(&schema))
         .map_err(|e| e.to_string())?;
     draw(&erd, &asked)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_value_the_compiler_knows_is_read() {
+        let read = named("pk_fk", DetailLevel::from_name, "detail", DETAIL);
+        assert_eq!(read, Ok(DetailLevel::PkFk));
+    }
+
+    /// Drawing every column when "pk_fk" was misspelt would look like the
+    /// option had been ignored, which is the hardest kind of bug to see.
+    #[test]
+    fn a_value_it_does_not_know_is_refused_by_name() {
+        let read = named("pkfk", DetailLevel::from_name, "detail", DETAIL);
+        assert_eq!(
+            read,
+            Err(r#"Unknown detail: "pkfk" (expected "tables", "pk", "pk_fk", "all")"#.to_string())
+        );
+    }
 }
