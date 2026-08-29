@@ -2,8 +2,7 @@ import { marked } from "marked";
 import { For } from "solid-js";
 import Example from "./Example";
 import { Language } from "./i18n";
-
-const REPO = "https://github.com/misebox/rusterd/blob/main";
+import { inRepo } from "./project";
 
 // Headings carry their own name, so a link to one lands on it. marked stopped
 // doing this itself, and the documents link to their own sections.
@@ -109,6 +108,6 @@ function reroute(prose: string): string {
       if (example) {
         return `](examples.html#${example[1]})`;
       }
-      return `](${ELSEWHERE[href] ?? `${REPO}/${href.replace(/^\.\//, "")}`})`;
+      return `](${ELSEWHERE[href] ?? inRepo(href.replace(/^\.\//, ""))})`;
     });
 }

@@ -29,9 +29,16 @@ cd "$(dirname "$0")/.."
 
 CRATE=rusterd
 NPM_PACKAGE=rusterd
-HOMEPAGE=https://misebox.github.io/rusterd/
 # The site loads the module with `init()`, so the package is the web build.
 WASM_TARGET=web
+
+# Cargo.toml is where the addresses are kept, so nothing here has a second
+# opinion about them.
+manifest_field() {
+    sed -n "s/^$1 = \"\([^\"]*\)\"$/\1/p" Cargo.toml | head -1
+}
+HOMEPAGE=$(manifest_field homepage)
+REPO=$(manifest_field repository)
 
 usage() {
     # The comment block above is the help text; no line numbers to keep in step.
@@ -345,7 +352,7 @@ Released $VERSION.
 
   crates.io  https://crates.io/crates/$CRATE
   npm        https://www.npmjs.com/package/$NPM_PACKAGE
-  site       https://github.com/misebox/rusterd/actions
+  site       $REPO/actions
 
 The push to main redeploys the documentation site.
 EOF

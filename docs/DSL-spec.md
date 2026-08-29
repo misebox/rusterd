@@ -14,8 +14,8 @@ Both grammars are covered by `cargo test --test grammar`, which generates
 documents from them and runs the result through the compiler.
 
 This document and the render options are served as one plain-text file at
-<https://misebox.github.io/rusterd/llms-full.txt>, with
-<https://misebox.github.io/rusterd/llms.txt> as the index to it.
+`/llms-full.txt` on the documentation site, with `/llms.txt` as the index
+naming it and the grammars.
 
 ## File structure
 
