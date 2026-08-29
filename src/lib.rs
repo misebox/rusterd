@@ -9,13 +9,19 @@ pub mod serializer;
 pub mod sql;
 pub mod svg;
 
+#[cfg(feature = "wasm-api")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "wasm-api")]
 use ir::{DetailLevel, GraphIR};
+#[cfg(feature = "wasm-api")]
 use layout::LayoutEngine;
+#[cfg(feature = "wasm-api")]
 use parser::Parser;
+#[cfg(feature = "wasm-api")]
 use svg::{Notation, SvgRenderer};
 
+#[cfg(feature = "wasm-api")]
 /// Runs when the module is instantiated, so that a panic in the compiler shows
 /// up in the console rather than as `unreachable executed`.
 #[wasm_bindgen(start)]
@@ -24,6 +30,7 @@ fn report_panics() {
     console_error_panic_hook::set_once();
 }
 
+#[cfg(feature = "wasm-api")]
 /// What the TypeScript definitions say a caller may pass.
 #[wasm_bindgen(typescript_custom_section)]
 const OPTIONS: &'static str = r#"
@@ -57,6 +64,7 @@ export interface ConvertOptions extends DrawOptions {
 }
 "#;
 
+#[cfg(feature = "wasm-api")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "DrawOptions")]
@@ -70,6 +78,7 @@ extern "C" {
     pub type DialectName;
 }
 
+#[cfg(feature = "wasm-api")]
 /// Everything the caller asked for, read out of the object they passed.
 ///
 /// An object is read field by field rather than taken apart wholesale, so a
@@ -88,6 +97,7 @@ struct Asked {
     dialect: sql::Dialect,
 }
 
+#[cfg(feature = "wasm-api")]
 impl Asked {
     fn from(options: Option<impl AsRef<JsValue>>) -> Result<Self, String> {
         let object = options.map(|given| given.as_ref().clone());
@@ -115,12 +125,16 @@ impl Asked {
     }
 }
 
+#[cfg(feature = "wasm-api")]
 /// What each option will answer to, for the message when it is given something
 /// else. The same words the types offer and the documentation lists.
 const DETAIL: &str = r#""tables", "pk", "pk_fk", "all""#;
+#[cfg(feature = "wasm-api")]
 const NOTATION: &str = r#""crowsfoot", "text""#;
+#[cfg(feature = "wasm-api")]
 const DIALECT: &str = r#""auto", "generic", "postgres", "mysql""#;
 
+#[cfg(feature = "wasm-api")]
 /// One option's value, or a complaint naming what it would have taken.
 fn named<T>(
     value: &str,
@@ -131,6 +145,7 @@ fn named<T>(
     read(value).ok_or_else(|| format!("Unknown {option}: {value:?} (expected {allowed})"))
 }
 
+#[cfg(feature = "wasm-api")]
 /// The dialect, which is asked for on its own as well as inside an object.
 fn read_dialect(given: Option<String>) -> Result<sql::Dialect, String> {
     match given {
@@ -139,6 +154,7 @@ fn read_dialect(given: Option<String>) -> Result<sql::Dialect, String> {
     }
 }
 
+#[cfg(feature = "wasm-api")]
 /// Compile ERD source into an SVG document.
 ///
 /// Returns the markup, `<svg ...>...</svg>`, as a string.
@@ -155,6 +171,7 @@ pub fn render_erd(source: &str, options: Option<DrawOptions>) -> Result<String, 
     draw(source, &Asked::from(options)?)
 }
 
+#[cfg(feature = "wasm-api")]
 /// Compile ERD source into an SVG data URI.
 ///
 /// Returns `data:image/svg+xml,...` as a string, ready to be the `src` of an
@@ -168,6 +185,7 @@ pub fn render_erd_data_uri(source: &str, options: Option<DrawOptions>) -> Result
     ))
 }
 
+#[cfg(feature = "wasm-api")]
 /// Draw what the caller asked for.
 fn draw(source: &str, asked: &Asked) -> Result<String, String> {
     let mut parser = Parser::new(source).map_err(|e| e.to_string())?;
@@ -193,6 +211,7 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
         .render(&ir, &layout))
 }
 
+#[cfg(feature = "wasm-api")]
 /// Read a SQL dump and write it out as ERD source.
 ///
 /// Returns what a `.erd` file would hold, as a string.
@@ -211,6 +230,7 @@ pub fn sql_to_erd(sql_source: &str, dialect: Option<DialectName>) -> Result<Stri
     Ok(serializer::serialize(&schema))
 }
 
+#[cfg(feature = "wasm-api")]
 /// Read a SQL dump and compile it straight to an SVG document.
 ///
 /// `sqlToErd` followed by `erdToSvg`: returns the markup as a string, and
@@ -229,7 +249,7 @@ pub fn sql_to_svg(sql_source: &str, options: Option<ConvertOptions>) -> Result<S
     draw(&erd, &asked)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "wasm-api"))]
 mod tests {
     use super::*;
 
