@@ -4,6 +4,7 @@ import Controls, { Drawing, PLAIN } from "../Drawing";
 import Header from "../Header";
 import Tabs from "../Tabs";
 import { language, say } from "../i18n";
+import { inRepo } from "../project";
 import "../diagram.css";
 import { theme } from "../theme";
 
@@ -211,7 +212,7 @@ export default function Examples() {
                 </Show>
                 <a
                   style={styles.quiet}
-                  href={`https://github.com/misebox/rusterd/blob/main/examples/${chosen()}.erd`}
+                  href={inRepo(`examples/${chosen()}.erd`)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

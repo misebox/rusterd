@@ -250,13 +250,10 @@ handed to an LLM, with GBNF grammars for constrained generation:
 for the DDL subset `convert` reads. `cargo test --test grammar` generates
 documents from both and checks that the compiler accepts them.
 
-For handing to a model rather than to a person, the site serves the same
-material as plain text at fixed addresses: the reference and these options in
-one file at
-[llms-full.txt](https://misebox.github.io/rusterd/llms-full.txt), the grammars
-at [erd.gbnf](https://misebox.github.io/rusterd/erd.gbnf) and
-[sql.gbnf](https://misebox.github.io/rusterd/sql.gbnf), and
-[llms.txt](https://misebox.github.io/rusterd/llms.txt) saying which is which.
+For handing to a model rather than to a person, the documentation site serves
+the same material as plain text at fixed paths: `/llms-full.txt` is the
+reference and the options in one file, `/erd.gbnf` and `/sql.gbnf` are the
+grammars, and `/llms.txt` says which is which.
 
 ### Entities
 

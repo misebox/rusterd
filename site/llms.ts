@@ -3,13 +3,26 @@ import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { sections } from "./src/document";
 
-/// Where the built site lives, for the links inside the files it serves. A
-/// model is handed a URL, not a directory, so relative paths are no use to it.
-const SITE = "https://misebox.github.io/rusterd";
-const REPO = "https://github.com/misebox/rusterd";
-
 const read = (path: string) =>
   readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8");
+
+/// Where the built site lives, and where its source does. A model is handed a
+/// URL rather than a directory, so the files below have to spell both out —
+/// but only Cargo.toml is told what they are. An address written down twice is
+/// an address that will disagree with itself.
+const field = (name: string) => {
+  const found = read("Cargo.toml").match(new RegExp(`^${name} = "([^"]+)"$`, "m"));
+  if (!found) {
+    throw new Error(`Cargo.toml has no ${name} for the site to link to`);
+  }
+  return found[1].replace(/\/$/, "");
+};
+
+/// What the build knows about where this project lives.
+export const project = { site: field("homepage"), repo: field("repository") };
+
+const SITE = project.site;
+const REPO = project.repo;
 
 /// The plain-text files a model is pointed at, each at an address that does not
 /// change: `llms.txt` says what is here, `llms-full.txt` is the whole of what a

@@ -1,5 +1,6 @@
 import { onMount } from "solid-js";
 import { choose, inLanguage, Language, LANGUAGES, markPage, say } from "./i18n";
+import { REPO } from "./project";
 import "./masthead.css";
 import { theme } from "./theme";
 
@@ -35,7 +36,7 @@ export default function Header(props: { here: string; language: Language }) {
           </a>
         ))}
         <a
-          href="https://github.com/misebox/rusterd"
+          href={REPO}
           target="_blank"
           rel="noopener noreferrer"
           style={styles.link}
