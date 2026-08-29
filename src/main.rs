@@ -32,6 +32,9 @@ fn main() {
     match args[1].as_str() {
         "render" => run_render(&args[0], &args[2..]),
         "convert" => run_convert(&args[0], &args[2..]),
+        "-V" | "--version" | "version" => {
+            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        }
         "-h" | "--help" | "help" => {
             print_usage(&args[0]);
         }
@@ -45,11 +48,16 @@ fn main() {
 }
 
 fn print_usage(program: &str) {
+    eprintln!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     eprintln!("Usage: {} <subcommand> [options]", program);
     eprintln!();
     eprintln!("Subcommands:");
     eprintln!("  render   Render ERD file to SVG");
     eprintln!("  convert  Convert SQL dump to ERD notation");
+    eprintln!();
+    eprintln!("Options:");
+    eprintln!("  -h, --help     Print this, or a subcommand's own");
+    eprintln!("  -V, --version  Print the version");
     eprintln!();
     eprintln!(
         "Run '{} <subcommand> --help' for more information.",

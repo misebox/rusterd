@@ -33,6 +33,9 @@ cat input.erd | rusterd render - -o output.svg
 # SQL ダンプを ERD 記法に変換する
 rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
+
+# バージョンを表示する
+rusterd --version
 ```
 
 ## オプション

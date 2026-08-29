@@ -105,6 +105,9 @@ cat input.erd | rusterd render - -o output.svg
 # Convert a SQL dump to ERD notation
 rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
+
+# Which version this is
+rusterd --version
 ```
 
 ## Options
