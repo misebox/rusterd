@@ -1,5 +1,6 @@
 # rusterd
 
+[![check](https://github.com/misebox/rusterd/actions/workflows/check.yml/badge.svg)](https://github.com/misebox/rusterd/actions/workflows/check.yml)
 [![crates.io](https://img.shields.io/crates/v/rusterd.svg)](https://crates.io/crates/rusterd)
 [![npm](https://img.shields.io/npm/v/rusterd.svg)](https://www.npmjs.com/package/rusterd)
 [![docs.rs](https://img.shields.io/docsrs/rusterd)](https://docs.rs/rusterd)
