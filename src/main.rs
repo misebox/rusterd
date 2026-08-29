@@ -147,10 +147,12 @@ fn run_render(program: &str, args: &[String]) {
         }
     };
 
+    // Both halves of reading a file fail the same way, and say so the same
+    // way: the file, then where in it, then what was wrong.
     let mut parser = match Parser::new(&input) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("{}: {}", input_path, e);
             process::exit(1);
         }
     };
@@ -158,7 +160,7 @@ fn run_render(program: &str, args: &[String]) {
     let schema = match parser.parse() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Parse error: {}", e);
+            eprintln!("{}: {}", input_path, e);
             process::exit(1);
         }
     };

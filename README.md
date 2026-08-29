@@ -211,7 +211,7 @@ const svg = sqlToSvg(dump, { dialect: 'postgres', detail: 'pk_fk' });
 try {
   erdToSvg('entity {');
 } catch (message) {
-  console.error(message);  // "Unexpected token: LBrace, expected identifier"
+  console.error(message);  // "line 1, column 8: expected a name, found `{`"
 }
 ```
 

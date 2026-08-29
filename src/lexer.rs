@@ -1,5 +1,27 @@
+use std::fmt;
 use std::iter::Peekable;
 use std::str::Chars;
+
+/// Where something was written, counted the way an editor counts: the first
+/// line is 1, and a column is a character rather than a byte, so a name in
+/// Japanese lands where the cursor does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Place {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl Default for Place {
+    fn default() -> Self {
+        Self { line: 1, column: 1 }
+    }
+}
+
+impl fmt::Display for Place {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "line {}, column {}", self.line, self.column)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -28,19 +50,57 @@ pub enum Token {
     Eof,
 }
 
+impl fmt::Display for Token {
+    /// How a token is named in an error: as the reader wrote it, where that
+    /// is a thing they wrote, and by description where it is not.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Ident(name) => write!(f, "`{name}`"),
+            Token::Str(text) => write!(f, "\"{text}\""),
+            Token::Num(n) => write!(f, "{n}"),
+            Token::LBrace => write!(f, "`{{`"),
+            Token::RBrace => write!(f, "`}}`"),
+            Token::LParen => write!(f, "`(`"),
+            Token::RParen => write!(f, "`)`"),
+            Token::LBracket => write!(f, "`[`"),
+            Token::RBracket => write!(f, "`]`"),
+            Token::Comma => write!(f, "`,`"),
+            Token::Semicolon => write!(f, "`;`"),
+            Token::Colon => write!(f, "`:`"),
+            Token::Eq => write!(f, "`=`"),
+            Token::At => write!(f, "`@`"),
+            Token::Star => write!(f, "`*`"),
+            Token::Dot => write!(f, "`.`"),
+            Token::Arrow => write!(f, "`->`"),
+            Token::Dash => write!(f, "`--`"),
+            Token::DotDot => write!(f, "`..`"),
+            Token::Newline => write!(f, "the end of the line"),
+            Token::Eof => write!(f, "the end of the file"),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum LexError {
-    #[error("Unexpected character: {0}")]
-    UnexpectedChar(char),
-    #[error("Unterminated string")]
-    UnterminatedString,
-    #[error("Invalid number: {0}")]
-    InvalidNumber(String),
+    #[error("{1}: this file cannot hold the character {0:?}")]
+    UnexpectedChar(char, Place),
+    #[error("{0}: this string is never closed")]
+    UnterminatedString(Place),
+    #[error("{1}: {0} is not a number this reads")]
+    InvalidNumber(String, Place),
+}
+
+/// The tokens of a document, and where each of them was written. The two are
+/// read together: an error names a token, and a reader needs the line.
+pub struct Tokens {
+    pub tokens: Vec<Token>,
+    pub places: Vec<Place>,
 }
 
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
     preserve_newlines: bool,
+    place: Place,
 }
 
 impl<'a> Lexer<'a> {
@@ -48,7 +108,23 @@ impl<'a> Lexer<'a> {
         Self {
             chars: input.chars().peekable(),
             preserve_newlines: false,
+            place: Place::default(),
         }
+    }
+
+    /// The next character, counted. Every character this lexer reads goes
+    /// through here, which is what keeps `place` honest.
+    fn bump(&mut self) -> Option<char> {
+        let c = self.chars.next()?;
+        if c == '\n' {
+            self.place = Place {
+                line: self.place.line + 1,
+                column: 1,
+            };
+        } else {
+            self.place.column += 1;
+        }
+        Some(c)
     }
 
     /// Enable newline preservation (for arrangement blocks).
@@ -64,11 +140,11 @@ impl<'a> Lexer<'a> {
                     break;
                 }
                 Some(c) if c.is_whitespace() => {
-                    self.chars.next();
+                    self.bump();
                 }
                 Some('#') => {
                     while let Some(&c) = self.chars.peek() {
-                        self.chars.next();
+                        self.bump();
                         if c == '\n' {
                             break;
                         }
@@ -84,7 +160,7 @@ impl<'a> Lexer<'a> {
         while let Some(&c) = self.chars.peek() {
             if c.is_alphanumeric() || c == '_' {
                 s.push(c);
-                self.chars.next();
+                self.bump();
             } else {
                 break;
             }
@@ -95,10 +171,10 @@ impl<'a> Lexer<'a> {
     fn read_string(&mut self) -> Result<String, LexError> {
         let mut s = String::new();
         loop {
-            match self.chars.next() {
+            match self.bump() {
                 Some('"') => return Ok(s),
                 Some('\\') => {
-                    if let Some(c) = self.chars.next() {
+                    if let Some(c) = self.bump() {
                         match c {
                             'n' => s.push('\n'),
                             't' => s.push('\t'),
@@ -108,7 +184,7 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 Some(c) => s.push(c),
-                None => return Err(LexError::UnterminatedString),
+                None => return Err(LexError::UnterminatedString(self.place)),
             }
         }
     }
@@ -118,20 +194,23 @@ impl<'a> Lexer<'a> {
         while let Some(&c) = self.chars.peek() {
             if c.is_ascii_digit() {
                 s.push(c);
-                self.chars.next();
+                self.bump();
             } else {
                 break;
             }
         }
-        s.parse().map_err(|_| LexError::InvalidNumber(s))
+        let place = self.place;
+        s.parse().map_err(|_| LexError::InvalidNumber(s, place))
     }
 
-    pub fn next_token(&mut self) -> Result<Token, LexError> {
+    /// The next token, and where it starts.
+    pub fn next_token(&mut self) -> Result<(Token, Place), LexError> {
         self.skip_whitespace_and_comments();
 
-        let c = match self.chars.next() {
+        let place = self.place;
+        let c = match self.bump() {
             Some(c) => c,
-            None => return Ok(Token::Eof),
+            None => return Ok((Token::Eof, place)),
         };
 
         let tok = match c {
@@ -150,7 +229,7 @@ impl<'a> Lexer<'a> {
             '*' => Token::Star,
             '.' => {
                 if self.chars.peek() == Some(&'.') {
-                    self.chars.next();
+                    self.bump();
                     Token::DotDot
                 } else {
                     Token::Dot
@@ -158,35 +237,37 @@ impl<'a> Lexer<'a> {
             }
             '-' => {
                 if self.chars.peek() == Some(&'-') {
-                    self.chars.next();
+                    self.bump();
                     Token::Dash
                 } else if self.chars.peek() == Some(&'>') {
-                    self.chars.next();
+                    self.bump();
                     Token::Arrow
                 } else {
-                    return Err(LexError::UnexpectedChar(c));
+                    return Err(LexError::UnexpectedChar(c, place));
                 }
             }
             '"' => Token::Str(self.read_string()?),
             c if c.is_ascii_digit() => Token::Num(self.read_number(c)?),
             c if c.is_alphabetic() || c == '_' => Token::Ident(self.read_ident(c)),
-            _ => return Err(LexError::UnexpectedChar(c)),
+            _ => return Err(LexError::UnexpectedChar(c, place)),
         };
 
-        Ok(tok)
+        Ok((tok, place))
     }
 
-    pub fn tokenize(mut self) -> Result<Vec<Token>, LexError> {
+    pub fn tokenize(mut self) -> Result<Tokens, LexError> {
         let mut tokens = Vec::new();
+        let mut places = Vec::new();
         loop {
-            let tok = self.next_token()?;
-            if tok == Token::Eof {
-                tokens.push(tok);
+            let (token, place) = self.next_token()?;
+            let end = token == Token::Eof;
+            tokens.push(token);
+            places.push(place);
+            if end {
                 break;
             }
-            tokens.push(tok);
         }
-        Ok(tokens)
+        Ok(Tokens { tokens, places })
     }
 }
 
@@ -196,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_basic_tokens() {
-        let tokens = Lexer::new("entity User { }").tokenize().unwrap();
+        let tokens = Lexer::new("entity User { }").tokenize().unwrap().tokens;
         assert_eq!(
             tokens,
             vec![
@@ -211,17 +292,25 @@ mod tests {
 
     #[test]
     fn test_unicode_ident() {
-        let tokens = Lexer::new("entity ユーザー { 名前 string }")
+        let read = Lexer::new("entity ユーザー { 名前 string }")
             .tokenize()
             .unwrap();
-        assert_eq!(tokens[1], Token::Ident("ユーザー".into()));
-        assert_eq!(tokens[3], Token::Ident("名前".into()));
+        assert_eq!(read.tokens[1], Token::Ident("ユーザー".into()));
+        assert_eq!(read.tokens[3], Token::Ident("名前".into()));
+        // Columns are characters, so a name in Japanese is where it looks.
+        assert_eq!(
+            read.places[3],
+            Place {
+                line: 1,
+                column: 15
+            }
+        );
     }
 
     #[test]
     fn test_comments() {
         let input = "# comment\nentity User { # inline\n}";
-        let tokens = Lexer::new(input).tokenize().unwrap();
+        let tokens = Lexer::new(input).tokenize().unwrap().tokens;
         assert_eq!(
             tokens,
             vec![
@@ -236,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_cardinality_tokens() {
-        let tokens = Lexer::new("1 0..1 * 1..*").tokenize().unwrap();
+        let tokens = Lexer::new("1 0..1 * 1..*").tokenize().unwrap().tokens;
         assert_eq!(
             tokens,
             vec![
@@ -255,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_symbols() {
-        let tokens = Lexer::new("-- -> : = @ ;").tokenize().unwrap();
+        let tokens = Lexer::new("-- -> : = @ ;").tokenize().unwrap().tokens;
         assert_eq!(
             tokens,
             vec![

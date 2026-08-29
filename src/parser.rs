@@ -1,18 +1,29 @@
+use std::fmt::Display;
+
 use crate::ast::*;
-use crate::lexer::{LexError, Lexer, Token};
+use crate::lexer::{LexError, Lexer, Place, Token};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("Lex error: {0}")]
+    #[error("{0}")]
     Lex(#[from] LexError),
-    #[error("Unexpected token: {0:?}, expected {1}")]
-    Unexpected(Token, &'static str),
-    #[error("Unexpected end of input")]
-    UnexpectedEof,
+    #[error("{at}: expected {needed}, found {seen}")]
+    Unexpected {
+        seen: Token,
+        needed: String,
+        at: Place,
+    },
 }
 
+/// What may stand at the top level of a file, for the complaint when
+/// something else does.
+const TOP_LEVEL: &str = "`entity`, `rel`, `focus`, `@hint.near`, `@hint.omit` or `@hint.brief`";
+
+#[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Token>,
+    /// Where each token was written, in step with `tokens`.
+    places: Vec<Place>,
     pos: usize,
 }
 
@@ -20,12 +31,45 @@ impl Parser {
     pub fn new(input: &str) -> Result<Self, ParseError> {
         let mut lexer = Lexer::new(input);
         lexer.set_preserve_newlines(true);
-        let tokens = lexer.tokenize()?;
-        Ok(Self { tokens, pos: 0 })
+        let read = lexer.tokenize()?;
+        Ok(Self {
+            tokens: read.tokens,
+            places: read.places,
+            pos: 0,
+        })
     }
 
     fn peek(&self) -> &Token {
         self.tokens.get(self.pos).unwrap_or(&Token::Eof)
+    }
+
+    /// Where the token at `index` was written. Past the end is the end of the
+    /// file, which is where a document that stops too early goes wrong.
+    fn place(&self, index: usize) -> Place {
+        self.places
+            .get(index)
+            .or(self.places.last())
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// The token just read was not the one the grammar needed.
+    fn unexpected(&self, seen: Token, needed: impl Display) -> ParseError {
+        ParseError::Unexpected {
+            seen,
+            needed: needed.to_string(),
+            at: self.place(self.pos.saturating_sub(1)),
+        }
+    }
+
+    /// The token about to be read is not the one the grammar needs. Nothing is
+    /// consumed, so the place is the one ahead.
+    fn unexpected_ahead(&self, needed: impl Display) -> ParseError {
+        ParseError::Unexpected {
+            seen: self.peek().clone(),
+            needed: needed.to_string(),
+            at: self.place(self.pos),
+        }
     }
 
     fn advance(&mut self) -> &Token {
@@ -44,7 +88,7 @@ impl Parser {
     fn expect_ident(&mut self) -> Result<String, ParseError> {
         match self.advance().clone() {
             Token::Ident(s) => Ok(s),
-            tok => Err(ParseError::Unexpected(tok, "identifier")),
+            tok => Err(self.unexpected(tok, "a name")),
         }
     }
 
@@ -53,7 +97,7 @@ impl Parser {
         if tok == expected {
             Ok(())
         } else {
-            Err(ParseError::Unexpected(tok, "specific token"))
+            Err(self.unexpected(tok, expected))
         }
     }
 
@@ -81,10 +125,7 @@ impl Parser {
                     Some("omit") => omit.extend(self.parse_name_set()?),
                     Some("brief") => brief.extend(self.parse_name_set()?),
                     _ => {
-                        return Err(ParseError::Unexpected(
-                            self.peek().clone(),
-                            "entity, rel, focus, @hint.near, @hint.omit, or @hint.brief",
-                        ));
+                        return Err(self.unexpected_ahead(TOP_LEVEL));
                     }
                 }
             } else if self.check_ident("entity") {
@@ -97,10 +138,7 @@ impl Parser {
                 self.advance();
                 focuses.push(self.parse_focus()?);
             } else {
-                return Err(ParseError::Unexpected(
-                    self.peek().clone(),
-                    "entity, rel, focus, @hint.near, @hint.omit, or @hint.brief",
-                ));
+                return Err(self.unexpected_ahead(TOP_LEVEL));
             }
         }
 
@@ -170,7 +208,7 @@ impl Parser {
                 Token::Comma | Token::Semicolon | Token::Newline => {
                     self.advance();
                 }
-                tok => return Err(ParseError::Unexpected(tok, "entity name")),
+                tok => return Err(self.unexpected(tok, "an entity name")),
             }
         }
         self.expect(Token::RBrace)?;
@@ -313,7 +351,7 @@ impl Parser {
             }
             Token::Str(s) => Ok(format!("\"{}\"", s)),
             Token::Num(n) => Ok(n.to_string()),
-            tok => Err(ParseError::Unexpected(tok, "default value")),
+            tok => Err(self.unexpected(tok, "a default value")),
         }
     }
 
@@ -333,7 +371,7 @@ impl Parser {
             Token::Num(n) => HintValue::Int(n),
             Token::Str(s) => HintValue::Str(s),
             Token::Ident(s) => HintValue::Ident(s),
-            tok => return Err(ParseError::Unexpected(tok, "hint value")),
+            tok => return Err(self.unexpected(tok, "a hint value")),
         };
 
         Ok(Hint { key, value })
@@ -352,7 +390,7 @@ impl Parser {
         self.expect(Token::RParen)?;
 
         if !self.check_ident("references") {
-            return Err(ParseError::Unexpected(self.peek().clone(), "references"));
+            return Err(self.unexpected_ahead("`references`"));
         }
         self.advance();
 
@@ -444,7 +482,7 @@ impl Parser {
             self.advance();
             match self.advance().clone() {
                 Token::Str(s) => label = Some(s),
-                tok => return Err(ParseError::Unexpected(tok, "string label")),
+                tok => return Err(self.unexpected(tok, "a quoted label")),
             }
         }
 
@@ -474,7 +512,7 @@ impl Parser {
                 self.expect(Token::DotDot)?;
                 match self.advance().clone() {
                     Token::Num(1) => Ok(Cardinality::ZeroOrOne),
-                    tok => Err(ParseError::Unexpected(tok, "1 after 0..")),
+                    tok => Err(self.unexpected(tok, "`1`, to make `0..1`")),
                 }
             }
             Token::Num(1) => {
@@ -487,10 +525,7 @@ impl Parser {
                     Ok(Cardinality::One)
                 }
             }
-            tok => Err(ParseError::Unexpected(
-                tok,
-                "cardinality (1, 0..1, *, 1..*)",
-            )),
+            tok => Err(self.unexpected(tok, "a cardinality: `1`, `0..1`, `*` or `1..*`")),
         }
     }
 
@@ -511,7 +546,7 @@ impl Parser {
                 self.advance();
                 includes.extend(self.parse_ident_list()?);
             } else {
-                return Err(ParseError::Unexpected(self.peek().clone(), "include"));
+                return Err(self.unexpected_ahead("`include`"));
             }
         }
 
@@ -609,5 +644,39 @@ mod tests {
     fn refuses_a_hint_it_does_not_know() {
         let input = "@hint.arrangement = { A B }\nentity A { id int pk }";
         assert!(Parser::new(input).unwrap().parse().is_err());
+    }
+
+    /// The whole point of carrying a place: a reader is told where to look.
+    #[test]
+    fn an_error_says_where_to_look() {
+        let input = "entity User {\n    id int pk\n    email varchar(255)\n}\n";
+        let complaint = Parser::new(input).unwrap().parse().unwrap_err();
+        assert_eq!(
+            complaint.to_string(),
+            "line 3, column 18: expected a name, found `(`"
+        );
+    }
+
+    #[test]
+    fn a_character_it_cannot_read_says_where_it_is() {
+        let complaint = Parser::new("entity A {\n  id int pk\n}\n%oops\n").unwrap_err();
+        assert_eq!(
+            complaint.to_string(),
+            "line 4, column 1: this file cannot hold the character '%'"
+        );
+    }
+
+    /// A file that stops in the middle points at its end rather than at
+    /// nothing, which is where the reader has to add something.
+    #[test]
+    fn running_out_says_so_at_the_end() {
+        let complaint = Parser::new("entity User {\n    id int pk\n")
+            .unwrap()
+            .parse()
+            .unwrap_err();
+        assert_eq!(
+            complaint.to_string(),
+            "line 3, column 1: expected a name, found the end of the file"
+        );
     }
 }

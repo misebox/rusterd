@@ -220,7 +220,7 @@ flags on the command line or as fields in the browser. The
 | Mistake | Result |
 | --- | --- |
 | Relying on `fk ->` to draw a relationship | no line is drawn |
-| `varchar(255)`, `decimal(10, 2)` | `Parse error: Unexpected token: LParen` |
+| `varchar(255)`, `decimal(10, 2)` | ``line 3, column 18: expected a name, found `(` `` |
 | `0..*` or `1..1` | parse error; use `*` or `1` |
 | Two columns on one line | the second is read as a modifier and fails |
 | Referring to an entity that is not defined | the relationship is dropped silently |
