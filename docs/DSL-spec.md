@@ -202,10 +202,14 @@ rel {
 `@hint.level = N` puts an entity on level N. Its order within that level, and
 its position across the page, are still worked out.
 
-One level hint switches the automatic levels off for the whole file: a number
-cannot be argued with, so nothing else can be shifted to accommodate it, and
-every entity left unpinned lands on level 0. Pin all of them or none of them,
-as above.
+An entity with no hint is placed around the ones that have: below what it
+references, above what references it, and as near to them as that allows.
+Naming the level of one table is not a decision about the rest of them, so
+pinning one, some or all of them is all the same to the compiler.
+
+Pinning a child above its parent asks for something a diagram drawn downwards
+cannot have. Both hints are still obeyed; what gives is the relation between
+them, which reaches upwards instead.
 
 ## Render-time options
 
@@ -224,7 +228,7 @@ flags on the command line or as fields in the browser. The
 | `0..*` or `1..1` | parse error; use `*` or `1` |
 | Two columns on one line | the second is read as a modifier and fails |
 | Referring to an entity that is not defined | the relationship is dropped silently |
-| Pinning the level of only some entities | the rest land on level 0 |
+| Pinning a child above its parent | the relation between them reaches upwards |
 
 ## Complete example
 

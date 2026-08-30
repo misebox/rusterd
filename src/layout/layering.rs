@@ -19,6 +19,11 @@ use std::collections::{HashMap, HashSet};
 /// ranking is merely good rather than best, which is not worth failing over.
 const MAX_EXCHANGES: usize = 500;
 
+/// How many times to draw the un-pinned entities towards their relations. Each
+/// pass can only move one further, so a few are enough for the depths a schema
+/// reaches, and it stops early when nothing moves.
+const ROUNDS: usize = 16;
+
 /// One relation, pointing from the row above to the row below.
 #[derive(Clone, Copy)]
 struct Arc {
@@ -28,18 +33,11 @@ struct Arc {
 
 /// Which row each entity belongs on, counting from zero at the top.
 ///
-/// Entities the source placed by hand keep their place: an arrangement or a
-/// level hint is an instruction, not a suggestion. Automatic ranking only steps
-/// in when the source says nothing at all.
+/// An entity the source placed by hand keeps its place: a level hint is an
+/// instruction, not a suggestion. Everything else is worked out around those —
+/// being told where one table goes is no reason to stop thinking about the
+/// rest, which is what putting them all on row zero amounted to.
 pub fn assign_levels(ir: &GraphIR) -> HashMap<&str, i64> {
-    if ir.nodes.iter().any(|node| node.level.is_some()) {
-        return ir
-            .nodes
-            .iter()
-            .map(|node| (node.id.as_str(), node.level.unwrap_or(0)))
-            .collect();
-    }
-
     let index: HashMap<&str, usize> = ir
         .nodes
         .iter()
@@ -48,7 +46,12 @@ pub fn assign_levels(ir: &GraphIR) -> HashMap<&str, i64> {
         .collect();
 
     let arcs = directed_arcs(ir, &index);
-    let ranks = rank(ir.nodes.len(), &arcs);
+    let pins: Vec<Option<i64>> = ir.nodes.iter().map(|node| node.level).collect();
+    let ranks = if pins.iter().all(Option::is_none) {
+        rank(ir.nodes.len(), &arcs)
+    } else {
+        rank_around(&pins, &arcs)
+    };
 
     ir.nodes
         .iter()
@@ -165,6 +168,103 @@ fn rank(nodes: usize, arcs: &[Arc]) -> Vec<i64> {
         *rank -= lowest;
     }
     ranks
+}
+
+/// Rank the nodes with some of them already placed.
+///
+/// The pinned ones do not move. The rest are placed below their parents and
+/// above their children, and then pulled towards whichever of the two they
+/// have more of, which is what shortens the relations between them.
+fn rank_around(pins: &[Option<i64>], arcs: &[Arc]) -> Vec<i64> {
+    let mut ranks: Vec<i64> = pins.iter().map(|pin| pin.unwrap_or(0)).collect();
+    settle(pins, arcs, &mut ranks);
+    for _ in 0..ROUNDS {
+        if !tighten(pins, arcs, &mut ranks) {
+            break;
+        }
+    }
+
+    let lowest = ranks.iter().copied().min().unwrap_or(0);
+    for rank in ranks.iter_mut() {
+        *rank -= lowest;
+    }
+    ranks
+}
+
+/// Move the free entities until every relation reaches downwards: a child
+/// below its parents, a parent above its children. Pinned entities stay put,
+/// so pins that contradict each other simply leave a relation reaching the
+/// wrong way rather than moving what the source asked for.
+fn settle(pins: &[Option<i64>], arcs: &[Arc], ranks: &mut [i64]) {
+    for _ in 0..ranks.len().max(1) {
+        let mut moved = false;
+        for arc in arcs {
+            if slack(arc, ranks) >= 0 {
+                continue;
+            }
+            if pins[arc.head].is_none() {
+                ranks[arc.head] = ranks[arc.tail] + 1;
+                moved = true;
+            } else if pins[arc.tail].is_none() {
+                ranks[arc.tail] = ranks[arc.head] - 1;
+                moved = true;
+            }
+        }
+        if !moved {
+            break;
+        }
+    }
+}
+
+/// Draw each free entity towards the end it has more relations to, as far as
+/// its parents and children allow. Reports whether anything moved.
+fn tighten(pins: &[Option<i64>], arcs: &[Arc], ranks: &mut [i64]) -> bool {
+    let mut moved = false;
+
+    for node in 0..ranks.len() {
+        if pins[node].is_some() {
+            continue;
+        }
+
+        // As high as the parents allow, and as low as the children do.
+        let below = arcs
+            .iter()
+            .filter(|arc| arc.head == node)
+            .map(|arc| ranks[arc.tail] + 1)
+            .max();
+        let above = arcs
+            .iter()
+            .filter(|arc| arc.tail == node)
+            .map(|arc| ranks[arc.head] - 1)
+            .min();
+
+        // The total reach of an entity's relations falls as it moves towards
+        // whichever end it has more of, so it goes as far that way as it can.
+        let parents = arcs.iter().filter(|arc| arc.head == node).count();
+        let children = arcs.iter().filter(|arc| arc.tail == node).count();
+        let want = match parents.cmp(&children) {
+            std::cmp::Ordering::Greater => below.or(above),
+            std::cmp::Ordering::Less => above.or(below),
+            // Anywhere between them is as short as any other; staying put
+            // keeps the ranking settled rather than oscillating.
+            std::cmp::Ordering::Equal => None,
+        };
+
+        let Some(want) = want else { continue };
+        // A pin above a child of it can ask for the impossible. Reaching down
+        // is the more important of the two, so the parents win.
+        let placed = match (below, above) {
+            (Some(below), Some(above)) if below > above => below,
+            _ => want.clamp(below.unwrap_or(want), above.unwrap_or(want)),
+        };
+
+        if placed != ranks[node] {
+            ranks[node] = placed;
+            moved = true;
+        }
+    }
+
+    moved
 }
 
 /// A first ranking: everything as high as its parents allow.
@@ -399,6 +499,74 @@ mod tests {
         let ranks = rank(4, &arcs);
         assert_eq!(ranks[2], 2, "the child sits below both parents");
         assert_eq!(ranks[1], 1, "the lone parent comes down beside the chain");
+    }
+
+    /// One entity naming its level used to send every other entity to row
+    /// zero, which drew a chain of four as a line of four.
+    #[test]
+    fn works_out_the_entities_no_hint_mentions() {
+        let source = r#"
+            entity Team { @hint.level = 0 id int pk }
+            entity Member { id int pk }
+            entity Session { id int pk }
+            entity Token { id int pk }
+            rel {
+                Team 1 -- * Member
+                Member 1 -- * Session
+                Session 1 -- * Token
+            }
+        "#;
+        let levels = levels_of(source);
+        assert_eq!(levels["Team"], 0);
+        assert_eq!(levels["Member"], 1);
+        assert_eq!(levels["Session"], 2);
+        assert_eq!(levels["Token"], 3);
+    }
+
+    #[test]
+    fn leaves_a_pinned_entity_where_it_was_put() {
+        let source = r#"
+            entity Team { id int pk }
+            entity Member { id int pk }
+            entity Session { @hint.level = 3 id int pk }
+            rel {
+                Team 1 -- * Member
+                Member 1 -- * Session
+            }
+        "#;
+        let levels = levels_of(source);
+        assert_eq!(levels["Session"], 3, "the hint is an instruction");
+        assert_eq!(levels["Team"], 0);
+        assert_eq!(levels["Member"], 1);
+    }
+
+    /// Pinning a child above its parent asks for something the drawing cannot
+    /// have. Both hints are still obeyed; the relation between them is what
+    /// gives, and the entity with no hint finds a place in between.
+    #[test]
+    fn obeys_hints_that_contradict_each_other() {
+        let source = r#"
+            entity Team { @hint.level = 2 id int pk }
+            entity Member { @hint.level = 0 id int pk }
+            entity Session { id int pk }
+            rel {
+                Team 1 -- * Member
+                Member 1 -- * Session
+            }
+        "#;
+        let levels = levels_of(source);
+        assert_eq!(levels["Member"], 0);
+        assert_eq!(levels["Team"], 2);
+        assert_eq!(levels["Session"], 1);
+    }
+
+    fn levels_of(source: &str) -> std::collections::HashMap<String, i64> {
+        let schema = crate::parser::Parser::new(source).unwrap().parse().unwrap();
+        let ir = crate::ir::GraphIR::from_schema(&schema, None, crate::ir::DetailLevel::All);
+        super::assign_levels(&ir)
+            .into_iter()
+            .map(|(name, level)| (name.to_string(), level))
+            .collect()
     }
 
     #[test]
