@@ -232,7 +232,7 @@ export default function Examples() {
 
       <p style={styles.blurb}>{say("everyExample", LANGUAGE)}</p>
 
-      <div style={styles.controls}>
+      <div class="workbench-controls" style={styles.controls}>
         <Controls
           drawing={drawing()}
           change={(next) => {
@@ -243,10 +243,25 @@ export default function Examples() {
         />
       </div>
 
-      <pre style={styles.command}>{command()}</pre>
+      <pre class="workbench-command" style={styles.command}>{command()}</pre>
 
       <div class="workbench-layout">
-        <nav class="workbench-list" style={styles.list}>
+        <label class="workbench-chooser">
+          <select
+            style={styles.chooserSelect}
+            value={chosen()}
+            onChange={(e) => show(e.currentTarget.value)}
+          >
+            {NAMES.map((name) => (
+              <option value={name}>{name}</option>
+            ))}
+          </select>
+          <Show when={ABOUT[chosen()]}>
+            <span style={styles.entryAbout}>{ABOUT[chosen()][LANGUAGE]}</span>
+          </Show>
+        </label>
+
+        <nav class="workbench-list">
           {NAMES.map((name) => (
             <button
               style={{
@@ -291,43 +306,47 @@ export default function Examples() {
             }
           />
 
-          <div style={styles.toolbar}>
-            <Show when={tab() === "SQL"}>
-              <label style={control.field}>
-                <Named word={say("dialect", LANGUAGE)} option="dialect" />
-                <select
-                  style={control.select}
-                  value={dialect()}
-                  onChange={(e) => setDialect(oneOf(DIALECTS, e.currentTarget.value, "auto"))}
-                >
-                  {DIALECTS.map((entry) => (
-                    <option value={entry.value}>{`${entry.value} — ${entry.label}`}</option>
-                  ))}
-                </select>
-              </label>
-              <button style={styles.action} disabled={!ready()} onClick={convert}>
-                {say("fromSql", LANGUAGE)}
-              </button>
-            </Show>
+          {/* The Diagram tab is the result rather than something to act on, so
+              it has nothing to put here and does not reserve the room. */}
+          <Show when={tab() !== "Diagram" || edited()}>
+            <div style={styles.toolbar}>
+              <Show when={tab() === "SQL"}>
+                <label style={control.field}>
+                  <Named word={say("dialect", LANGUAGE)} option="dialect" />
+                  <select
+                    style={control.select}
+                    value={dialect()}
+                    onChange={(e) => setDialect(oneOf(DIALECTS, e.currentTarget.value, "auto"))}
+                  >
+                    {DIALECTS.map((entry) => (
+                      <option value={entry.value}>{`${entry.value} — ${entry.label}`}</option>
+                    ))}
+                  </select>
+                </label>
+                <button style={styles.action} disabled={!ready()} onClick={convert}>
+                  {say("fromSql", LANGUAGE)}
+                </button>
+              </Show>
 
-            <Show when={tab() === "ERD"}>
-              <button style={styles.action} disabled={!ready()} onClick={() => compile(erd())}>
-                {say("redraw", LANGUAGE)}
-              </button>
-              <span style={styles.hint}>{say("followsErd", LANGUAGE)}</span>
-            </Show>
+              <Show when={tab() === "ERD"}>
+                <button style={styles.action} disabled={!ready()} onClick={() => compile(erd())}>
+                  {say("redraw", LANGUAGE)}
+                </button>
+                <span style={styles.hint}>{say("followsErd", LANGUAGE)}</span>
+              </Show>
 
-            <Show when={tab() === "SVG"}>
-              <span style={styles.hint}>{say("followsSvg", LANGUAGE)}</span>
-            </Show>
+              <Show when={tab() === "SVG"}>
+                <span style={styles.hint}>{say("followsSvg", LANGUAGE)}</span>
+              </Show>
 
-            <Show when={edited()}>
-              <span style={styles.badge}>{say("edited", LANGUAGE)}</span>
-              <button style={styles.revert} onClick={() => open(chosen())}>
-                {say("revert", LANGUAGE)}
-              </button>
-            </Show>
-          </div>
+              <Show when={edited()}>
+                <span style={styles.badge}>{say("edited", LANGUAGE)}</span>
+                <button style={styles.revert} onClick={() => open(chosen())}>
+                  {say("revert", LANGUAGE)}
+                </button>
+              </Show>
+            </div>
+          </Show>
 
           <Show when={error()}>
             <pre style={styles.error}>{error()}</pre>
@@ -408,12 +427,15 @@ const styles = {
     "overflow-x": "auto",
     "white-space": "pre",
   },
-  list: {
-    display: "flex",
-    "flex-direction": "column",
-    gap: "2px",
-    "min-width": "260px",
-    flex: "0 1 300px",
+  chooserSelect: {
+    "font-family": theme.mono,
+    "font-size": "14px",
+    padding: "8px 10px",
+    border: `1px solid ${theme.rule}`,
+    "border-radius": "6px",
+    background: theme.paper,
+    color: theme.ink,
+    width: "100%",
   },
   entry: {
     display: "flex",
@@ -512,8 +534,6 @@ const styles = {
   drawing: {
     border: `1px solid ${theme.rule}`,
     "border-radius": "6px",
-    padding: "16px",
-    background: theme.paper,
   },
   code: {
     display: "block",

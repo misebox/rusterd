@@ -4,6 +4,30 @@
   display: block;
 }
 
+/* Room around the drawing, and no seam where it ends.
+ *
+ * The compiler leaves 40 units clear on every side, which is right at actual
+ * size and almost nothing once a wide diagram has been scaled to fit a phone —
+ * 1400 units across a 400px screen turns those 40 into 12. So the box holding
+ * it keeps a margin of its own, in screen pixels, which no amount of scaling
+ * eats into. The background matches what the compiler paints behind the
+ * diagram, light or dark, so that the two read as one surface and the
+ * outermost entity has the whole of it to sit clear of the edge.
+ *
+ * The colours are the ones src/svg.rs paints; a diagram drawn on one of them
+ * and shown on the other would announce exactly where the file ends. */
+.diagram {
+  padding: 24px;
+  overflow: auto;
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .diagram {
+    background: #0d1117;
+  }
+}
+
 /* Scaled down to whatever it is being shown in. Without this the box scrolls
    instead, which is the whole of "actual size". */
 .diagram-fit svg {

@@ -26,6 +26,53 @@ body {
   align-items: flex-start;
 }
 
+/* On a phone the diagram comes first. A reader who opened an example came to
+ * see it, not to scroll past three rows of options to reach it — and the
+ * options, with the command line under them, still read as one thing below.
+ * Wide, the whole lot fits above without pushing anything off the screen. */
+@media (max-width: 959px) {
+  .workbench {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workbench-layout {
+    order: 1;
+  }
+
+  .workbench-controls {
+    order: 2;
+  }
+
+  .workbench-command {
+    order: 3;
+  }
+}
+
+/* One of these picks an example and the other is out of the way. Narrow, the
+ * dropdown; wide, the list, which says what each example is for and is worth
+ * the room it takes. The list's own layout lives here rather than in an inline
+ * style, since only this file can ask which of the two is showing. */
+/* Below the width that holds a list beside the diagram, the same choice as a
+ * dropdown: fourteen entries down the page are fourteen entries between a phone
+ * and the thing it came to see. Its layout lives here, not in an inline style,
+ * because only this file can hide it again on a wide screen. */
+.workbench-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.workbench-list {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 260px;
+  flex: 0 1 300px;
+}
+
 /* However tall the diagram or the source is, the pane holding it stops here and
  * scrolls, so that the tabs above it stay in reach. */
 .workbench-pane {
@@ -66,7 +113,12 @@ textarea.workbench-pane {
     flex-direction: column;
   }
 
+  .workbench-chooser {
+    display: none;
+  }
+
   .workbench-list {
+    display: flex;
     overflow: auto;
     min-height: 0;
   }
