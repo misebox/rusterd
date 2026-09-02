@@ -1,4 +1,5 @@
 import type { Detail, Notation } from "../../pkg/rusterd.js";
+import { Show } from "solid-js";
 import { Language } from "./i18n";
 import { theme } from "./theme";
 
@@ -22,6 +23,11 @@ export const PLAIN: Drawing = {
 
 /// The words for the controls and their choices. These belong to the controls
 /// rather than to the site, so they live beside them.
+///
+/// Each control is also labelled with the option it sets, spelled as the
+/// command line and the browser both spell it. The page is a demonstration of
+/// those options, and a control whose option the reader cannot name is one they
+/// cannot use anywhere but here.
 const WORDS = {
   detail: { en: "Detail", ja: "詳細度" },
   notation: { en: "Notation", ja: "記法" },
@@ -36,8 +42,8 @@ type Choice<T extends string> = { value: T; en: string; ja: string };
 /// up. Any `width:height` is accepted by the compiler; these are the ones a
 /// diagram is usually going into.
 const ASPECT: Choice<string>[] = [
-  { value: "1:1", en: "Square — a screen", ja: "正方形 — 画面" },
-  { value: "16:9", en: "16:9 — a slide", ja: "16:9 — スライド" },
+  { value: "1:1", en: "a screen", ja: "画面" },
+  { value: "16:9", en: "a slide", ja: "スライド" },
   { value: "297:210", en: "A4 landscape", ja: "A4 横" },
   { value: "210:297", en: "A4 portrait", ja: "A4 縦" },
 ];
@@ -65,6 +71,36 @@ export function oneOf<T extends string>(
   return choices.find((choice) => choice.value === value)?.value ?? fallback;
 }
 
+/// The options these controls stand for, spelled as the command line spells
+/// them. A flag that is off has no spelling, so it is simply absent — which is
+/// also how the compiler reads it.
+export function flagsFor(drawing: Drawing): string[] {
+  return [
+    `--detail ${drawing.detail}`,
+    `--notation ${drawing.notation}`,
+    `--aspect ${drawing.aspect}`,
+    ...(drawing.dense ? ["--dense"] : []),
+    ...(drawing.legend ? ["--legend"] : []),
+  ];
+}
+
+/// A control labelled by the option it sets.
+///
+/// The option's own spelling always shows; the word for it only when it says
+/// something the spelling does not. In English most of them are the same word,
+/// and "Detail detail" teaches nobody anything.
+export function Named(props: { word: string; option: string }) {
+  const same = () => props.word.toLowerCase() === props.option.replace(/^--/, "");
+  return (
+    <>
+      <Show when={!same()}>
+        <span style={styles.gloss}>{props.word}</span>
+      </Show>
+      <code style={styles.option}>{props.option}</code>
+    </>
+  );
+}
+
 /// The controls for how to draw a diagram, wherever one is being drawn.
 export default function Controls(props: {
   drawing: Drawing;
@@ -77,20 +113,20 @@ export default function Controls(props: {
   return (
     <>
       <label style={styles.field}>
-        {word("detail")}
+        <Named word={word("detail")} option="detail" />
         <select
           style={styles.select}
           value={props.drawing.detail}
           onChange={(e) => set({ detail: oneOf(DETAIL, e.currentTarget.value, PLAIN.detail) })}
         >
           {DETAIL.map((level) => (
-            <option value={level.value}>{level[props.language]}</option>
+            <option value={level.value}>{`${level.value} — ${level[props.language]}`}</option>
           ))}
         </select>
       </label>
 
       <label style={styles.field}>
-        {word("notation")}
+        <Named word={word("notation")} option="notation" />
         <select
           style={styles.select}
           value={props.drawing.notation}
@@ -99,20 +135,20 @@ export default function Controls(props: {
           }
         >
           {NOTATION.map((entry) => (
-            <option value={entry.value}>{entry[props.language]}</option>
+            <option value={entry.value}>{`${entry.value} — ${entry[props.language]}`}</option>
           ))}
         </select>
       </label>
 
       <label style={styles.field}>
-        {word("aspect")}
+        <Named word={word("aspect")} option="aspect" />
         <select
           style={styles.select}
           value={props.drawing.aspect}
           onChange={(e) => set({ aspect: oneOf(ASPECT, e.currentTarget.value, PLAIN.aspect) })}
         >
           {ASPECT.map((shape) => (
-            <option value={shape.value}>{shape[props.language]}</option>
+            <option value={shape.value}>{`${shape.value} — ${shape[props.language]}`}</option>
           ))}
         </select>
       </label>
@@ -123,7 +159,7 @@ export default function Controls(props: {
           checked={props.drawing.dense}
           onChange={(e) => set({ dense: e.currentTarget.checked })}
         />
-        {word("dense")}
+        <Named word={word("dense")} option="--dense" />
       </label>
 
       <label style={styles.field}>
@@ -132,7 +168,7 @@ export default function Controls(props: {
           checked={props.drawing.legend}
           onChange={(e) => set({ legend: e.currentTarget.checked })}
         />
-        {word("legend")}
+        <Named word={word("legend")} option="--legend" />
       </label>
     </>
   );
@@ -148,6 +184,16 @@ export const styles = {
     "font-size": "13px",
     color: theme.quiet,
     "white-space": "nowrap",
+  },
+  gloss: {
+    color: theme.quiet,
+  },
+  /// The name the option answers to, which is the same on the command line and
+  /// in the browser. Set apart so that it reads as a spelling, not a word.
+  option: {
+    "font-family": theme.mono,
+    "font-size": "12px",
+    color: theme.faint,
   },
   select: {
     "font-family": theme.sans,

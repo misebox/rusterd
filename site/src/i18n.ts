@@ -85,6 +85,7 @@ const WORDS = {
     ja: "examples/ にあるファイルを、コマンドラインと同じコードでこの場でコンパイルしたものです。書き換えれば図もついてきます。",
   },
   source: { en: "Source", ja: "ソース" },
+  dialect: { en: "Dialect", ja: "方言" },
   actualSize: { en: "Actual size", ja: "実寸" },
   fit: { en: "Fit", ja: "全体" },
   openAlone: { en: "Open on its own", ja: "別タブで開く" },

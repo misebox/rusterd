@@ -1,6 +1,6 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import init, { erdToSvg, sqlToErd, type Dialect } from "../../../pkg/rusterd.js";
-import Controls, { Drawing, PLAIN, oneOf, styles as control } from "../Drawing";
+import Controls, { Drawing, Named, PLAIN, flagsFor, oneOf, styles as control } from "../Drawing";
 import Header from "../Header";
 import Tabs from "../Tabs";
 import { language, say } from "../i18n";
@@ -214,6 +214,18 @@ export default function Examples() {
 
   const shown = createMemo(() => TABS.filter((name) => name !== "SQL" || sql()));
 
+  /// The command that would do, on the command line, what the controls above
+  /// are doing here. The options are the same either way, and seeing them
+  /// spelled out is the only way this page teaches them rather than just
+  /// applying them.
+  const command = createMemo(() => {
+    const file = `examples/${chosen()}`;
+    if (tab() === "SQL") {
+      return `rusterd convert ${file}.sql --dialect ${dialect()}`;
+    }
+    return [`rusterd render ${file}.erd`, ...flagsFor(drawing())].join(" ");
+  });
+
   return (
     <div class="workbench" style={styles.container}>
       <Header here="examples.html" language={LANGUAGE} />
@@ -230,6 +242,8 @@ export default function Examples() {
           language={LANGUAGE}
         />
       </div>
+
+      <pre style={styles.command}>{command()}</pre>
 
       <div class="workbench-layout">
         <nav class="workbench-list" style={styles.list}>
@@ -280,14 +294,14 @@ export default function Examples() {
           <div style={styles.toolbar}>
             <Show when={tab() === "SQL"}>
               <label style={control.field}>
-                Dialect
+                <Named word={say("dialect", LANGUAGE)} option="dialect" />
                 <select
                   style={control.select}
                   value={dialect()}
                   onChange={(e) => setDialect(oneOf(DIALECTS, e.currentTarget.value, "auto"))}
                 >
                   {DIALECTS.map((entry) => (
-                    <option value={entry.value}>{entry.label}</option>
+                    <option value={entry.value}>{`${entry.value} — ${entry.label}`}</option>
                   ))}
                 </select>
               </label>
@@ -379,7 +393,20 @@ const styles = {
     "align-items": "center",
     "flex-wrap": "wrap",
     gap: "16px",
-    "margin-bottom": "16px",
+    "margin-bottom": "10px",
+  },
+  command: {
+    "font-family": theme.mono,
+    "font-size": "12.5px",
+    color: theme.quiet,
+    background: theme.panel,
+    border: `1px solid ${theme.rule}`,
+    "border-radius": "6px",
+    padding: "8px 12px",
+    margin: "0 0 16px",
+    // A long line scrolls inside its own box rather than widening the page.
+    "overflow-x": "auto",
+    "white-space": "pre",
   },
   list: {
     display: "flex",
