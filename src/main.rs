@@ -21,70 +21,88 @@ fn read_input(path: &str) -> Result<String, String> {
     }
 }
 
+/// Help that was asked for goes to stdout and succeeds, so that piping it into
+/// a pager shows something. Help that follows a mistake goes to stderr and
+/// fails, so that it does not end up in whatever the output was meant for.
+fn asked_for(text: &str) -> ! {
+    println!("{}", text);
+    process::exit(0);
+}
+
+fn after_a_mistake(text: &str) -> ! {
+    eprintln!("{}", text);
+    process::exit(1);
+}
+
+/// What the reader typed, not where the binary happens to live. An installed
+/// `rusterd` is invoked by name, and `Usage: /Users/…/.cargo/bin/rusterd` is a
+/// line nobody can copy.
+fn called(argv0: &str) -> &str {
+    argv0.rsplit('/').next().unwrap_or(argv0)
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let program = called(&args[0]);
 
     if args.len() < 2 {
-        print_usage(&args[0]);
-        process::exit(1);
+        after_a_mistake(&usage(program));
     }
 
     match args[1].as_str() {
-        "render" => run_render(&args[0], &args[2..]),
-        "convert" => run_convert(&args[0], &args[2..]),
+        "render" => run_render(program, &args[2..]),
+        "convert" => run_convert(program, &args[2..]),
         "-V" | "--version" | "version" => {
             println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         }
-        "-h" | "--help" | "help" => {
-            print_usage(&args[0]);
-        }
+        "-h" | "--help" | "help" => asked_for(&usage(program)),
         _ => {
             eprintln!("Unknown subcommand: {}", args[1]);
             eprintln!();
-            print_usage(&args[0]);
-            process::exit(1);
+            after_a_mistake(&usage(program));
         }
     }
 }
 
-fn print_usage(program: &str) {
-    eprintln!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    eprintln!("Usage: {} <subcommand> [options]", program);
-    eprintln!();
-    eprintln!("Subcommands:");
-    eprintln!("  render   Render ERD file to SVG");
-    eprintln!("  convert  Convert SQL dump to ERD notation");
-    eprintln!();
-    eprintln!("Options:");
-    eprintln!("  -h, --help     Print this, or a subcommand's own");
-    eprintln!("  -V, --version  Print the version");
-    eprintln!();
-    eprintln!(
-        "Run '{} <subcommand> --help' for more information.",
-        program
-    );
+fn usage(program: &str) -> String {
+    format!(
+        "{name} {version}
+Usage: {program} <subcommand> [options]
+
+Subcommands:
+  render   Render ERD file to SVG
+  convert  Convert SQL dump to ERD notation
+
+Options:
+  -h, --help     Print this, or a subcommand's own
+  -V, --version  Print the version
+
+Run '{program} <subcommand> --help' for more information.",
+        name = env!("CARGO_PKG_NAME"),
+        version = env!("CARGO_PKG_VERSION"),
+    )
 }
 
 fn run_render(program: &str, args: &[String]) {
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
-        eprintln!("Usage: {} render <input.erd | -> [options]", program);
-        eprintln!();
-        eprintln!("Render ERD file to SVG");
-        eprintln!("Use '-' to read from stdin.");
-        eprintln!();
-        eprintln!("Options:");
-        eprintln!("  -o, --output <file>   Output file (default: stdout)");
-        eprintln!("  -f, --focus <name>    Draw only what a focus block lists");
-        eprintln!("  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)");
-        eprintln!(
-            "  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)"
+        let help = format!(
+            "Usage: {program} render <input.erd | -> [options]
+
+Render ERD file to SVG
+Use '-' to read from stdin.
+
+Options:
+  -o, --output <file>   Output file (default: stdout)
+  -f, --focus <name>    Draw only what a focus block lists
+  -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)
+  -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)
+  -l, --legend          Draw a key to the cardinality symbols
+  -D, --dense           Close up the spacing, to fit more on a screen"
         );
-        eprintln!("  -l, --legend          Draw a key to the cardinality symbols");
-        eprintln!("  -D, --dense           Close up the spacing, to fit more on a screen");
         if args.is_empty() {
-            process::exit(1);
+            after_a_mistake(&help);
         }
-        return;
+        asked_for(&help);
     }
 
     let input_path = &args[0];
@@ -207,20 +225,20 @@ fn run_render(program: &str, args: &[String]) {
 
 fn run_convert(program: &str, args: &[String]) {
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
-        eprintln!("Usage: {} convert <input.sql | -> [options]", program);
-        eprintln!();
-        eprintln!("Convert SQL dump to ERD notation");
-        eprintln!("Use '-' to read from stdin.");
-        eprintln!();
-        eprintln!("Options:");
-        eprintln!("  -o, --output <file>      Output file (default: stdout)");
-        eprintln!(
-            "  -d, --dialect <dialect>  SQL dialect: auto, generic, postgres, mysql (default: auto)"
+        let help = format!(
+            "Usage: {program} convert <input.sql | -> [options]
+
+Convert SQL dump to ERD notation
+Use '-' to read from stdin.
+
+Options:
+  -o, --output <file>      Output file (default: stdout)
+  -d, --dialect <dialect>  SQL dialect: auto, generic, postgres, mysql (default: auto)"
         );
         if args.is_empty() {
-            process::exit(1);
+            after_a_mistake(&help);
         }
-        return;
+        asked_for(&help);
     }
 
     let input_path = &args[0];
