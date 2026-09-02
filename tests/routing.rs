@@ -177,7 +177,11 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     ("09_orphan_entities.erd", 0, 0, 0),
     ("10_ecommerce_full.erd", 0, 2, 14),
     ("11_near.erd", 0, 2, 24),
-    ("21_idp.erd", 1, 3, 24),
+    // The only example wide enough to be folded, and the numbers below are what
+    // that costs: 3388x1184 became 1940x1522, and one row of eight leaves became
+    // two of four, whose lines now have a row to get past. Loosened deliberately
+    // — a diagram that fits on a screen is worth two crossings.
+    ("21_idp.erd", 2, 5, 26),
     ("sample.erd", 0, 0, 6),
 ];
 

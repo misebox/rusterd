@@ -12,7 +12,7 @@ pub mod svg;
 use wasm_bindgen::prelude::*;
 
 use ir::{DetailLevel, GraphIR};
-use layout::LayoutEngine;
+use layout::{LayoutEngine, aspect_from_name};
 use parser::Parser;
 use svg::{Notation, SvgRenderer};
 
@@ -48,6 +48,8 @@ export interface DrawOptions {
     legend?: boolean | null;
     /** Close up the spacing, to fit a large schema on one screen. */
     dense?: boolean | null;
+    /** Shape to aim for, as `width:height`. Default "1:1". */
+    aspect?: string | null;
 }
 
 /** How to read the SQL, and then how to draw it. */
@@ -85,6 +87,7 @@ struct Asked {
     notation: Notation,
     legend: bool,
     dense: bool,
+    aspect: f64,
     dialect: sql::Dialect,
 }
 
@@ -110,6 +113,10 @@ impl Asked {
             },
             legend: flag("legend"),
             dense: flag("dense"),
+            aspect: match text("aspect") {
+                Some(name) => named(&name, aspect_from_name, "aspect", ASPECT)?,
+                None => 1.0,
+            },
             dialect: read_dialect(text("dialect"))?,
         })
     }
@@ -120,6 +127,7 @@ impl Asked {
 const DETAIL: &str = r#""tables", "pk", "pk_fk", "all""#;
 const NOTATION: &str = r#""crowsfoot", "text""#;
 const DIALECT: &str = r#""auto", "generic", "postgres", "mysql""#;
+const ASPECT: &str = r#"a shape written as width:height, such as "1:1" or "16:9""#;
 
 /// One option's value, or a complaint naming what it would have taken.
 fn named<T>(
@@ -186,6 +194,7 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
     let ir = GraphIR::from_schema(&schema, asked.focus.as_deref(), asked.detail);
     let layout = LayoutEngine::default()
         .with_dense_spacing(asked.dense)
+        .with_aspect(asked.aspect)
         .layout(&ir);
     Ok(SvgRenderer::default()
         .with_notation(asked.notation)

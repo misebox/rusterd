@@ -214,9 +214,9 @@ them, which reaches upwards instead.
 ## Render-time options
 
 Nothing in this document is affected by these: they are chosen when the file is
-rendered rather than written in it. There are six — focus, detail, notation,
-legend, dense, and dialect for reading SQL — and the same six are given as
-flags on the command line or as fields in the browser. The
+rendered rather than written in it. There are seven — focus, detail, notation,
+legend, dense, aspect, and dialect for reading SQL — and the same seven are
+given as flags on the command line or as fields in the browser. The
 [options table](../README.md#options) says what each one takes.
 
 ## Mistakes to avoid

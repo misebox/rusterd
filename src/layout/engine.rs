@@ -14,7 +14,7 @@ use super::descent::plan_descents;
 use super::lanes::{
     align_corridors_with_anchors, assign_channel_lanes, calculate_multi_level_corridor_x,
 };
-use super::layering::assign_levels;
+use super::layering::{assign_levels, fold_levels};
 use super::placement::{
     build_node_positions, calculate_node_sizes, group_nodes_by_level, place_columns, place_rows,
     reorder_levels, stand_low,
@@ -34,6 +34,16 @@ const DENSE: f64 = 0.6;
 /// side by side on one border still have to be readable.
 const MIN_ANCHOR_SPACING: f64 = 40.0;
 
+/// How far out of shape a drawing may be before its rows are folded, as a
+/// multiple of the shape asked for. A4 is the slack: a drawing that would print
+/// on a sheet of paper either way up is not one anybody needs rearranged.
+const SLACK: f64 = std::f64::consts::SQRT_2;
+
+/// How many times to measure a drawing and fold it again. Each pass narrows the
+/// rows it just measured, so the shape converges; two more after the first are
+/// enough for the widest schemas, and it stops as soon as folding stops paying.
+const FOLDS: usize = 3;
+
 /// Layout engine configuration and computation.
 pub struct LayoutEngine {
     pub(crate) metrics: TextMetrics,
@@ -46,6 +56,8 @@ pub struct LayoutEngine {
     pub(crate) entity_margin: f64,
     /// Longest detour absorbed by the straightening pass
     pub(crate) jog_tolerance: f64,
+    /// Width over height the drawing aims for
+    pub(crate) aspect: f64,
 }
 
 impl Default for LayoutEngine {
@@ -62,6 +74,7 @@ impl Default for LayoutEngine {
             corner_radius: 32.0,
             entity_margin: 30.0,
             jog_tolerance: 20.0,
+            aspect: 1.0,
         }
     }
 }
@@ -86,6 +99,35 @@ impl LayoutEngine {
         self
     }
 
+    /// Aim for a drawing this many times wider than it is tall.
+    ///
+    /// Only a target: rows are folded to approach it, never stretched, and an
+    /// arrangement the source pinned by hand is left alone whatever shape it
+    /// comes out. A ratio at or below zero is not a shape, so it is ignored.
+    pub fn with_aspect(mut self, aspect: f64) -> Self {
+        if aspect > 0.0 && aspect.is_finite() {
+            self.aspect = aspect;
+        }
+        self
+    }
+
+    /// How wide each entity's own text makes it, in the order the graph holds
+    /// them. Folding has to guess a row's width before there is a drawing to
+    /// measure, and the text is the part of that width already known.
+    fn content_widths(&self, ir: &GraphIR) -> Vec<f64> {
+        ir.nodes
+            .iter()
+            .map(|node| {
+                let columns: Vec<(String, String)> = node
+                    .columns
+                    .iter()
+                    .map(|c| (c.name.clone(), c.typ.clone()))
+                    .collect();
+                self.metrics.node_size(&node.label, &columns).0 + self.node_gap_x
+            })
+            .collect()
+    }
+
     /// Compute layout for the given graph.
     ///
     /// Where the source did not say how to arrange its entities, an arrangement
@@ -93,9 +135,41 @@ impl LayoutEngine {
     /// two reads more easily is the one returned. The heuristic proposes, the
     /// finished drawing decides.
     pub fn layout(&self, ir: &GraphIR) -> Layout {
-        let node_level = assign_levels(ir);
+        let mut best = self.draw(ir, None);
+
+        // Folding costs height to buy width, so it is only worth doing once the
+        // drawing is further out of shape than a sheet of paper. What the right
+        // width is cannot be known before drawing it, so the finished drawing is
+        // measured and drawn again against its own area.
+        let mut narrower = None;
+        for _ in 0..FOLDS {
+            if best.width <= best.height * self.aspect * SLACK {
+                break;
+            }
+            let cap = (best.width * best.height * self.aspect).sqrt();
+            if narrower.is_some_and(|last: f64| cap >= last) {
+                break;
+            }
+            narrower = Some(cap);
+
+            let candidate = self.draw(ir, Some(cap));
+            if !candidate.is_better_shaped_than(&best, self.aspect) {
+                break;
+            }
+            best = candidate;
+        }
+
+        best
+    }
+
+    /// Draw the graph, optionally holding each row to `cap` wide.
+    fn draw(&self, ir: &GraphIR, cap: Option<f64>) -> Layout {
+        let mut node_level = assign_levels(ir);
+        if let Some(cap) = cap {
+            fold_levels(ir, &mut node_level, &self.content_widths(ir), cap);
+        }
         let (levels, level_keys) = group_nodes_by_level(ir, &node_level);
-        let mut best = self.arrange(ir, &levels, &level_keys);
+        let mut best = self.arrange(ir, &node_level, &levels, &level_keys);
 
         // The ordering works on an idealised drawing and settles into whichever
         // arrangement is nearest to where it started, which is often not the
@@ -106,7 +180,7 @@ impl LayoutEngine {
             let lone_weight = if attempt % 2 == 0 { 1 } else { 4 };
             let reordered =
                 reorder_levels(ir, &levels, &level_keys, lone_weight, attempt as u64 / 2);
-            let candidate = self.arrange(ir, &reordered, &level_keys);
+            let candidate = self.arrange(ir, &node_level, &reordered, &level_keys);
             if candidate.is_tidier_than(&best, &ir.near) {
                 best = candidate;
             }
@@ -119,19 +193,19 @@ impl LayoutEngine {
     fn arrange(
         &self,
         ir: &GraphIR,
+        node_level: &HashMap<&str, i64>,
         levels: &HashMap<i64, Vec<&Node>>,
         level_keys: &[i64],
     ) -> Layout {
         // Phase 1: Edge analysis
-        let node_level = assign_levels(ir);
-        let edge_count_per_node = count_edges_per_node(ir, &node_level);
-        let (channel_edges_list, _) = analyze_channel_edges(ir, &node_level);
+        let edge_count_per_node = count_edges_per_node(ir, node_level);
+        let (channel_edges_list, _) = analyze_channel_edges(ir, node_level);
 
         // Phase 2: Node grouping
         let node_order = build_node_order(levels);
 
         // Phase 3: Corridor analysis
-        let corridor_analysis = analyze_corridors(ir, &node_level, &node_order, self.lane_spacing);
+        let corridor_analysis = analyze_corridors(ir, node_level, &node_order, self.lane_spacing);
 
         // Phase 4: Node sizing and columns. Nothing between here and the rows
         // depends on how far down the page anything is.
@@ -157,7 +231,7 @@ impl LayoutEngine {
         // Phase 6: The line each level-skipping edge runs down
         let mut multi_level_corridor_x = calculate_multi_level_corridor_x(
             ir,
-            &node_level,
+            node_level,
             &node_positions,
             &node_placement.layout_nodes,
             levels,
@@ -169,7 +243,7 @@ impl LayoutEngine {
         let node_exits = calculate_edge_anchors(
             ir,
             &node_positions,
-            &node_level,
+            node_level,
             &multi_level_corridor_x,
             self.anchor_spacing,
         );
@@ -177,7 +251,7 @@ impl LayoutEngine {
         align_corridors_with_anchors(
             &mut multi_level_corridor_x,
             ir,
-            &node_level,
+            node_level,
             &node_exits,
             self.jog_tolerance,
         );
@@ -185,7 +259,7 @@ impl LayoutEngine {
         // Phase 7b: Where each level-skipping edge steps sideways
         let descents = plan_descents(
             ir,
-            &node_level,
+            node_level,
             &node_placement.layout_nodes,
             levels,
             &node_exits,
@@ -198,7 +272,7 @@ impl LayoutEngine {
             ir,
             &channel_edges_list,
             &node_positions,
-            &node_level,
+            node_level,
             &node_exits,
             &multi_level_corridor_x,
             &descents,
@@ -226,7 +300,7 @@ impl LayoutEngine {
         let mut layout_edges = route_edges(
             ir,
             &node_positions,
-            &node_level,
+            node_level,
             &node_exits,
             &lanes_in_use,
             &channel_lane_assignments,

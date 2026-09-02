@@ -113,7 +113,7 @@ rusterd --version
 
 ## Options
 
-The same six wherever they are given: a flag on the command line, a field in
+The same seven wherever they are given: a flag on the command line, a field in
 the options object in the browser. All are optional, and leaving one out is how
 you ask for its default.
 
@@ -124,6 +124,7 @@ you ask for its default.
 | Notation | `-n`, `--notation <name>` | `notation` | `crowsfoot`, `text` | `crowsfoot` |
 | Legend | `-l`, `--legend` | `legend` | — | off |
 | Dense | `-D`, `--dense` | `dense` | — | off |
+| Aspect | `-a`, `--aspect <w:h>` | `aspect` | a shape, `width:height` | `1:1` |
 | Dialect | `-d`, `--dialect <name>` | `dialect` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
 
 **Detail** is how much of an entity is drawn: `tables` its name alone, `pk` its
@@ -139,11 +140,18 @@ fitting a large schema on one screen. The text stays the size it has to be to
 read, which is why zooming out is not the same thing. There is no setting the
 other way round.
 
+**Aspect** is the shape the drawing aims for, written as `width:height` — `1:1`
+for a screen, `16:9` for a slide, `210:297` for a page. It is a target rather
+than a promise: a row wider than the shape allows is folded onto the next row
+down, which is all a diagram can do about its own proportions. A drawing already
+within A4 of the shape asked for is left alone, and an arrangement the source
+pinned with `@hint.level` is followed as written however wide it comes out.
+
 **Dialect** is the only one that is about reading rather than drawing. On the
 command line it belongs to `rusterd convert`, which writes ERD rather than a
 diagram, and the drawing options belong to `rusterd render`; that is why both
 are spelled `-d`. In the browser `sqlToSvg` reads and draws in one call, so it
-takes all six together.
+takes all seven together.
 
 ## Browser Usage (WASM)
 
@@ -180,6 +188,7 @@ interface DrawOptions {
   notation?: Notation | null;
   legend?: boolean | null;
   dense?: boolean | null;
+  aspect?: string | null;
 }
 
 interface ConvertOptions extends DrawOptions {

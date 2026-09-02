@@ -141,6 +141,21 @@ impl Layout {
         self.quality(near) < other.quality(near)
     }
 
+    /// Whether this drawing is closer to the shape asked for than `other`.
+    ///
+    /// Measured as a factor rather than a difference, so that being twice as
+    /// wide as wanted counts the same as being half as wide, and folding is not
+    /// tempted to trade a wide drawing for an equally awkward tall one.
+    pub fn is_better_shaped_than(&self, other: &Layout, aspect: f64) -> bool {
+        let out_of_shape = |drawing: &Layout| {
+            if drawing.height <= 0.0 || aspect <= 0.0 {
+                return f64::INFINITY;
+            }
+            (drawing.width / drawing.height / aspect).ln().abs()
+        };
+        out_of_shape(self) < out_of_shape(other)
+    }
+
     /// What to weigh a drawing by, worst first: a hidden relation, then a line
     /// cut across a lone relation, then crossings, then how far apart the
     /// entities asked to be near one another ended up, then corners.

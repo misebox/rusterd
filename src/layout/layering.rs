@@ -477,6 +477,155 @@ fn rerank(group: &[usize], arcs: &[Arc], tree: &HashSet<usize>, ranks: &mut [i64
     }
 }
 
+/// How many entities may be moved before giving up on narrowing a drawing.
+/// Each pass moves at least one, so a schema runs out of entities long before
+/// this; reaching it means the levels will not settle, which is not worth
+/// failing over.
+const MAX_FOLDS: usize = 500;
+
+/// Fold the levels that have grown wider than the drawing wants to be.
+///
+/// Rows are not what a reader takes from the drawing — reading downwards is.
+/// A row of sixteen leaves says nothing that two rows of eight do not, and
+/// costs a diagram nobody can see at once. So the surplus is sent down a row,
+/// childless entities first, since moving one with children pushes them too.
+///
+/// An entity the source pinned never moves: `@hint.level` is an instruction,
+/// and a hand-written arrangement is followed as written even when it is wide.
+pub fn fold_levels<'a>(
+    ir: &'a GraphIR,
+    levels: &mut HashMap<&'a str, i64>,
+    widths: &[f64],
+    cap: f64,
+) {
+    let index: HashMap<&str, usize> = ir
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, node)| (node.id.as_str(), i))
+        .collect();
+
+    let arcs = directed_arcs(ir, &index);
+    let pins: Vec<Option<i64>> = ir.nodes.iter().map(|node| node.level).collect();
+    let mut ranks: Vec<i64> = ir
+        .nodes
+        .iter()
+        .map(|node| levels.get(node.id.as_str()).copied().unwrap_or(0))
+        .collect();
+
+    let mut bears_children = vec![false; ir.nodes.len()];
+    let mut relations = vec![0usize; ir.nodes.len()];
+    for arc in &arcs {
+        bears_children[arc.tail] = true;
+        relations[arc.tail] += 1;
+        relations[arc.head] += 1;
+    }
+
+    // A row nothing can be taken out of stays wide. Remembering which ones
+    // those are is what stops the search picking the same row forever.
+    let mut settled: HashSet<i64> = HashSet::new();
+
+    for _ in 0..MAX_FOLDS {
+        let Some(row) = widest_over(&ranks, widths, cap, &settled) else {
+            break;
+        };
+        let keep = Keep {
+            pins: &pins,
+            widths,
+            bears_children: &bears_children,
+            relations: &relations,
+        };
+        if !thin_out(row, &keep, cap, &mut ranks) {
+            settled.insert(row);
+            continue;
+        }
+        push_children_down(&pins, &arcs, &mut ranks);
+    }
+
+    for (node, rank) in ir.nodes.iter().zip(&ranks) {
+        levels.insert(node.id.as_str(), *rank);
+    }
+}
+
+/// The topmost row that is over the cap and has more than one entity on it.
+/// Topmost, so that what it sheds falls onto rows not yet looked at.
+fn widest_over(ranks: &[i64], widths: &[f64], cap: f64, settled: &HashSet<i64>) -> Option<i64> {
+    let mut across: HashMap<i64, (f64, usize)> = HashMap::new();
+    for (i, &rank) in ranks.iter().enumerate() {
+        let row = across.entry(rank).or_insert((0.0, 0));
+        row.0 += widths[i];
+        row.1 += 1;
+    }
+
+    across
+        .iter()
+        .filter(|(rank, (width, count))| *width > cap && *count > 1 && !settled.contains(rank))
+        .map(|(rank, _)| *rank)
+        .min()
+}
+
+/// What decides which entities keep their row when it is thinned.
+struct Keep<'a> {
+    pins: &'a [Option<i64>],
+    widths: &'a [f64],
+    bears_children: &'a [bool],
+    relations: &'a [usize],
+}
+
+/// Send the surplus of one row down to the next, and say whether anything went.
+///
+/// What stays is chosen before what goes: the pinned entities, which cannot
+/// move at all, then the ones bearing children, since moving one of those
+/// pushes its children after it, and then whichever have the most relations.
+/// The last is what keeps the drawing readable: a row further from the entities
+/// it references is a row whose lines have more to cross on the way, so the
+/// ones sent down are the ones with the fewest lines to drag along.
+fn thin_out(row: i64, keep: &Keep, cap: f64, ranks: &mut [i64]) -> bool {
+    let pins = keep.pins;
+    let widths = keep.widths;
+
+    let mut on_row: Vec<usize> = (0..ranks.len()).filter(|&i| ranks[i] == row).collect();
+    on_row.sort_by(|&a, &b| {
+        let first = |i: usize| (pins[i].is_none(), !keep.bears_children[i]);
+        first(a)
+            .cmp(&first(b))
+            .then(keep.relations[b].cmp(&keep.relations[a]))
+            .then(widths[b].total_cmp(&widths[a]))
+    });
+
+    let mut kept = 0.0;
+    let mut moved = false;
+    for i in on_row {
+        // The first entity stays whatever it measures: a row cannot be
+        // narrower than one entity, and an empty row helps nobody.
+        if kept == 0.0 || pins[i].is_some() || kept + widths[i] <= cap {
+            kept += widths[i];
+            continue;
+        }
+        ranks[i] = row + 1;
+        moved = true;
+    }
+    moved
+}
+
+/// Restore the rule the folding may have broken: a child sits below its
+/// parents. Only downwards, so that nothing climbs back into the row that was
+/// just thinned.
+fn push_children_down(pins: &[Option<i64>], arcs: &[Arc], ranks: &mut [i64]) {
+    for _ in 0..ranks.len().max(1) {
+        let mut moved = false;
+        for arc in arcs {
+            if pins[arc.head].is_none() && ranks[arc.head] <= ranks[arc.tail] {
+                ranks[arc.head] = ranks[arc.tail] + 1;
+                moved = true;
+            }
+        }
+        if !moved {
+            return;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Arc, rank};
@@ -558,6 +707,69 @@ mod tests {
         assert_eq!(levels["Member"], 0);
         assert_eq!(levels["Team"], 2);
         assert_eq!(levels["Session"], 1);
+    }
+
+    /// A row of leaves wider than the drawing wants is split, and what is sent
+    /// down is the entity with the fewest relations, not the widest one.
+    #[test]
+    fn folds_a_row_that_grew_too_wide() {
+        let source = r#"
+            entity Team { id int pk }
+            entity Root { id int pk }
+            entity Alpha { id int pk }
+            entity Beta { id int pk }
+            entity Gamma { id int pk }
+            rel {
+                Team 1 -- * Alpha
+                Team 1 -- * Beta
+                Team 1 -- * Gamma
+                Root 1 -- * Alpha
+                Root 1 -- * Beta
+            }
+        "#;
+        let levels = folded_levels(source, 2.0);
+        assert_eq!(levels["Team"], 0);
+        assert_eq!(levels["Root"], 0);
+        assert_eq!(levels["Alpha"], 1, "two relations, so it keeps its row");
+        assert_eq!(levels["Beta"], 1, "two relations, so it keeps its row");
+        assert_eq!(
+            levels["Gamma"], 2,
+            "one relation, so it is the one sent down"
+        );
+    }
+
+    /// An arrangement written by hand is followed as written, however wide it
+    /// comes out: `@hint.level` is an instruction, and folding is a guess.
+    #[test]
+    fn never_folds_what_the_source_pinned() {
+        let source = r#"
+            entity Team { @hint.level = 0 id int pk }
+            entity Alpha { @hint.level = 1 id int pk }
+            entity Beta { @hint.level = 1 id int pk }
+            entity Gamma { @hint.level = 1 id int pk }
+            rel {
+                Team 1 -- * Alpha
+                Team 1 -- * Beta
+                Team 1 -- * Gamma
+            }
+        "#;
+        let levels = folded_levels(source, 1.0);
+        assert_eq!(levels["Alpha"], 1);
+        assert_eq!(levels["Beta"], 1);
+        assert_eq!(levels["Gamma"], 1);
+    }
+
+    /// Levels after folding, with every entity measured as one unit wide so
+    /// that `cap` reads as "how many fit on a row".
+    fn folded_levels(source: &str, cap: f64) -> std::collections::HashMap<String, i64> {
+        let schema = crate::parser::Parser::new(source).unwrap().parse().unwrap();
+        let ir = crate::ir::GraphIR::from_schema(&schema, None, crate::ir::DetailLevel::All);
+        let mut levels = super::assign_levels(&ir);
+        super::fold_levels(&ir, &mut levels, &vec![1.0; ir.nodes.len()], cap);
+        levels
+            .into_iter()
+            .map(|(name, level)| (name.to_string(), level))
+            .collect()
     }
 
     fn levels_of(source: &str) -> std::collections::HashMap<String, i64> {

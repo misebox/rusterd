@@ -1,5 +1,5 @@
 use rusterd::ir::{DetailLevel, GraphIR};
-use rusterd::layout::LayoutEngine;
+use rusterd::layout::{LayoutEngine, aspect_from_name};
 use rusterd::parser::Parser;
 use rusterd::serializer;
 use rusterd::sql::{Dialect, parse_sql};
@@ -97,7 +97,8 @@ Options:
   -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)
   -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)
   -l, --legend          Draw a key to the cardinality symbols
-  -D, --dense           Close up the spacing, to fit more on a screen"
+  -D, --dense           Close up the spacing, to fit more on a screen
+  -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)"
         );
         if args.is_empty() {
             after_a_mistake(&help);
@@ -112,6 +113,7 @@ Options:
     let mut notation = Notation::default();
     let mut legend = false;
     let mut dense = false;
+    let mut aspect = 1.0;
 
     let mut i = 1;
     while i < args.len() {
@@ -143,6 +145,16 @@ Options:
                     notation = Notation::from_name(&args[i]).unwrap_or_else(|| {
                         eprintln!("Invalid notation: {}", args[i]);
                         eprintln!("Valid options: crowsfoot, text");
+                        process::exit(1);
+                    });
+                }
+            }
+            "-a" | "--aspect" => {
+                i += 1;
+                if i < args.len() {
+                    aspect = aspect_from_name(&args[i]).unwrap_or_else(|| {
+                        eprintln!("Invalid aspect: {}", args[i]);
+                        eprintln!("Give it as width:height, such as 1:1 or 16:9.");
                         process::exit(1);
                     });
                 }
@@ -199,6 +211,7 @@ Options:
     let ir = GraphIR::from_schema(&schema, focus.as_deref(), detail);
     let layout = LayoutEngine::default()
         .with_dense_spacing(dense)
+        .with_aspect(aspect)
         .layout(&ir);
     let svg = SvgRenderer::default()
         .with_notation(notation)
