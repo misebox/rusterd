@@ -1,6 +1,6 @@
 [package]
 name = "rusterd"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 description = "ER diagram DSL compiler - render ERD to SVG"
 license = "MIT"
