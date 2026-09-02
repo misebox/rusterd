@@ -300,8 +300,12 @@ if [ "$VERSION" = "$CURRENT" ]; then
 else
     step "Setting the version to $VERSION"
     replace_in_file "1,/^version = /s/^version = \"[^\"]*\"$/version = \"$VERSION\"/" Cargo.toml
-    git --no-pager diff --stat Cargo.toml
-    git add Cargo.toml
+    # Cargo.lock records this crate's own version too, and it is committed. Left
+    # behind, the first cargo command rewrites it and `cargo publish` then
+    # refuses to work in a tree with changes it did not see committed.
+    cargo update -q -p "$CRATE"
+    git --no-pager diff --stat Cargo.toml Cargo.lock
+    git add Cargo.toml Cargo.lock
     git commit -q -m "Release $TAG"
 fi
 
