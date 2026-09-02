@@ -1,7 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
-import init, { erdToSvg, sqlToErd } from "../../../pkg/rusterd.js";
+import init, { erdToSvg, sqlToErd, type Dialect } from "../../../pkg/rusterd.js";
 import Header from "../Header";
-import Controls, { PLAIN } from "../Drawing";
+import Controls, { PLAIN, oneOf, styles as control } from "../Drawing";
 import Tabs from "../Tabs";
 import { language, say } from "../i18n";
 import { theme } from "../theme";
@@ -107,7 +107,7 @@ focus checkout {
 const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
 type Tab = (typeof TABS)[number];
 
-const DIALECTS = [
+const DIALECTS: { value: Dialect; label: string }[] = [
   { value: "auto", label: "Auto-detect" },
   { value: "postgres", label: "PostgreSQL" },
   { value: "mysql", label: "MySQL" },
@@ -119,7 +119,7 @@ export default function Demo() {
   const [sql, setSql] = createSignal(DEFAULT_SQL);
   const [erd, setErd] = createSignal(DEFAULT_ERD);
   const [svg, setSvg] = createSignal("");
-  const [dialect, setDialect] = createSignal("auto");
+  const [dialect, setDialect] = createSignal<Dialect>("auto");
   const [drawing, setDrawing] = createSignal(PLAIN);
   const [error, setError] = createSignal("");
   const [ready, setReady] = createSignal(false);
@@ -222,12 +222,12 @@ export default function Demo() {
 
       <div style={styles.toolbar}>
         <Show when={tab() === "SQL"}>
-          <label style={styles.field}>
+          <label style={control.field}>
             Dialect
             <select
-              style={styles.select}
+              style={control.select}
               value={dialect()}
-              onChange={(e) => setDialect(e.currentTarget.value)}
+              onChange={(e) => setDialect(oneOf(DIALECTS, e.currentTarget.value, "auto"))}
             >
               {DIALECTS.map((d) => (
                 <option value={d.value}>{d.label}</option>
@@ -390,4 +390,4 @@ const styles = {
     margin: "0 0 12px 0",
     "white-space": "pre-wrap",
   },
-};
+} as const;

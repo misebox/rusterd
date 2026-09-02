@@ -265,9 +265,9 @@ else
     echo "  no wasm32-unknown-unknown target installed; skipping"
 fi
 
-step "The site still builds"
+step "The site still type-checks and builds"
 if command -v bun >/dev/null; then
-    (cd site && bun install --silent >/dev/null && bun run build >/dev/null)
+    (cd site && bun install --silent >/dev/null && bun run check && bun run build >/dev/null)
     echo "ok"
 else
     echo "  no bun; skipping"

@@ -1,11 +1,12 @@
+import type { Detail, Notation } from "../../pkg/rusterd.js";
 import { Language } from "./i18n";
 import { theme } from "./theme";
 
 /// Everything about how a diagram is drawn rather than what is in it — the
 /// same set the compiler takes as `DrawOptions`.
 export type Drawing = {
-  detail: string;
-  notation: string;
+  detail: Detail;
+  notation: Notation;
   legend: boolean;
   dense: boolean;
 };
@@ -26,17 +27,30 @@ const WORDS = {
   legend: { en: "Legend", ja: "凡例" },
 } as const;
 
-const DETAIL = [
+type Choice<T extends string> = { value: T; en: string; ja: string };
+
+const DETAIL: Choice<Detail>[] = [
   { value: "all", en: "All columns", ja: "全列" },
   { value: "pk_fk", en: "PK + FK only", ja: "主キーと外部キー" },
   { value: "pk", en: "PK only", ja: "主キーのみ" },
   { value: "tables", en: "Tables only", ja: "表名のみ" },
 ];
 
-const NOTATION = [
+const NOTATION: Choice<Notation>[] = [
   { value: "crowsfoot", en: "Crow's foot symbols", ja: "クロウズフット" },
   { value: "text", en: "Text — 1, 0..1, ✱, 1..✱", ja: "文字 — 1, 0..1, ✱, 1..✱" },
 ];
+
+/// A `<select>` reports its value as a string, but the compiler accepts only
+/// the names it published. Finding the value back in the list it was offered
+/// from is what makes it one of those names again.
+export function oneOf<T extends string>(
+  choices: readonly { value: T }[],
+  value: string,
+  fallback: T,
+): T {
+  return choices.find((choice) => choice.value === value)?.value ?? fallback;
+}
 
 /// The controls for how to draw a diagram, wherever one is being drawn.
 export default function Controls(props: {
@@ -54,7 +68,7 @@ export default function Controls(props: {
         <select
           style={styles.select}
           value={props.drawing.detail}
-          onChange={(e) => set({ detail: e.currentTarget.value })}
+          onChange={(e) => set({ detail: oneOf(DETAIL, e.currentTarget.value, PLAIN.detail) })}
         >
           {DETAIL.map((level) => (
             <option value={level.value}>{level[props.language]}</option>
@@ -67,7 +81,9 @@ export default function Controls(props: {
         <select
           style={styles.select}
           value={props.drawing.notation}
-          onChange={(e) => set({ notation: e.currentTarget.value })}
+          onChange={(e) =>
+            set({ notation: oneOf(NOTATION, e.currentTarget.value, PLAIN.notation) })
+          }
         >
           {NOTATION.map((entry) => (
             <option value={entry.value}>{entry[props.language]}</option>
@@ -96,7 +112,9 @@ export default function Controls(props: {
   );
 }
 
-const styles = {
+/// The demo page puts its dialect picker in the same toolbar as these, where it
+/// would look like a stray unless it is dressed the same.
+export const styles = {
   field: {
     display: "flex",
     "align-items": "center",

@@ -36,5 +36,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install
         working-directory: site
+      # The build strips types without checking them, so it would not notice a
+      # page reading an option the compiler does not accept.
+      - run: bun run check
+        working-directory: site
       - run: bun run build
         working-directory: site
