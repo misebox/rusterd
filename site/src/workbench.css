@@ -1,0 +1,83 @@
+/* The examples page, on a screen wide enough to hold the list and the diagram
+ * side by side.
+ *
+ * There the page is exactly the window: the list and whichever pane is open
+ * scroll on their own, and the page itself never does. A scrollbar down the
+ * side of a screen whose content already fits is a scrollbar that moves
+ * nothing worth seeing.
+ *
+ * Below that width the two columns stack, the list alone is taller than most
+ * phones, and a page that scrolls is the only honest thing — so none of this
+ * applies and the panes go back to being as tall as they need to be. */
+
+body {
+  /* 100dvh means the window, and the window does not include the margin a
+   * browser puts round the body by default. */
+  margin: 0;
+}
+
+/* Stacked, the list is above the diagram and neither stretches to meet the
+ * other. Side by side, both are as tall as the row — which is what gives the
+ * pane a height to take its share of. */
+.workbench-layout {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* However tall the diagram or the source is, the pane holding it stops here and
+ * scrolls, so that the tabs above it stay in reach. */
+.workbench-pane {
+  overflow: auto;
+  max-height: 78vh;
+  resize: vertical;
+}
+
+/* A textarea has no content to be as tall as — left alone it is two rows —
+ * so the editable panes are given the height the others reach on their own. */
+textarea.workbench-pane {
+  height: 78vh;
+}
+
+@media (min-width: 960px) {
+  .workbench {
+    height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workbench-layout,
+  .workbench-viewer {
+    min-height: 0;
+  }
+
+  .workbench-layout {
+    flex: 1;
+    flex-wrap: nowrap;
+    /* Both columns are as tall as the row, rather than as tall as they like:
+     * that is what gives the pane a height to take its share of. */
+    align-items: stretch;
+  }
+
+  .workbench-viewer {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workbench-list {
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .workbench-pane {
+    /* The row above sets the height; the pane takes what is left of it rather
+     * than naming a height of its own. */
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    resize: none;
+  }
+}

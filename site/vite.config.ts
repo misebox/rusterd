@@ -12,7 +12,6 @@ export default defineConfig({
         start: "start.html",
         language: "language.html",
         examples: "examples.html",
-        demo: "demo.html",
       },
     },
   },

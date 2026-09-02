@@ -130,7 +130,7 @@ export default function Docs() {
             >
               {say("getStarted", LANGUAGE)}
             </a>
-            <a style={styles.button} href={inLanguage("demo.html", LANGUAGE)}>
+            <a style={styles.button} href={inLanguage("examples.html", LANGUAGE)}>
               {say("tryIt", LANGUAGE)}
             </a>
           </div>

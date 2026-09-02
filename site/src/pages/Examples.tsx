@@ -1,11 +1,12 @@
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
-import init, { erdToSvg } from "../../../pkg/rusterd.js";
-import Controls, { Drawing, PLAIN } from "../Drawing";
+import init, { erdToSvg, sqlToErd, type Dialect } from "../../../pkg/rusterd.js";
+import Controls, { Drawing, PLAIN, oneOf, styles as control } from "../Drawing";
 import Header from "../Header";
 import Tabs from "../Tabs";
 import { language, say } from "../i18n";
 import { inRepo } from "../project";
 import "../diagram.css";
+import "../workbench.css";
 import { theme } from "../theme";
 
 /// The example files the repository ships, read at build time so the page can
@@ -73,6 +74,10 @@ const ABOUT: Record<string, { en: string; ja: string }> = {
     en: "@hint.near, keeping related entities together",
     ja: "@hint.near で近くに置く",
   },
+  "12_aspect": {
+    en: "Nine leaves on one parent — change Shape to fold them",
+    ja: "1 つの親に葉が 9 つ。形を変えると折り返す",
+  },
   "21_idp": {
     en: "An identity provider, converted from its SQL dump",
     ja: "認証基盤。SQL ダンプから変換したもの",
@@ -95,16 +100,75 @@ const TABS = ["SQL", "ERD", "SVG", "Diagram"] as const;
 const FIRST: Tab = "Diagram";
 type Tab = (typeof TABS)[number];
 
+const DIALECTS: { value: Dialect; label: string }[] = [
+  { value: "auto", label: "Auto-detect" },
+  { value: "postgres", label: "PostgreSQL" },
+  { value: "mysql", label: "MySQL" },
+  { value: "generic", label: "Generic" },
+];
+
 export default function Examples() {
   const [chosen, setChosen] = createSignal(asked() ?? NAMES[0]);
   const [tab, setTab] = createSignal<Tab>(FIRST);
   const [actual, setActual] = createSignal(false);
   const [drawing, setDrawing] = createSignal<Drawing>(PLAIN);
+  const [dialect, setDialect] = createSignal<Dialect>("auto");
   const [ready, setReady] = createSignal(false);
+
+  // What the page is showing, which starts as what the repository ships and
+  // becomes whatever the reader types over it.
+  const [erd, setErd] = createSignal("");
+  const [svg, setSvg] = createSignal("");
+  const [sql, setSql] = createSignal("");
+  const [error, setError] = createSignal("");
+
+  const shipped = () => SOURCES[chosen()] ?? "";
+  const edited = () => erd() !== shipped();
+
+  /// Compile, showing whatever the compiler complains about rather than
+  /// leaving the diagram silently stale.
+  const compile = (source: string) => {
+    if (!ready()) {
+      return;
+    }
+    try {
+      setSvg(erdToSvg(source, drawing()));
+      setError("");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  /// Load an example over whatever is on the page.
+  const open = (name: string) => {
+    setSql(DUMPS[name] ?? "");
+    setErd(SOURCES[name] ?? "");
+    setError("");
+    compile(erd());
+  };
+
+  const write = (source: string) => {
+    setErd(source);
+    compile(source);
+  };
+
+  const convert = () => {
+    try {
+      const converted = sqlToErd(sql(), dialect());
+      if (!converted.trim()) {
+        throw new Error("No tables found. Check the SQL, or choose the dialect explicitly.");
+      }
+      write(converted);
+      setTab("ERD");
+    } catch (e) {
+      setError(String(e));
+    }
+  };
 
   onMount(async () => {
     await init();
     setReady(true);
+    open(chosen());
   });
 
   // Changing only the fragment does not reload the page, so the example named
@@ -115,23 +179,11 @@ export default function Examples() {
       if (name) {
         setChosen(name);
         setTab(FIRST);
+        open(name);
       }
     };
     window.addEventListener("hashchange", follow);
     onCleanup(() => window.removeEventListener("hashchange", follow));
-  });
-
-  const erd = createMemo(() => SOURCES[chosen()] ?? "");
-  const sql = createMemo(() => DUMPS[chosen()]);
-  const svg = createMemo(() => {
-    if (!ready()) {
-      return "";
-    }
-    try {
-      return erdToSvg(erd(), drawing());
-    } catch (e) {
-      return `<!-- ${String(e)} -->`;
-    }
   });
 
   // A diagram of its own, for the browser to zoom, save or print — which it
@@ -151,6 +203,7 @@ export default function Examples() {
   const show = (name: string) => {
     setChosen(name);
     setTab(FIRST);
+    open(name);
     history.replaceState(null, "", `#${name}`);
     // On a narrow screen the list is the whole page and the diagram is under
     // it, so choosing one would otherwise change something out of sight.
@@ -162,17 +215,24 @@ export default function Examples() {
   const shown = createMemo(() => TABS.filter((name) => name !== "SQL" || sql()));
 
   return (
-    <div style={styles.container}>
+    <div class="workbench" style={styles.container}>
       <Header here="examples.html" language={LANGUAGE} />
 
       <p style={styles.blurb}>{say("everyExample", LANGUAGE)}</p>
 
       <div style={styles.controls}>
-        <Controls drawing={drawing()} change={setDrawing} language={LANGUAGE} />
+        <Controls
+          drawing={drawing()}
+          change={(next) => {
+            setDrawing(next);
+            compile(erd());
+          }}
+          language={LANGUAGE}
+        />
       </div>
 
-      <div style={styles.layout}>
-        <nav style={styles.list}>
+      <div class="workbench-layout">
+        <nav class="workbench-list" style={styles.list}>
           {NAMES.map((name) => (
             <button
               style={{
@@ -189,7 +249,7 @@ export default function Examples() {
           ))}
         </nav>
 
-        <section ref={viewer} style={styles.viewer}>
+        <section ref={viewer} class="workbench-viewer" style={styles.viewer}>
           <Tabs
             names={shown()}
             shown={tab()}
@@ -201,12 +261,7 @@ export default function Examples() {
                   <button style={styles.quiet} onClick={() => setActual(!actual())}>
                     {say(actual() ? "fit" : "actualSize", LANGUAGE)}
                   </button>
-                  <a
-                    style={styles.quiet}
-                    href={alone()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a style={styles.quiet} href={alone()} target="_blank" rel="noopener noreferrer">
                     {say("openAlone", LANGUAGE)}
                   </a>
                 </Show>
@@ -222,21 +277,83 @@ export default function Examples() {
             }
           />
 
+          <div style={styles.toolbar}>
+            <Show when={tab() === "SQL"}>
+              <label style={control.field}>
+                Dialect
+                <select
+                  style={control.select}
+                  value={dialect()}
+                  onChange={(e) => setDialect(oneOf(DIALECTS, e.currentTarget.value, "auto"))}
+                >
+                  {DIALECTS.map((entry) => (
+                    <option value={entry.value}>{entry.label}</option>
+                  ))}
+                </select>
+              </label>
+              <button style={styles.action} disabled={!ready()} onClick={convert}>
+                {say("fromSql", LANGUAGE)}
+              </button>
+            </Show>
+
+            <Show when={tab() === "ERD"}>
+              <button style={styles.action} disabled={!ready()} onClick={() => compile(erd())}>
+                {say("redraw", LANGUAGE)}
+              </button>
+              <span style={styles.hint}>{say("followsErd", LANGUAGE)}</span>
+            </Show>
+
+            <Show when={tab() === "SVG"}>
+              <span style={styles.hint}>{say("followsSvg", LANGUAGE)}</span>
+            </Show>
+
+            <Show when={edited()}>
+              <span style={styles.badge}>{say("edited", LANGUAGE)}</span>
+              <button style={styles.revert} onClick={() => open(chosen())}>
+                {say("revert", LANGUAGE)}
+              </button>
+            </Show>
+          </div>
+
+          <Show when={error()}>
+            <pre style={styles.error}>{error()}</pre>
+          </Show>
+
           <Show when={tab() === "Diagram"}>
             <div
-              class={actual() ? "diagram" : "diagram diagram-fit"}
+              class={
+                actual() ? "diagram workbench-pane" : "diagram diagram-fit workbench-pane"
+              }
               style={styles.drawing}
               innerHTML={svg()}
             />
           </Show>
           <Show when={tab() === "ERD"}>
-            <pre style={styles.code}>{erd()}</pre>
+            <textarea
+              class="workbench-pane"
+              style={styles.code}
+              value={erd()}
+              onInput={(e) => write(e.currentTarget.value)}
+              spellcheck={false}
+            />
           </Show>
           <Show when={tab() === "SVG"}>
-            <pre style={styles.code}>{svg()}</pre>
+            <textarea
+              class="workbench-pane"
+              style={styles.code}
+              value={svg()}
+              onInput={(e) => setSvg(e.currentTarget.value)}
+              spellcheck={false}
+            />
           </Show>
           <Show when={tab() === "SQL"}>
-            <pre style={styles.code}>{sql()}</pre>
+            <textarea
+              class="workbench-pane"
+              style={styles.code}
+              value={sql()}
+              onInput={(e) => setSql(e.currentTarget.value)}
+              spellcheck={false}
+            />
           </Show>
         </section>
       </div>
@@ -263,12 +380,6 @@ const styles = {
     "flex-wrap": "wrap",
     gap: "16px",
     "margin-bottom": "16px",
-  },
-  layout: {
-    display: "flex",
-    gap: "24px",
-    "align-items": "flex-start",
-    "flex-wrap": "wrap",
   },
   list: {
     display: "flex",
@@ -307,6 +418,45 @@ const styles = {
     flex: "1 1 640px",
     "min-width": "0",
   },
+  toolbar: {
+    display: "flex",
+    "align-items": "center",
+    "flex-wrap": "wrap",
+    gap: "12px",
+    padding: "12px 0",
+    "min-height": "34px",
+  },
+  action: {
+    "font-family": theme.sans,
+    "font-size": "13px",
+    "font-weight": "bold",
+    padding: "6px 12px",
+    border: `1px solid ${theme.rule}`,
+    "border-radius": "4px",
+    background: theme.panel,
+    color: theme.ink,
+    cursor: "pointer",
+  },
+  revert: {
+    "font-family": theme.sans,
+    "font-size": "13px",
+    padding: "6px 12px",
+    border: `1px solid ${theme.rule}`,
+    "border-radius": "4px",
+    background: theme.paper,
+    color: theme.quiet,
+    cursor: "pointer",
+  },
+  badge: {
+    "font-size": "12px",
+    color: theme.faint,
+    // Sits apart from the buttons that act on the tab, at the end of the row.
+    "margin-left": "auto",
+  },
+  hint: {
+    "font-size": "13px",
+    color: theme.faint,
+  },
   aside: {
     display: "flex",
     "align-items": "center",
@@ -322,15 +472,26 @@ const styles = {
     "text-decoration": "none",
     cursor: "pointer",
   },
+  error: {
+    color: "#c00",
+    "font-family": theme.mono,
+    "font-size": "13px",
+    padding: "12px",
+    background: "#fee",
+    "border-radius": "4px",
+    margin: "0 0 12px",
+    "white-space": "pre-wrap",
+  },
   drawing: {
     border: `1px solid ${theme.rule}`,
     "border-radius": "6px",
     padding: "16px",
     background: theme.paper,
-    overflow: "auto",
-    "max-height": "78vh",
   },
   code: {
+    display: "block",
+    width: "100%",
+    "box-sizing": "border-box",
     "font-family": theme.mono,
     "font-size": "13px",
     "line-height": "1.55",
@@ -338,8 +499,7 @@ const styles = {
     "border-radius": "6px",
     padding: "16px",
     background: theme.panel,
-    overflow: "auto",
-    "max-height": "78vh",
+    color: theme.ink,
     margin: "0",
   },
 } as const;

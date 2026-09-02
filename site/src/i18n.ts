@@ -63,7 +63,6 @@ const WORDS = {
   start: { en: "Get started", ja: "はじめに" },
   languagePage: { en: "Language", ja: "言語仕様" },
   examples: { en: "Examples", ja: "サンプル" },
-  demo: { en: "Demo", ja: "デモ" },
 
   getStarted: { en: "Get started", ja: "はじめる" },
   tryIt: { en: "Try it in the browser", ja: "ブラウザで試す" },
@@ -82,13 +81,19 @@ const WORDS = {
   },
 
   everyExample: {
-    en: "Every file in examples/, compiled here in the browser. The diagrams are what rusterd render writes for the same input.",
-    ja: "examples/ にあるファイルを、この場でコンパイルしたものです。図は同じ入力に対して rusterd render が書き出すものと同じです。",
+    en: "Every file in examples/, compiled here in the browser by the same code the command line runs. Edit any of them and the diagram follows.",
+    ja: "examples/ にあるファイルを、コマンドラインと同じコードでこの場でコンパイルしたものです。書き換えれば図もついてきます。",
   },
   source: { en: "Source", ja: "ソース" },
   actualSize: { en: "Actual size", ja: "実寸" },
   fit: { en: "Fit", ja: "全体" },
   openAlone: { en: "Open on its own", ja: "別タブで開く" },
+  revert: { en: "Revert", ja: "戻す" },
+  edited: { en: "edited", ja: "編集済み" },
+  fromSql: { en: "SQL → ERD", ja: "SQL → ERD" },
+  redraw: { en: "ERD → Diagram", ja: "ERD → 図" },
+  followsErd: { en: "Redrawn from the ERD tab as you type.", ja: "ERD タブの内容から描き直しています。" },
+  followsSvg: { en: "Drawn from the SVG tab as you type.", ja: "SVG タブの内容をそのまま描いています。" },
   inYourBrowser: {
     en: "Nothing here is sent anywhere: the compiler is a WebAssembly build of the same Rust the command line runs, and it compiles as you type.",
     ja: "何もサーバには送られません。コマンドラインと同じ Rust を WebAssembly にビルドしたコンパイラが、この場で変換しています。",

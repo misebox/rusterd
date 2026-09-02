@@ -9,7 +9,6 @@ const PAGES = [
   { href: "start.html", word: "start" },
   { href: "language.html", word: "languagePage" },
   { href: "examples.html", word: "examples" },
-  { href: "demo.html", word: "demo" },
 ] as const;
 
 /// The same masthead on every page. `here` is the file name of the page drawing

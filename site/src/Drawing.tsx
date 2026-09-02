@@ -7,6 +7,7 @@ import { theme } from "./theme";
 export type Drawing = {
   detail: Detail;
   notation: Notation;
+  aspect: string;
   legend: boolean;
   dense: boolean;
 };
@@ -14,6 +15,7 @@ export type Drawing = {
 export const PLAIN: Drawing = {
   detail: "all",
   notation: "crowsfoot",
+  aspect: "1:1",
   legend: false,
   dense: false,
 };
@@ -23,11 +25,22 @@ export const PLAIN: Drawing = {
 const WORDS = {
   detail: { en: "Detail", ja: "詳細度" },
   notation: { en: "Notation", ja: "記法" },
+  aspect: { en: "Shape", ja: "形" },
   dense: { en: "Dense", ja: "密" },
   legend: { en: "Legend", ja: "凡例" },
 } as const;
 
 type Choice<T extends string> = { value: T; en: string; ja: string };
+
+/// The shapes worth offering: a screen, a slide, a sheet of paper either way
+/// up. Any `width:height` is accepted by the compiler; these are the ones a
+/// diagram is usually going into.
+const ASPECT: Choice<string>[] = [
+  { value: "1:1", en: "Square — a screen", ja: "正方形 — 画面" },
+  { value: "16:9", en: "16:9 — a slide", ja: "16:9 — スライド" },
+  { value: "297:210", en: "A4 landscape", ja: "A4 横" },
+  { value: "210:297", en: "A4 portrait", ja: "A4 縦" },
+];
 
 const DETAIL: Choice<Detail>[] = [
   { value: "all", en: "All columns", ja: "全列" },
@@ -92,6 +105,19 @@ export default function Controls(props: {
       </label>
 
       <label style={styles.field}>
+        {word("aspect")}
+        <select
+          style={styles.select}
+          value={props.drawing.aspect}
+          onChange={(e) => set({ aspect: oneOf(ASPECT, e.currentTarget.value, PLAIN.aspect) })}
+        >
+          {ASPECT.map((shape) => (
+            <option value={shape.value}>{shape[props.language]}</option>
+          ))}
+        </select>
+      </label>
+
+      <label style={styles.field}>
         <input
           type="checkbox"
           checked={props.drawing.dense}
@@ -112,8 +138,8 @@ export default function Controls(props: {
   );
 }
 
-/// The demo page puts its dialect picker in the same toolbar as these, where it
-/// would look like a stray unless it is dressed the same.
+/// The examples page puts its dialect picker in the same toolbar as these,
+/// where it would look like a stray unless it is dressed the same.
 export const styles = {
   field: {
     display: "flex",
