@@ -1,0 +1,121 @@
+# Test: the shape of the drawing, chosen at render time.
+#
+# Nine of these hang off Project and reference nothing themselves, so a
+# compiler that gave every entity its own row would draw them as one row
+# nine wide. Render it at a few shapes to see the rows fold:
+#
+#   rusterd render examples/12_aspect.erd                    # 1:1, the default
+#   rusterd render examples/12_aspect.erd --aspect 16:9      # a slide
+#   rusterd render examples/12_aspect.erd --aspect 210:297   # a page
+#
+# Nothing below says anything about placement: the shape is not a property
+# of the schema, it is where the diagram is going.
+
+entity Org {
+    id int pk
+    name string not null
+    plan string not null
+    created_at timestamp
+}
+
+entity Workspace {
+    id int pk
+    org_id int fk -> Org.id
+    name string not null
+    slug string unique not null
+}
+
+entity Member {
+    id int pk
+    org_id int fk -> Org.id
+    email string unique not null
+    role string not null
+}
+
+entity Project {
+    id int pk
+    workspace_id int fk -> Workspace.id
+    lead_id int fk -> Member.id
+    name string not null
+    archived_at timestamp
+}
+
+entity Task {
+    id int pk
+    project_id int fk -> Project.id
+    title string not null
+    state string not null
+    due_on date
+}
+
+entity Milestone {
+    id int pk
+    project_id int fk -> Project.id
+    title string not null
+    ships_on date
+}
+
+entity Label {
+    id int pk
+    project_id int fk -> Project.id
+    name string not null
+    colour string
+}
+
+entity Attachment {
+    id int pk
+    project_id int fk -> Project.id
+    filename string not null
+    bytes int not null
+}
+
+entity Comment {
+    id int pk
+    project_id int fk -> Project.id
+    body text not null
+    posted_at timestamp
+}
+
+entity Webhook {
+    id int pk
+    project_id int fk -> Project.id
+    url string not null
+    secret string not null
+}
+
+entity Automation {
+    id int pk
+    project_id int fk -> Project.id
+    trigger string not null
+    action string not null
+}
+
+entity Snapshot {
+    id int pk
+    project_id int fk -> Project.id
+    taken_at timestamp not null
+    summary text
+}
+
+entity Invitation {
+    id int pk
+    project_id int fk -> Project.id
+    email string not null
+    expires_at timestamp
+}
+
+rel {
+    Org 1 -- * Workspace
+    Org 1 -- * Member
+    Workspace 1 -- * Project
+    Member 1 -- * Project : "leads"
+    Project 1 -- * Task
+    Project 1 -- * Milestone
+    Project 1 -- * Label
+    Project 1 -- * Attachment
+    Project 1 -- * Comment
+    Project 1 -- * Webhook
+    Project 1 -- * Automation
+    Project 1 -- * Snapshot
+    Project 1 -- * Invitation
+}
