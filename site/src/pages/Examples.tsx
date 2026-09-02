@@ -74,7 +74,7 @@ const ABOUT: Record<string, { en: string; ja: string }> = {
     en: "@hint.near, keeping related entities together",
     ja: "@hint.near で近くに置く",
   },
-  "12_aspect": {
+  "12_many_leaves": {
     en: "Nine leaves on one parent — change Shape to fold them",
     ja: "1 つの親に葉が 9 つ。形を変えると折り返す",
   },

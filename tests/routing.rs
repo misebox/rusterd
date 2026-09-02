@@ -179,11 +179,11 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     ("11_near.erd", 0, 2, 24),
     // Drawn to be folded, and the numbers are what folding costs it: nine
     // leaves in one row become three rows, whose lines have rows to get past.
-    ("12_aspect.erd", 2, 1, 18),
-    // The only example wide enough to be folded, and the numbers below are what
-    // that costs: 3388x1184 became 1940x1522, and one row of eight leaves became
-    // two of four, whose lines now have a row to get past. Loosened deliberately
-    // — a diagram that fits on a screen is worth two crossings.
+    ("12_many_leaves.erd", 2, 1, 18),
+    // Folded too, and the numbers below are what that cost: 3388x1184 became
+    // 1940x1522, and one row of eight leaves became two of four, whose lines now
+    // have a row to get past. Loosened deliberately — a diagram that fits on a
+    // screen is worth two crossings.
     ("21_idp.erd", 2, 5, 26),
     ("sample.erd", 0, 0, 6),
 ];

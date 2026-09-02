@@ -1,12 +1,13 @@
-# Test: the shape of the drawing, chosen at render time.
+# Test: one parent with far more children than fit on a row.
 #
 # Nine of these hang off Project and reference nothing themselves, so a
 # compiler that gave every entity its own row would draw them as one row
-# nine wide. Render it at a few shapes to see the rows fold:
+# nine wide. Instead the row folds, to whatever shape the diagram is asked
+# for at render time:
 #
-#   rusterd render examples/12_aspect.erd                    # 1:1, the default
-#   rusterd render examples/12_aspect.erd --aspect 16:9      # a slide
-#   rusterd render examples/12_aspect.erd --aspect 210:297   # a page
+#   rusterd render examples/12_many_leaves.erd                    # 1:1, the default
+#   rusterd render examples/12_many_leaves.erd --aspect 16:9      # a slide
+#   rusterd render examples/12_many_leaves.erd --aspect 210:297   # a page
 #
 # Nothing below says anything about placement: the shape is not a property
 # of the schema, it is where the diagram is going.
