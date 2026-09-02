@@ -126,16 +126,19 @@ export default function Examples() {
   const edited = () => erd() !== shipped();
 
   /// Compile, showing whatever the compiler complains about rather than
-  /// leaving the diagram silently stale.
-  const compile = (source: string) => {
+  /// leaving the diagram silently stale. Says whether there is a diagram to
+  /// look at, since there is no sense turning to one that did not compile.
+  const compile = (source: string): boolean => {
     if (!ready()) {
-      return;
+      return false;
     }
     try {
       setSvg(erdToSvg(source, drawing()));
       setError("");
+      return true;
     } catch (e) {
       setError(String(e));
+      return false;
     }
   };
 
@@ -329,7 +332,11 @@ export default function Examples() {
               </Show>
 
               <Show when={tab() === "ERD"}>
-                <button style={styles.action} disabled={!ready()} onClick={() => compile(erd())}>
+                <button
+                  style={styles.action}
+                  disabled={!ready()}
+                  onClick={() => compile(erd()) && setTab("Diagram")}
+                >
                   {say("redraw", LANGUAGE)}
                 </button>
                 <span style={styles.hint}>{say("followsErd", LANGUAGE)}</span>
