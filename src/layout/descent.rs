@@ -53,6 +53,7 @@ pub fn plan_descents<'a>(
     anchors: &Anchors<'a>,
     entity_margin: f64,
     jog_tolerance: f64,
+    lane_spacing: f64,
 ) -> Descents {
     let ends = |idx: usize| -> Option<(f64, f64)> {
         let edge = &ir.edges[idx];
@@ -176,11 +177,41 @@ pub fn plan_descents<'a>(
             .collect();
         through.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
+        // Two columns this close would read as one line, so a detour keeps
+        // clear of every column already standing in the channels it crosses,
+        // sliding along its corridor to find room.
+        let taken = |x: f64| {
+            standing.iter().any(|line| {
+                top_level <= line.channel
+                    && line.channel < bottom_level
+                    && (line.x - x).abs() < lane_spacing
+            })
+        };
+        let mut candidates = through.clone();
+        for &(left, right) in &corridors {
+            for &x in through.iter().filter(|&&x| left <= x && x <= right) {
+                for step in 1..=3 {
+                    let offset = step as f64 * lane_spacing;
+                    candidates.extend([x - offset, x + offset].into_iter().filter(|c| {
+                        let jogs = |anchor: f64| {
+                            (c - anchor).abs() > 0.0 && (c - anchor).abs() <= jog_tolerance
+                        };
+                        left <= *c && *c <= right && !jogs(top_x) && !jogs(bottom_x)
+                    }));
+                }
+            }
+        }
+        candidates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.dedup();
+        if candidates.iter().any(|&x| !taken(x)) {
+            candidates.retain(|&x| !taken(x));
+        }
+
         let best_step = (top_level..bottom_level)
             .filter(|&channel| usable(channel))
             .map(|channel| (cost(channel, top_x, bottom_x), channel))
             .min_by_key(|&(cost, channel)| (cost, channel));
-        let best_detour = through
+        let best_detour = candidates
             .iter()
             .map(|&x| {
                 (

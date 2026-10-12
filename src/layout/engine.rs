@@ -265,6 +265,7 @@ impl LayoutEngine {
             &node_exits,
             self.entity_margin,
             self.jog_tolerance,
+            self.lane_spacing,
         );
 
         // Phase 8: Lane assignments, which say how much room each channel needs

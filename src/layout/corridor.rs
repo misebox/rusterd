@@ -57,7 +57,7 @@ pub fn find_safe_corridors(
             gaps.push((40.0, first_left));
         }
     } else {
-        gaps.push((40.0, 10000.0));
+        gaps.push((40.0, f64::MAX));
     }
 
     for i in 0..merged.len().saturating_sub(1) {
@@ -69,7 +69,7 @@ pub fn find_safe_corridors(
     }
 
     if let Some(&(_, last_right)) = merged.last() {
-        gaps.push((last_right, 10000.0));
+        gaps.push((last_right, f64::MAX));
     }
 
     gaps
