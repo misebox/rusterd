@@ -36,6 +36,7 @@ pub enum Token {
     Increment,
     Serial, // PostgreSQL
     Check,
+    Array, // [] after a type
 
     // Identifiers and literals
     Ident(String),
@@ -322,6 +323,10 @@ impl<'a> Lexer<'a> {
                         }
                         ident.push(c);
                         self.advance();
+                    }
+                    // Array dimension: [] or [3]
+                    if ident.chars().all(|c| c.is_ascii_digit()) {
+                        return Token::Array;
                     }
                     return Token::Ident(ident);
                 }

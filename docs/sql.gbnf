@@ -32,7 +32,7 @@ default      ::= "DEFAULT " literal
 references   ::= "REFERENCES " table-name "(" ident ")"
 
 # A type is one or more words, optionally with a size or precision.
-data-type    ::= type-word (" " type-word)* type-args?
+data-type    ::= type-word (" " type-word)* type-args? "[]"*
 type-word    ::= [A-Z] [A-Z0-9_]*
 type-args    ::= "(" number ("," sp number)* ")"
 
