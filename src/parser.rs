@@ -105,6 +105,12 @@ impl Parser {
         matches!(self.peek(), Token::Ident(s) if s == name)
     }
 
+    /// A constraint keyword only counts when a `(` follows, so a column may
+    /// share its name (`index int not null`).
+    fn check_constraint(&self, name: &str) -> bool {
+        self.check_ident(name) && self.tokens.get(self.pos + 1) == Some(&Token::LParen)
+    }
+
     pub fn parse(&mut self) -> Result<Schema, ParseError> {
         let mut entities = Vec::new();
         let mut relationships = Vec::new();
@@ -234,13 +240,13 @@ impl Parser {
             }
             if *self.peek() == Token::At {
                 hints.push(self.parse_hint()?);
-            } else if self.check_ident("primary_key") {
+            } else if self.check_constraint("primary_key") {
                 self.advance();
                 constraints.push(self.parse_primary_key()?);
-            } else if self.check_ident("foreign_key") {
+            } else if self.check_constraint("foreign_key") {
                 self.advance();
                 constraints.push(self.parse_foreign_key()?);
-            } else if self.check_ident("index") {
+            } else if self.check_constraint("index") {
                 self.advance();
                 constraints.push(self.parse_index()?);
             } else {
