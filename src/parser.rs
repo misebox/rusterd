@@ -260,7 +260,12 @@ impl Parser {
 
     fn parse_column(&mut self) -> Result<Column, ParseError> {
         let name = self.expect_ident()?;
-        let typ = self.expect_ident()?;
+        let mut typ = self.expect_ident()?;
+        while *self.peek() == Token::LBracket {
+            self.advance();
+            self.expect(Token::RBracket)?;
+            typ.push_str("[]");
+        }
         let mut modifiers = Vec::new();
 
         loop {

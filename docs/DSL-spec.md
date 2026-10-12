@@ -40,8 +40,9 @@ free. Anything else at the top level is an error.
 - **Strings** are double-quoted and used only for relationship labels and some
   hint values.
 - **Numbers** are integers.
-- A **column type is a bare identifier**. `varchar(255)` is a parse error —
-  write `varchar`. Length, precision and other parameters have no place in this
+- A **column type is a bare identifier**, optionally followed by `[]` once per
+  array dimension: `text[]`, `int[][]`. `varchar(255)` is a parse error — write
+  `varchar`. Length, precision and other parameters have no place in this
   language.
 
 ## Entities
