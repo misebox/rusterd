@@ -263,6 +263,9 @@ impl Parser {
         for cols in primary_keys {
             add_primary_key(&mut entity, cols);
         }
+        for fk in &fk_infos {
+            add_foreign_key(&mut entity, fk);
+        }
 
         Ok(Some((entity, fk_infos)))
     }
@@ -1037,6 +1040,22 @@ fn add_primary_key(entity: &mut Entity, cols: Vec<String>) {
     }
 }
 
+/// Mark the columns of `fk` as foreign keys of `entity`.
+fn add_foreign_key(entity: &mut Entity, fk: &FkInfo) {
+    for col in &mut entity.columns {
+        let is_fk = col
+            .modifiers
+            .iter()
+            .any(|m| matches!(m, ColumnModifier::Fk { .. }));
+        if fk.columns.contains(&col.name) && !is_fk {
+            col.modifiers.push(ColumnModifier::Fk {
+                target: fk.target.clone(),
+                column: fk.target_column.clone(),
+            });
+        }
+    }
+}
+
 fn column_mut<'a>(entities: &'a mut [Entity], table: &str, column: &str) -> Option<&'a mut Column> {
     entities
         .iter_mut()
@@ -1054,7 +1073,12 @@ fn alter(
     alteration: Alteration,
 ) {
     match alteration {
-        Alteration::ForeignKey(fk) => fk_constraints.push((table.to_string(), fk)),
+        Alteration::ForeignKey(fk) => {
+            if let Some(entity) = entities.iter_mut().find(|e| e.name == table) {
+                add_foreign_key(entity, &fk);
+            }
+            fk_constraints.push((table.to_string(), fk));
+        }
         Alteration::PrimaryKey(cols) => {
             if let Some(entity) = entities.iter_mut().find(|e| e.name == table) {
                 add_primary_key(entity, cols);
@@ -1150,10 +1174,8 @@ fn alter(
 }
 
 struct FkInfo {
-    #[allow(dead_code)]
     columns: Vec<String>,
     target: String,
-    #[allow(dead_code)]
     target_column: String,
 }
 
@@ -1400,6 +1422,46 @@ mod tests {
                     column: "uid".to_string(),
                 })
         );
+    }
+
+    #[test]
+    fn test_foreign_key_constraints_mark_their_columns() {
+        let sql = r#"
+            CREATE TABLE users (id integer PRIMARY KEY);
+            CREATE TABLE posts (
+                id integer PRIMARY KEY,
+                author_id integer NOT NULL,
+                FOREIGN KEY (author_id) REFERENCES users(id)
+            );
+            CREATE TABLE likes (id integer PRIMARY KEY, post_id integer);
+            ALTER TABLE ONLY likes
+                ADD CONSTRAINT likes_post_id_fk FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+        "#;
+
+        let schema = parse_sql(sql, Dialect::PostgreSQL).unwrap();
+
+        let fk = |table: usize, column: usize| {
+            schema.entities[table].columns[column]
+                .modifiers
+                .iter()
+                .find(|m| matches!(m, ColumnModifier::Fk { .. }))
+                .cloned()
+        };
+        assert_eq!(
+            fk(1, 1),
+            Some(ColumnModifier::Fk {
+                target: "users".to_string(),
+                column: "id".to_string(),
+            })
+        );
+        assert_eq!(
+            fk(2, 1),
+            Some(ColumnModifier::Fk {
+                target: "posts".to_string(),
+                column: "id".to_string(),
+            })
+        );
+        assert_eq!(schema.relationships.len(), 2);
     }
 
     #[test]
