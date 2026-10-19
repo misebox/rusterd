@@ -1,6 +1,7 @@
 use rusterd::ir::{DetailLevel, GraphIR};
 use rusterd::layout::{LayoutEngine, aspect_from_name};
 use rusterd::parser::Parser;
+use rusterd::png::svg_to_png;
 use rusterd::serializer;
 use rusterd::sql::{Dialect, parse_sql};
 use rusterd::svg::{Notation, SvgRenderer};
@@ -134,19 +135,21 @@ fn input_or_help(input: Option<String>, help: &str) -> String {
 
 fn run_render(program: &str, args: &[String]) {
     let help = format!(
-        "Usage: {program} render <input.erd | -> [options]
+        "Usage: {program} render <input.erd | input.sql | -> [options]
 
-Render ERD file to SVG
-Use '-' to read from stdin.
+Render an ERD file, or a SQL dump, to SVG or PNG
+Use '-' to read from stdin. An output file named *.png is written as PNG.
 
 Options:
-  -o, --output <file>   Output file (default: stdout)
+  -o, --output <file>   Output file (default: stdout, as SVG)
   -f, --focus <name>    Draw only what a focus block lists
   -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)
   -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)
   -l, --legend          Draw a key to the cardinality symbols
   -D, --dense           Close up the spacing, to fit more on a screen
-  -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)"
+  -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)
+  -s, --scale <n>       Pixels per unit of a PNG (default: 1)
+      --dialect <name>  Dialect of a SQL input: auto, generic, postgres, mysql (default: auto)"
     );
     if args.is_empty() {
         after_a_mistake(&help);
@@ -160,6 +163,8 @@ Options:
     let mut legend = false;
     let mut dense = false;
     let mut aspect = 1.0;
+    let mut scale = 1.0;
+    let mut dialect = Dialect::Auto;
 
     let mut i = 0;
     while i < args.len() {
@@ -169,6 +174,18 @@ Options:
             "-h" | "--help" => asked_for(&help),
             "-o" | "--output" => output_path = Some(value(args, &mut i, inline).to_string()),
             "-f" | "--focus" => focus = Some(value(args, &mut i, inline).to_string()),
+            "-s" | "--scale" => {
+                let given = value(args, &mut i, inline);
+                scale = match given.parse::<f32>() {
+                    Ok(n) if n > 0.0 && n.is_finite() => n,
+                    _ => {
+                        eprintln!("Invalid scale: {}", given);
+                        eprintln!("Give it as a number above zero, such as 2.");
+                        process::exit(1);
+                    }
+                };
+            }
+            "--dialect" => dialect = read_dialect(value(args, &mut i, inline)),
             "-d" | "--detail" => {
                 let given = value(args, &mut i, inline);
                 detail = DetailLevel::from_name(given).unwrap_or_else(|| {
@@ -214,15 +231,14 @@ Options:
 
     // Both halves of reading a file fail the same way, and say so the same
     // way: the file, then where in it, then what was wrong.
-    let mut parser = match Parser::new(&input) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("{}: {}", input_path, e);
-            process::exit(1);
-        }
+    let read = if input_path.ends_with(".sql") {
+        parse_sql(&input, dialect).map_err(|e| e.to_string())
+    } else {
+        Parser::new(&input)
+            .and_then(|mut parser| parser.parse())
+            .map_err(|e| e.to_string())
     };
-
-    let schema = match parser.parse() {
+    let schema = match read {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}: {}", input_path, e);
@@ -254,6 +270,19 @@ Options:
         .render(&ir, &layout);
 
     match output_path {
+        Some(path) if path.ends_with(".png") => {
+            let png = match svg_to_png(&svg, scale) {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            };
+            if let Err(e) = fs::write(&path, &png) {
+                eprintln!("Failed to write {}: {}", path, e);
+                process::exit(1);
+            }
+        }
         Some(path) => {
             if let Err(e) = fs::write(&path, &svg) {
                 eprintln!("Failed to write {}: {}", path, e);
@@ -269,6 +298,14 @@ Options:
             }
         }
     }
+}
+
+fn read_dialect(given: &str) -> Dialect {
+    Dialect::from_name(given).unwrap_or_else(|| {
+        eprintln!("Invalid dialect: {}", given);
+        eprintln!("Valid options: auto, generic, postgres, mysql");
+        process::exit(1);
+    })
 }
 
 fn run_convert(program: &str, args: &[String]) {
@@ -297,14 +334,7 @@ Options:
             _ if is_input(name) => take_input(&mut input_path, &args[i]),
             "-h" | "--help" => asked_for(&help),
             "-o" | "--output" => output_path = Some(value(args, &mut i, inline).to_string()),
-            "-d" | "--dialect" => {
-                let given = value(args, &mut i, inline);
-                dialect = Dialect::from_name(given).unwrap_or_else(|| {
-                    eprintln!("Invalid dialect: {}", given);
-                    eprintln!("Valid options: auto, generic, postgres, mysql");
-                    process::exit(1);
-                });
-            }
+            "-d" | "--dialect" => dialect = read_dialect(value(args, &mut i, inline)),
             _ => {
                 eprintln!("Unknown option: {}", args[i]);
                 process::exit(1);

@@ -2,7 +2,7 @@
 name = "rusterd"
 version = "0.4.2"
 edition = "2024"
-description = "ER diagram DSL compiler - render ERD to SVG"
+description = "ER diagram DSL compiler - render ERD to SVG or PNG"
 license = "MIT"
 homepage = "https://misebox.github.io/rusterd/"
 repository = "https://github.com/misebox/rusterd"
@@ -21,3 +21,6 @@ js-sys = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+resvg = { version = "0.48.1", default-features = false, features = ["text"] }

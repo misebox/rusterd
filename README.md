@@ -6,7 +6,7 @@
 [![docs.rs](https://img.shields.io/docsrs/rusterd)](https://docs.rs/rusterd)
 [![license](https://img.shields.io/crates/l/rusterd.svg)](LICENSE)
 
-ER diagram DSL compiler that renders to SVG. Written in Rust, compiles to WASM for browser use.
+ER diagram DSL compiler that renders to SVG or PNG. Written in Rust, compiles to WASM for browser use.
 
 Documentation and demo: https://misebox.github.io/rusterd/
 
@@ -103,6 +103,13 @@ rusterd render input.erd --dense -o output.svg
 # Read from stdin
 cat input.erd | rusterd render - -o output.svg
 
+# Write a PNG instead, for the viewers that cannot show an SVG
+rusterd render input.erd -o output.png
+rusterd render input.erd -o output.png --scale 2
+
+# Draw a SQL dump directly
+rusterd render schema.sql -o schema.png --dialect postgres
+
 # Convert a SQL dump to ERD notation
 rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
@@ -126,6 +133,12 @@ you ask for its default.
 | Dense | `-D`, `--dense` | `dense` | — | off |
 | Aspect | `-a`, `--aspect <w:h>` | `aspect` | a shape, `width:height` | `1:1` |
 | Dialect | `-d`, `--dialect <name>` | `dialect` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+
+The command line has one more: an output file named `*.png` is written as a
+PNG rather than an SVG, drawn with a font carried in the binary so that it
+looks the same on every machine, and `-s`, `--scale <n>` sets how many pixels
+each unit of the drawing gets, for screens that show two per point. `render`
+also reads a `.sql` file directly, taking `--dialect` as `convert` does.
 
 **Detail** is how much of an entity is drawn: `tables` its name alone, `pk` its
 primary keys, `pk_fk` its keys of both kinds, `all` every column it has.
