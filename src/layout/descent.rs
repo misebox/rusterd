@@ -45,6 +45,7 @@ struct Standing {
     cost: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn plan_descents<'a>(
     ir: &'a GraphIR,
     node_level: &HashMap<&str, i64>,
