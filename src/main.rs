@@ -5,6 +5,7 @@ use rusterd::png::svg_to_png;
 use rusterd::serializer;
 use rusterd::sql::{Dialect, parse_sql};
 use rusterd::svg::{Notation, SvgRenderer};
+use rusterd::theme::Theme;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -145,6 +146,7 @@ Options:
   -f, --focus <name>    Draw only what a focus block lists
   -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)
   -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)
+  -t, --theme <name>    Colours: auto, light, dark, blueprint, mono (default: auto)
   -l, --legend          Draw a key to the cardinality symbols
   -D, --dense           Close up the spacing, to fit more on a screen
   -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)
@@ -161,6 +163,7 @@ Options:
     let mut detail = DetailLevel::All;
     let mut notation = Notation::default();
     let mut legend = false;
+    let mut theme = Theme::default();
     let mut dense = false;
     let mut aspect = 1.0;
     let mut scale = 1.0;
@@ -199,6 +202,14 @@ Options:
                 notation = Notation::from_name(given).unwrap_or_else(|| {
                     eprintln!("Invalid notation: {}", given);
                     eprintln!("Valid options: crowsfoot, text");
+                    process::exit(1);
+                });
+            }
+            "-t" | "--theme" => {
+                let given = value(args, &mut i, inline);
+                theme = Theme::from_name(given).unwrap_or_else(|| {
+                    eprintln!("Invalid theme: {}", given);
+                    eprintln!("Valid options: auto, light, dark, blueprint, mono");
                     process::exit(1);
                 });
             }
@@ -267,6 +278,7 @@ Options:
     let svg = SvgRenderer::default()
         .with_notation(notation)
         .with_legend(legend)
+        .with_theme(theme)
         .render(&ir, &layout);
 
     match output_path {

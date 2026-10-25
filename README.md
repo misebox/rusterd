@@ -94,6 +94,9 @@ rusterd render input.erd -d pk_fk -o output.svg
 # Cardinality notation
 rusterd render input.erd -n text -o output.svg
 
+# Draw in another palette
+rusterd render input.erd --theme blueprint -o output.svg
+
 # Add a key to the cardinality symbols
 rusterd render input.erd --legend -o output.svg
 
@@ -120,7 +123,7 @@ rusterd --version
 
 ## Options
 
-The same seven wherever they are given: a flag on the command line, a field in
+The same eight wherever they are given: a flag on the command line, a field in
 the options object in the browser. All are optional, and leaving one out is how
 you ask for its default.
 
@@ -129,6 +132,7 @@ you ask for its default.
 | Focus | `-f`, `--focus <name>` | `focus` | the name of a `focus` block | the whole diagram |
 | Detail | `-d`, `--detail <level>` | `detail` | `tables`, `pk`, `pk_fk`, `all` | `all` |
 | Notation | `-n`, `--notation <name>` | `notation` | `crowsfoot`, `text` | `crowsfoot` |
+| Theme | `-t`, `--theme <name>` | `theme` | `auto`, `light`, `dark`, `blueprint`, `mono` | `auto` |
 | Legend | `-l`, `--legend` | `legend` | — | off |
 | Dense | `-D`, `--dense` | `dense` | — | off |
 | Aspect | `-a`, `--aspect <w:h>` | `aspect` | a shape, `width:height` | `1:1` |
@@ -148,6 +152,10 @@ line itself, `text` as `1` / `0..1` / `*` / `1..*` in a pill beside it.
 **Legend** draws a key to the four below the diagram, in whichever notation is
 in use.
 
+**Theme** is the palette. `auto` is light, and dark for a viewer who has asked
+for dark; `light` and `dark` are each of those alone; `blueprint` draws white
+lines on deep blue; `mono` is black on white and nothing else, for printing.
+
 **Dense** closes up the gaps between the entities and around the lines, for
 fitting a large schema on one screen. The text stays the size it has to be to
 read, which is why zooming out is not the same thing. There is no setting the
@@ -164,7 +172,7 @@ pinned with `@hint.level` is followed as written however wide it comes out.
 command line it belongs to `rusterd convert`, which writes ERD rather than a
 diagram, and the drawing options belong to `rusterd render`; that is why both
 are spelled `-d`. In the browser `sqlToSvg` reads and draws in one call, so it
-takes all seven together.
+takes all eight together.
 
 ## Browser Usage (WASM)
 
@@ -188,6 +196,7 @@ an `Error` — so `catch (message)`, not `catch (e) { e.message }`.
 ```typescript
 type Detail = "tables" | "pk" | "pk_fk" | "all";
 type Notation = "crowsfoot" | "text";
+type Theme = "auto" | "light" | "dark" | "blueprint" | "mono";
 type Dialect = "auto" | "generic" | "postgres" | "mysql";
 
 erdToSvg(source: string, options?: DrawOptions | null): string
@@ -199,6 +208,7 @@ interface DrawOptions {
   focus?: string | null;
   detail?: Detail | null;
   notation?: Notation | null;
+  theme?: Theme | null;
   legend?: boolean | null;
   dense?: boolean | null;
   aspect?: string | null;

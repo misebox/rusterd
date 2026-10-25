@@ -2,6 +2,7 @@ use crate::ast::Cardinality;
 use crate::ir::{Edge, GraphIR};
 use crate::layout::{Layout, LayoutEdge, LayoutNode};
 use crate::measure::{BADGE_SLOT, BADGE_WIDTH, TextMetrics};
+use crate::theme::Theme;
 use std::collections::HashMap;
 use std::fmt::Write;
 use unicode_width::UnicodeWidthStr;
@@ -32,11 +33,17 @@ pub struct SvgRenderer {
     metrics: TextMetrics,
     notation: Notation,
     legend: bool,
+    theme: Theme,
 }
 
 impl SvgRenderer {
     pub fn with_notation(mut self, notation: Notation) -> Self {
         self.notation = notation;
+        self
+    }
+
+    pub fn with_theme(mut self, theme: Theme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -72,50 +79,21 @@ impl SvgRenderer {
         writeln!(
             &mut svg,
             r#"<style>
-  .canvas {{ fill: #fff; }}
-  .entity-bg {{ fill: #fff; }}
-  .entity-header {{ fill: #e0e0e0; }}
-  .entity-border {{ fill: none; stroke: #333; stroke-width: 1.5; }}
-  .entity-separator {{ stroke: #333; stroke-width: 1; }}
-  .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; fill: #222; }}
-  .column-text {{ font-family: monospace; font-size: 12px; fill: #222; }}
-  .column-type {{ font-family: monospace; font-size: 12px; fill: #6a737d; }}
+  .entity-border {{ fill: none; stroke-width: 1.5; }}
+  .entity-separator {{ stroke-width: 1; }}
+  .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; }}
+  .column-text {{ font-family: monospace; font-size: 12px; }}
+  .column-type {{ font-family: monospace; font-size: 12px; }}
   .pk {{ font-weight: bold; }}
-  .badge-pk {{ fill: #f6d365; }}
-  .badge-fk {{ fill: #9ec5fe; }}
-  .badge-flag {{ fill: none; stroke: #b0b7c0; stroke-width: 1; }}
-  .badge-pk-text, .badge-fk-text, .badge-flag-text {{ font-family: monospace; font-size: 9px; font-weight: bold; fill: #24292f; }}
-  .badge-flag-text {{ fill: #6a737d; }}
-  .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-symbol {{ stroke: #666; stroke-width: 1.5; fill: none; }}
-  .edge-symbol-zero {{ stroke: #666; stroke-width: 1.5; fill: #fff; }}
-  .edge-label-bg {{ fill: rgba(234,234,234,0.9); }}
-  .edge-label {{ font-family: monospace; font-size: 14px; fill: #444; }}
-  .cardinality-bg {{ fill: rgba(224,224,224,0.95); }}
-  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; fill: #222; }}
-  @media (prefers-color-scheme: dark) {{
-    .canvas {{ fill: #0d1117; }}
-    .entity-bg {{ fill: #161b22; }}
-    .entity-header {{ fill: #262c36; }}
-    .entity-border {{ stroke: #6e7681; }}
-    .entity-separator {{ stroke: #6e7681; }}
-    .entity-name {{ fill: #e6edf3; }}
-    .column-text {{ fill: #e6edf3; }}
-    .column-type {{ fill: #8b949e; }}
-    .badge-pk {{ fill: #9e7c1c; }}
-    .badge-fk {{ fill: #2f5f9e; }}
-    .badge-flag {{ stroke: #57606a; }}
-    .badge-pk-text, .badge-fk-text {{ fill: #f0f6fc; }}
-    .badge-flag-text {{ fill: #8b949e; }}
-    .edge {{ stroke: #8b949e; }}
-    .edge-symbol {{ stroke: #8b949e; }}
-    .edge-symbol-zero {{ stroke: #8b949e; fill: #0d1117; }}
-    .edge-label-bg {{ fill: rgba(48,54,61,0.92); }}
-    .edge-label {{ fill: #c9d1d9; }}
-    .cardinality-bg {{ fill: rgba(60,67,76,0.95); }}
-    .cardinality {{ fill: #f0f6fc; }}
-  }}
-</style>"#
+  .badge-flag {{ fill: none; stroke-width: 1; }}
+  .badge-pk-text, .badge-fk-text, .badge-flag-text {{ font-family: monospace; font-size: 9px; font-weight: bold; }}
+  .edge {{ stroke-width: 1.5; fill: none; }}
+  .edge-symbol {{ stroke-width: 1.5; fill: none; }}
+  .edge-symbol-zero {{ stroke-width: 1.5; }}
+  .edge-label {{ font-family: monospace; font-size: 14px; }}
+  .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; }}
+{}</style>"#,
+            self.theme.css()
         )
         .unwrap();
 

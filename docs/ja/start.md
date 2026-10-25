@@ -21,6 +21,9 @@ rusterd render input.erd -d pk_fk -o output.svg
 # 多重度の記法
 rusterd render input.erd -n text -o output.svg
 
+# 別の配色で描く
+rusterd render input.erd --theme blueprint -o output.svg
+
 # 記号の凡例を付ける
 rusterd render input.erd --legend -o output.svg
 
@@ -48,13 +51,14 @@ rusterd --version
 ## オプション
 
 コマンドラインではフラグ、ブラウザではオプションオブジェクトのフィールド。
-名前も値も同じ 7 つです。どれも省略でき、省略することが既定値の指定です。
+名前も値も同じ 8 つです。どれも省略でき、省略することが既定値の指定です。
 
 | オプション | コマンドライン | フィールド | 値 | 既定 |
 | --- | --- | --- | --- | --- |
 | フォーカス | `-f`, `--focus <name>` | `focus` | `focus` ブロックの名前 | 図の全体 |
 | 詳細度 | `-d`, `--detail <level>` | `detail` | `tables`, `pk`, `pk_fk`, `all` | `all` |
 | 記法 | `-n`, `--notation <name>` | `notation` | `crowsfoot`, `text` | `crowsfoot` |
+| テーマ | `-t`, `--theme <name>` | `theme` | `auto`, `light`, `dark`, `blueprint`, `mono` | `auto` |
 | 凡例 | `-l`, `--legend` | `legend` | — | なし |
 | 密 | `-D`, `--dense` | `dense` | — | なし |
 | 形 | `-a`, `--aspect <w:h>` | `aspect` | `幅:高さ` の比 | `1:1` |
@@ -73,6 +77,10 @@ PNG で書き出します。どの環境でも同じ見た目になるよう、�
 `1` / `0..1` / `*` / `1..*` を線の脇に文字で置きます。**凡例** はその 4 つの
 読み方を図の下に付けます。使っている記法で描かれます。
 
+**テーマ** は配色。`auto` は明るい配色で、閲覧者がダークを選んでいればダークに
+なります。`light` と `dark` はそれぞれ片方だけ、`blueprint` は濃い青地に白い線、
+`mono` は印刷向けの白地に黒だけです。
+
 **密** はエンティティ間と線まわりの余白を詰めます。文字は読める大きさのままなので、
 縮小表示とは別物です。逆に広げる設定はありません。
 
@@ -85,7 +93,7 @@ A4 の比率以内に収まっている図には手を付けません。`@hint.l
 **方言** だけは描画ではなく読み取りの設定です。コマンドラインでは、図ではなく ERD を
 書き出す `rusterd convert` のオプションで、描画のオプションは `rusterd render` に
 付きます。どちらも `-d` なのはそのためです。ブラウザの `sqlToSvg` は読み取りと描画を
-1 回で行うので、7 つすべてを受け取ります。
+1 回で行うので、8 つすべてを受け取ります。
 
 ## ブラウザ（WASM）
 
@@ -109,6 +117,7 @@ await init();  // デフォルトエクスポート。wasm の読み込み。最
 ```typescript
 type Detail = "tables" | "pk" | "pk_fk" | "all";
 type Notation = "crowsfoot" | "text";
+type Theme = "auto" | "light" | "dark" | "blueprint" | "mono";
 type Dialect = "auto" | "generic" | "postgres" | "mysql";
 
 erdToSvg(source: string, options?: DrawOptions | null): string
@@ -120,6 +129,7 @@ interface DrawOptions {
   focus?: string | null;
   detail?: Detail | null;
   notation?: Notation | null;
+  theme?: Theme | null;
   legend?: boolean | null;
   dense?: boolean | null;
   aspect?: string | null;

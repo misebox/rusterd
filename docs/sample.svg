@@ -1,26 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="594.6" height="652" viewBox="0 0 594.6 652">
 <style>
+  .entity-border { fill: none; stroke-width: 1.5; }
+  .entity-separator { stroke-width: 1; }
+  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
+  .column-text { font-family: monospace; font-size: 12px; }
+  .column-type { font-family: monospace; font-size: 12px; }
+  .pk { font-weight: bold; }
+  .badge-flag { fill: none; stroke-width: 1; }
+  .badge-pk-text, .badge-fk-text, .badge-flag-text { font-family: monospace; font-size: 9px; font-weight: bold; }
+  .edge { stroke-width: 1.5; fill: none; }
+  .edge-symbol { stroke-width: 1.5; fill: none; }
+  .edge-symbol-zero { stroke-width: 1.5; }
+  .edge-label { font-family: monospace; font-size: 14px; }
+  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; }
   .canvas { fill: #fff; }
   .entity-bg { fill: #fff; }
   .entity-header { fill: #e0e0e0; }
-  .entity-border { fill: none; stroke: #333; stroke-width: 1.5; }
-  .entity-separator { stroke: #333; stroke-width: 1; }
-  .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; fill: #222; }
-  .column-text { font-family: monospace; font-size: 12px; fill: #222; }
-  .column-type { font-family: monospace; font-size: 12px; fill: #6a737d; }
-  .pk { font-weight: bold; }
+  .entity-border { stroke: #333; }
+  .entity-separator { stroke: #333; }
+  .entity-name { fill: #222; }
+  .column-text { fill: #222; }
+  .column-type { fill: #6a737d; }
   .badge-pk { fill: #f6d365; }
   .badge-fk { fill: #9ec5fe; }
-  .badge-flag { fill: none; stroke: #b0b7c0; stroke-width: 1; }
-  .badge-pk-text, .badge-fk-text, .badge-flag-text { font-family: monospace; font-size: 9px; font-weight: bold; fill: #24292f; }
+  .badge-flag { stroke: #b0b7c0; }
+  .badge-pk-text, .badge-fk-text { fill: #24292f; }
   .badge-flag-text { fill: #6a737d; }
-  .edge { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-symbol { stroke: #666; stroke-width: 1.5; fill: none; }
-  .edge-symbol-zero { stroke: #666; stroke-width: 1.5; fill: #fff; }
+  .edge { stroke: #666; }
+  .edge-symbol { stroke: #666; }
+  .edge-symbol-zero { stroke: #666; fill: #fff; }
   .edge-label-bg { fill: rgba(234,234,234,0.9); }
-  .edge-label { font-family: monospace; font-size: 14px; fill: #444; }
+  .edge-label { fill: #444; }
   .cardinality-bg { fill: rgba(224,224,224,0.95); }
-  .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; fill: #222; }
+  .cardinality { fill: #222; }
   @media (prefers-color-scheme: dark) {
     .canvas { fill: #0d1117; }
     .entity-bg { fill: #161b22; }
@@ -41,7 +53,7 @@
     .edge-label-bg { fill: rgba(48,54,61,0.92); }
     .edge-label { fill: #c9d1d9; }
     .cardinality-bg { fill: rgba(60,67,76,0.95); }
-    .cardinality { fill: #f0f6fc; }
+    .cardinality { fill: #e6edf3; }
   }
 </style>
 <rect class="canvas" width="100%" height="100%" />

@@ -10,6 +10,7 @@ pub mod png;
 pub mod serializer;
 pub mod sql;
 pub mod svg;
+pub mod theme;
 
 use wasm_bindgen::prelude::*;
 
@@ -17,6 +18,7 @@ use ir::{DetailLevel, GraphIR};
 use layout::{LayoutEngine, aspect_from_name};
 use parser::Parser;
 use svg::{Notation, SvgRenderer};
+use theme::Theme;
 
 /// Runs when the module is instantiated, so that a panic in the compiler shows
 /// up in the console rather than as `unreachable executed`.
@@ -35,6 +37,9 @@ export type Detail = "tables" | "pk" | "pk_fk" | "all";
 /** How to draw the cardinalities. */
 export type Notation = "crowsfoot" | "text";
 
+/** Which colours to draw in. */
+export type Theme = "auto" | "light" | "dark" | "blueprint" | "mono";
+
 /** Which SQL a dump is written in. */
 export type Dialect = "auto" | "generic" | "postgres" | "mysql";
 
@@ -46,6 +51,8 @@ export interface DrawOptions {
     detail?: Detail | null;
     /** How to draw cardinalities. Default "crowsfoot". */
     notation?: Notation | null;
+    /** Which colours to draw in. Default "auto", which follows the viewer's light or dark setting. */
+    theme?: Theme | null;
     /** Draw a key to the cardinality symbols below the diagram. */
     legend?: boolean | null;
     /** Close up the spacing, to fit a large schema on one screen. */
@@ -88,6 +95,7 @@ struct Asked {
     detail: DetailLevel,
     notation: Notation,
     legend: bool,
+    theme: Theme,
     dense: bool,
     aspect: f64,
     dialect: sql::Dialect,
@@ -114,6 +122,10 @@ impl Asked {
                 None => Notation::default(),
             },
             legend: flag("legend"),
+            theme: match text("theme") {
+                Some(name) => named(&name, Theme::from_name, "theme", THEME)?,
+                None => Theme::default(),
+            },
             dense: flag("dense"),
             aspect: match text("aspect") {
                 Some(name) => named(&name, aspect_from_name, "aspect", ASPECT)?,
@@ -128,6 +140,7 @@ impl Asked {
 /// else. The same words the types offer and the documentation lists.
 const DETAIL: &str = r#""tables", "pk", "pk_fk", "all""#;
 const NOTATION: &str = r#""crowsfoot", "text""#;
+const THEME: &str = r#""auto", "light", "dark", "blueprint", "mono""#;
 const DIALECT: &str = r#""auto", "generic", "postgres", "mysql""#;
 const ASPECT: &str = r#"a shape written as width:height, such as "1:1" or "16:9""#;
 
@@ -201,6 +214,7 @@ fn draw(source: &str, asked: &Asked) -> Result<String, String> {
     Ok(SvgRenderer::default()
         .with_notation(asked.notation)
         .with_legend(asked.legend)
+        .with_theme(asked.theme)
         .render(&ir, &layout))
 }
 

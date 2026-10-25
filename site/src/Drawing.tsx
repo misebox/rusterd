@@ -1,4 +1,4 @@
-import type { Detail, Notation } from "../../pkg/rusterd.js";
+import type { Detail, Notation, Theme } from "../../pkg/rusterd.js";
 import { Show } from "solid-js";
 import { Language } from "./i18n";
 import { theme } from "./theme";
@@ -8,6 +8,7 @@ import { theme } from "./theme";
 export type Drawing = {
   detail: Detail;
   notation: Notation;
+  theme: Theme;
   aspect: string;
   legend: boolean;
   dense: boolean;
@@ -16,6 +17,7 @@ export type Drawing = {
 export const PLAIN: Drawing = {
   detail: "all",
   notation: "crowsfoot",
+  theme: "auto",
   aspect: "1:1",
   legend: false,
   dense: false,
@@ -31,6 +33,7 @@ export const PLAIN: Drawing = {
 const WORDS = {
   detail: { en: "Detail", ja: "詳細度" },
   notation: { en: "Notation", ja: "記法" },
+  theme: { en: "Theme", ja: "テーマ" },
   aspect: { en: "Shape", ja: "形" },
   dense: { en: "Dense", ja: "密" },
   legend: { en: "Legend", ja: "凡例" },
@@ -60,6 +63,14 @@ const NOTATION: Choice<Notation>[] = [
   { value: "text", en: "Text — 1, 0..1, ✱, 1..✱", ja: "文字 — 1, 0..1, ✱, 1..✱" },
 ];
 
+const THEME: Choice<Theme>[] = [
+  { value: "auto", en: "Follow the viewer", ja: "閲覧者に合わせる" },
+  { value: "light", en: "Light", ja: "ライト" },
+  { value: "dark", en: "Dark", ja: "ダーク" },
+  { value: "blueprint", en: "Blueprint", ja: "青図" },
+  { value: "mono", en: "Black and white", ja: "白黒" },
+];
+
 /// A `<select>` reports its value as a string, but the compiler accepts only
 /// the names it published. Finding the value back in the list it was offered
 /// from is what makes it one of those names again.
@@ -78,6 +89,7 @@ export function flagsFor(drawing: Drawing): string[] {
   return [
     `--detail ${drawing.detail}`,
     `--notation ${drawing.notation}`,
+    `--theme ${drawing.theme}`,
     `--aspect ${drawing.aspect}`,
     ...(drawing.dense ? ["--dense"] : []),
     ...(drawing.legend ? ["--legend"] : []),
@@ -135,6 +147,19 @@ export default function Controls(props: {
           }
         >
           {NOTATION.map((entry) => (
+            <option value={entry.value}>{`${entry.value} — ${entry[props.language]}`}</option>
+          ))}
+        </select>
+      </label>
+
+      <label style={styles.field}>
+        <Named word={word("theme")} option="theme" />
+        <select
+          style={styles.select}
+          value={props.drawing.theme}
+          onChange={(e) => set({ theme: oneOf(THEME, e.currentTarget.value, PLAIN.theme) })}
+        >
+          {THEME.map((entry) => (
             <option value={entry.value}>{`${entry.value} — ${entry[props.language]}`}</option>
           ))}
         </select>
