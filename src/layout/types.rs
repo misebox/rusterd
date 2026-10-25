@@ -41,29 +41,7 @@ impl Layout {
     /// How many times one edge crosses another. Every crossing is a place the
     /// reader has to work out which line is which.
     pub fn crossings(&self) -> usize {
-        let segments: Vec<((f64, f64), (f64, f64))> = self
-            .edges
-            .iter()
-            .enumerate()
-            .flat_map(|(i, edge)| edge.waypoints.windows(2).map(move |w| (i, (w[0], w[1]))))
-            .map(|(_, s)| s)
-            .collect();
-        let owners: Vec<usize> = self
-            .edges
-            .iter()
-            .enumerate()
-            .flat_map(|(i, edge)| edge.waypoints.windows(2).map(move |_| i))
-            .collect();
-
-        let mut count = 0;
-        for (i, first) in segments.iter().enumerate() {
-            for (j, second) in segments.iter().enumerate().skip(i + 1) {
-                if owners[i] != owners[j] && crosses(*first, *second) {
-                    count += 1;
-                }
-            }
-        }
-        count
+        count_crossings(&self.edges)
     }
 
     /// Places where two edges run along each other close enough to read as one
@@ -218,6 +196,25 @@ fn runs_alongside(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> b
 }
 
 /// True when two axis-aligned segments cross at a point interior to both.
+/// How many times lines of different edges cross one another.
+pub fn count_crossings(edges: &[LayoutEdge]) -> usize {
+    let segments: Vec<(usize, ((f64, f64), (f64, f64)))> = edges
+        .iter()
+        .enumerate()
+        .flat_map(|(i, edge)| edge.waypoints.windows(2).map(move |w| (i, (w[0], w[1]))))
+        .collect();
+
+    let mut count = 0;
+    for (i, (owner, first)) in segments.iter().enumerate() {
+        for (other, second) in segments.iter().skip(i + 1) {
+            if owner != other && crosses(*first, *second) {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
 fn crosses(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> bool {
     let vertical = |(p, q): ((f64, f64), (f64, f64))| p.0 == q.0;
     if vertical(a) == vertical(b) {

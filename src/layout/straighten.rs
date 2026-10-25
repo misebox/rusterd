@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use super::types::{LayoutEdge, LayoutNode};
+use super::types::{LayoutEdge, LayoutNode, count_crossings};
 
 const EPS: f64 = 1e-6;
 
@@ -57,6 +57,8 @@ impl Anchor<'_> {
 #[derive(Default)]
 struct AnchorMap<'a> {
     slots: HashMap<(&'a str, Border), Vec<f64>>,
+    /// Which edge each slot belongs to, and whether it is that edge's head.
+    owners: HashMap<(&'a str, Border), Vec<(usize, bool)>>,
 }
 
 /// Remove redundant waypoints and collapse micro-jogs.
@@ -85,29 +87,163 @@ pub fn straighten_edges<'a>(
             Some((from, to))
         })
         .collect();
+    for (i, ends) in endpoints.iter().enumerate() {
+        if let Some((from, to)) = ends {
+            anchors.own(*from, (i, true));
+            anchors.own(*to, (i, false));
+        }
+    }
 
-    for (edge, ends) in edges.iter_mut().zip(endpoints) {
-        let Some((from, to)) = ends else { continue };
+    for (e, ends) in endpoints.iter().enumerate() {
+        let Some((from, to)) = *ends else { continue };
 
         // Every absorbed jog removes at least one waypoint, so the path length
         // bounds the iteration count.
-        for _ in 0..edge.waypoints.len() {
-            let Some(jog) = find_jog(&edge.waypoints, jog_tolerance) else {
+        for _ in 0..edges[e].waypoints.len() {
+            let Some(jog) = find_jog(&edges[e].waypoints, jog_tolerance) else {
                 break;
             };
-            if !absorb_jog(
-                &mut edge.waypoints,
-                jog,
-                from,
-                to,
-                &mut anchors,
-                min_anchor_gap,
-            ) {
+            let absorbed =
+                absorb_jog(
+                    &mut edges[e].waypoints,
+                    jog,
+                    from,
+                    to,
+                    &mut anchors,
+                    min_anchor_gap,
+                ) || shift_border(edges, e, jog, (from, to), &mut anchors, jog_tolerance);
+            if !absorbed {
                 break;
             }
-            simplify(&mut edge.waypoints);
+            simplify(&mut edges[e].waypoints);
         }
     }
+}
+
+/// Try to absorb the jog at segment `s` of edge `e` by sliding every anchor on
+/// one of its endpoint borders together, so the spacing between them is kept.
+///
+/// This takes the jog `absorb_jog` cannot, where the anchor that would move
+/// has a neighbour too close to it. The neighbours move by the same amount,
+/// which only lengthens or shortens the turn each makes next to the border. A
+/// neighbour without such a turn, or whose turn would become a jog itself,
+/// keeps the whole border where it is; so does a shift that adds a crossing.
+fn shift_border<'a>(
+    edges: &mut [LayoutEdge],
+    e: usize,
+    s: usize,
+    (from, to): (Anchor<'a>, Anchor<'a>),
+    anchors: &mut AnchorMap<'a>,
+    jog_tolerance: f64,
+) -> bool {
+    let waypoints = &edges[e].waypoints;
+    let last = waypoints.len() - 1;
+    let horizontal = (waypoints[s].0 - waypoints[s + 1].0).abs() > EPS;
+    let coord = |p: (f64, f64)| if horizontal { p.0 } else { p.1 };
+
+    let head = (s == 1).then(|| (coord(waypoints[s + 1]) - coord(waypoints[0]), from));
+    let tail = (s + 2 == last).then(|| (coord(waypoints[s]) - coord(waypoints[last]), to));
+
+    for (delta, anchor) in [head, tail].into_iter().flatten() {
+        if anchor.border.slides_horizontally() != horizontal {
+            continue;
+        }
+        let key = (anchor.node_id, anchor.border);
+        let (Some(slots), Some(owners)) = (anchors.slots.get(&key), anchors.owners.get(&key))
+        else {
+            continue;
+        };
+        if !slots.iter().all(|&c| anchor.accepts(c + delta)) {
+            continue;
+        }
+
+        let before = count_crossings(edges);
+        let saved: Vec<(usize, Vec<(f64, f64)>)> = owners
+            .iter()
+            .map(|&(k, _)| (k, edges[k].waypoints.clone()))
+            .collect();
+        let shifted = owners.iter().all(|&(k, is_head)| {
+            let end = End {
+                is_head,
+                is_neighbour: k != e,
+            };
+            shift_end(
+                &mut edges[k].waypoints,
+                end,
+                delta,
+                horizontal,
+                jog_tolerance,
+            )
+        });
+        // Counted on simplified paths: a straightened line still split at its
+        // old corner would let another line cross it at the split unseen.
+        for &(k, _) in owners {
+            simplify(&mut edges[k].waypoints);
+        }
+
+        if shifted && count_crossings(edges) <= before {
+            let slots = anchors.slots.get_mut(&key).expect("looked up above");
+            for c in slots.iter_mut() {
+                *c += delta;
+            }
+            return true;
+        }
+        for (k, waypoints) in saved {
+            edges[k].waypoints = waypoints;
+        }
+    }
+
+    false
+}
+
+/// Which end of a path `shift_end` moves, and whether that path is a
+/// neighbour moved along with the one whose jog is being absorbed.
+#[derive(Clone, Copy)]
+struct End {
+    is_head: bool,
+    is_neighbour: bool,
+}
+
+/// Move one end of a path `delta` along the border it sits on. The path whose
+/// jog is being absorbed just moves; a neighbour must leave the border
+/// straight and turn right after it, and that turn must stay longer than a jog.
+fn shift_end(
+    waypoints: &mut [(f64, f64)],
+    end: End,
+    delta: f64,
+    horizontal: bool,
+    jog_tolerance: f64,
+) -> bool {
+    if waypoints.len() < 3 {
+        return !end.is_neighbour && shift_points(waypoints, &[0, 1], delta, horizontal);
+    }
+    let last = waypoints.len() - 1;
+    let [tip, turn, beyond] = if end.is_head {
+        [0, 1, 2]
+    } else {
+        [last, last - 1, last - 2]
+    };
+    let along = |p: (f64, f64)| if horizontal { p.0 } else { p.1 };
+
+    if end.is_neighbour {
+        let leaves_straight = (along(waypoints[tip]) - along(waypoints[turn])).abs() < EPS;
+        let turn_left = (along(waypoints[beyond]) - (along(waypoints[turn]) + delta)).abs();
+        if !leaves_straight || turn_left < jog_tolerance {
+            return false;
+        }
+    }
+    shift_points(waypoints, &[tip, turn], delta, horizontal)
+}
+
+fn shift_points(waypoints: &mut [(f64, f64)], at: &[usize], delta: f64, horizontal: bool) -> bool {
+    for &i in at {
+        if horizontal {
+            waypoints[i].0 += delta;
+        } else {
+            waypoints[i].1 += delta;
+        }
+    }
+    true
 }
 
 impl<'a> AnchorMap<'a> {
@@ -144,6 +280,17 @@ impl<'a> AnchorMap<'a> {
                 .all(|(i, &other)| i == anchor.slot || (other - coord).abs() >= min_gap),
             None => true,
         }
+    }
+
+    fn own(&mut self, anchor: Anchor<'a>, owner: (usize, bool)) {
+        let owners = self
+            .owners
+            .entry((anchor.node_id, anchor.border))
+            .or_default();
+        if owners.len() <= anchor.slot {
+            owners.resize(anchor.slot + 1, owner);
+        }
+        owners[anchor.slot] = owner;
     }
 
     fn move_anchor(&mut self, anchor: Anchor<'a>, coord: f64) {
@@ -379,6 +526,57 @@ mod tests {
         straighten(&nodes, &mut edges);
 
         assert_eq!(edges[0].waypoints, crowded);
+    }
+
+    #[test]
+    fn shifts_a_crowded_border_together_to_absorb_a_jog() {
+        let nodes = vec![
+            node("A", 40.0, 200.0, 40.0),
+            node("B", 300.0, 200.0, 40.0),
+            node("C", 40.0, 200.0, 300.0),
+        ];
+        let mut edges = vec![
+            // Jogs by 10 into C, where the anchor beside it is too close to
+            // let it slide alone.
+            edge(
+                "A",
+                "C",
+                vec![
+                    (110.0, 124.0),
+                    (110.0, 200.0),
+                    (120.0, 200.0),
+                    (120.0, 300.0),
+                ],
+            ),
+            // Comes across from B and turns down into C.
+            edge(
+                "B",
+                "C",
+                vec![
+                    (400.0, 124.0),
+                    (400.0, 250.0),
+                    (160.0, 250.0),
+                    (160.0, 300.0),
+                ],
+            ),
+            // Keeps A's anchor from sliding to 120 alone.
+            edge(
+                "A",
+                "B",
+                vec![(160.0, 124.0), (160.0, 140.0), (300.0, 140.0)],
+            ),
+        ];
+        let positions: HashMap<&str, &LayoutNode> =
+            nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        straighten_edges(&mut edges, &positions, 20.0, 56.0);
+
+        // A's anchors slide right together: the jog is gone, and the edge to B
+        // keeps its spacing by starting its turn further along.
+        assert_eq!(edges[0].waypoints, vec![(120.0, 124.0), (120.0, 300.0)]);
+        assert_eq!(
+            edges[2].waypoints,
+            vec![(170.0, 124.0), (170.0, 140.0), (300.0, 140.0)]
+        );
     }
 
     #[test]

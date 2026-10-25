@@ -188,22 +188,32 @@ pub fn plan_descents<'a>(
                     && (line.x - x).abs() < lane_spacing
             })
         };
+        // A column a few pixels off either anchor jogs there. Standing clear of
+        // the anchor it was put next to can still land it beside the other.
+        let jogs = |c: f64| {
+            [top_x, bottom_x].iter().any(|anchor| {
+                let off = (c - anchor).abs();
+                off > 0.0 && off <= jog_tolerance
+            })
+        };
         let mut candidates = through.clone();
         for &(left, right) in &corridors {
             for &x in through.iter().filter(|&&x| left <= x && x <= right) {
                 for step in 1..=3 {
                     let offset = step as f64 * lane_spacing;
-                    candidates.extend([x - offset, x + offset].into_iter().filter(|c| {
-                        let jogs = |anchor: f64| {
-                            (c - anchor).abs() > 0.0 && (c - anchor).abs() <= jog_tolerance
-                        };
-                        left <= *c && *c <= right && !jogs(top_x) && !jogs(bottom_x)
-                    }));
+                    candidates.extend(
+                        [x - offset, x + offset]
+                            .into_iter()
+                            .filter(|&c| left <= c && c <= right && !jogs(c)),
+                    );
                 }
             }
         }
         candidates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         candidates.dedup();
+        if candidates.iter().any(|&x| !jogs(x)) {
+            candidates.retain(|&x| !jogs(x));
+        }
         if candidates.iter().any(|&x| !taken(x)) {
             candidates.retain(|&x| !taken(x));
         }
