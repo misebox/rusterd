@@ -44,6 +44,8 @@ pub struct ColumnIR {
     pub typ: String,
     pub is_pk: bool,
     pub is_fk: bool,
+    pub is_unique: bool,
+    pub is_not_null: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -112,6 +114,14 @@ impl GraphIR {
                                 typ: c.typ.clone(),
                                 is_pk,
                                 is_fk,
+                                is_unique: c
+                                    .modifiers
+                                    .iter()
+                                    .any(|m| matches!(m, ColumnModifier::Unique)),
+                                is_not_null: c
+                                    .modifiers
+                                    .iter()
+                                    .any(|m| matches!(m, ColumnModifier::NotNull)),
                             })
                         } else {
                             None

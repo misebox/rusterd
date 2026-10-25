@@ -170,8 +170,8 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     ("02_wide_horizontal.erd", 0, 0, 0),
     ("03_long_names.erd", 0, 0, 0),
     ("04_deep_hierarchy.erd", 0, 0, 0),
-    ("05_dense_relations.erd", 0, 1, 12),
-    ("06_unicode_cjk.erd", 0, 0, 4),
+    ("05_dense_relations.erd", 0, 1, 10),
+    ("06_unicode_cjk.erd", 0, 0, 2),
     ("07_all_cardinalities.erd", 0, 0, 8),
     ("08_mixed_sizes.erd", 0, 0, 0),
     ("09_orphan_entities.erd", 0, 0, 0),
@@ -184,8 +184,10 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     // 1940x1522, and one row of eight leaves became two of four, whose lines now
     // have a row to get past. Loosened deliberately — a diagram that fits on a
     // screen is worth two crossings. Four more bends keep detour columns apart
-    // where two of them used to share one x and read as a single line.
-    ("21_idp.erd", 2, 5, 30),
+    // where two of them used to share one x and read as a single line. Lining
+    // the types up in a column of their own widened its entities and the
+    // arrangement moved with them: three more crossings, six fewer bends.
+    ("21_idp.erd", 3, 8, 24),
     ("sample.erd", 0, 0, 6),
 ];
 

@@ -1,7 +1,7 @@
 use crate::ast::Cardinality;
 use crate::ir::{Edge, GraphIR};
 use crate::layout::{Layout, LayoutEdge, LayoutNode};
-use crate::measure::TextMetrics;
+use crate::measure::{BADGE_SLOT, BADGE_WIDTH, TextMetrics};
 use std::collections::HashMap;
 use std::fmt::Write;
 use unicode_width::UnicodeWidthStr;
@@ -79,8 +79,13 @@ impl SvgRenderer {
   .entity-separator {{ stroke: #333; stroke-width: 1; }}
   .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; fill: #222; }}
   .column-text {{ font-family: monospace; font-size: 12px; fill: #222; }}
+  .column-type {{ font-family: monospace; font-size: 12px; fill: #6a737d; }}
   .pk {{ font-weight: bold; }}
-  .fk {{ font-style: italic; }}
+  .badge-pk {{ fill: #f6d365; }}
+  .badge-fk {{ fill: #9ec5fe; }}
+  .badge-flag {{ fill: none; stroke: #b0b7c0; stroke-width: 1; }}
+  .badge-pk-text, .badge-fk-text, .badge-flag-text {{ font-family: monospace; font-size: 9px; font-weight: bold; fill: #24292f; }}
+  .badge-flag-text {{ fill: #6a737d; }}
   .edge {{ stroke: #666; stroke-width: 1.5; fill: none; }}
   .edge-symbol {{ stroke: #666; stroke-width: 1.5; fill: none; }}
   .edge-symbol-zero {{ stroke: #666; stroke-width: 1.5; fill: #fff; }}
@@ -96,6 +101,12 @@ impl SvgRenderer {
     .entity-separator {{ stroke: #6e7681; }}
     .entity-name {{ fill: #e6edf3; }}
     .column-text {{ fill: #e6edf3; }}
+    .column-type {{ fill: #8b949e; }}
+    .badge-pk {{ fill: #9e7c1c; }}
+    .badge-fk {{ fill: #2f5f9e; }}
+    .badge-flag {{ stroke: #57606a; }}
+    .badge-pk-text, .badge-fk-text {{ fill: #f0f6fc; }}
+    .badge-flag-text {{ fill: #8b949e; }}
     .edge {{ stroke: #8b949e; }}
     .edge-symbol {{ stroke: #8b949e; }}
     .edge-symbol-zero {{ stroke: #8b949e; fill: #0d1117; }}
@@ -298,26 +309,59 @@ impl SvgRenderer {
             )
             .unwrap();
 
+            let grid = self.metrics.column_grid(&node.columns);
             let mut col_y = y + header_h + self.metrics.padding_y + self.metrics.line_height * 0.7;
             for col in &node.columns {
-                let mut class = "column-text".to_string();
+                let mut keys = Vec::new();
                 if col.is_pk {
-                    class.push_str(" pk");
+                    keys.push(("PK", "badge-pk"));
                 }
                 if col.is_fk {
-                    class.push_str(" fk");
+                    keys.push(("FK", "badge-fk"));
+                }
+                let mut flags = Vec::new();
+                if col.is_unique {
+                    flags.push(("UQ", "badge-flag"));
+                }
+                for (i, (text, class)) in keys.iter().enumerate() {
+                    render_badge(
+                        svg,
+                        x + grid.key_x + i as f64 * BADGE_SLOT,
+                        col_y,
+                        text,
+                        class,
+                    );
+                }
+                for (i, (text, class)) in flags.iter().enumerate() {
+                    render_badge(
+                        svg,
+                        x + grid.flag_x + i as f64 * BADGE_SLOT,
+                        col_y,
+                        text,
+                        class,
+                    );
                 }
 
-                let prefix = if col.is_pk { "◆ " } else { "  " };
-                let text = format!("{}{}: {}", prefix, col.name, col.typ);
-
+                let class = if col.is_pk {
+                    "column-text pk"
+                } else {
+                    "column-text"
+                };
                 writeln!(
                     svg,
                     r#"<text class="{}" x="{}" y="{}">{}</text>"#,
                     class,
-                    x + self.metrics.padding_x,
-                    col_y,
-                    escape_xml(&text)
+                    num(x + grid.name_x),
+                    num(col_y),
+                    escape_xml(&col.name)
+                )
+                .unwrap();
+                writeln!(
+                    svg,
+                    r#"<text class="column-type" x="{}" y="{}">{}</text>"#,
+                    num(x + grid.type_x),
+                    num(col_y),
+                    escape_xml(&col.typ)
                 )
                 .unwrap();
 
@@ -733,6 +777,32 @@ fn label_anchor(waypoints: &[(f64, f64)], width: f64) -> Option<LabelAnchor> {
 }
 
 /// Width of a monospace string in pixels, counting full-width characters twice.
+/// A small label in a rounded box, `PK` or `UQ`, standing on the row whose
+/// baseline is `baseline`.
+fn render_badge(svg: &mut String, x: f64, baseline: f64, text: &str, class: &str) {
+    writeln!(
+        svg,
+        r#"<rect class="{}" x="{}" y="{}" width="{}" height="{}" rx="3" />"#,
+        class,
+        num(x),
+        num(baseline - BADGE_HEIGHT + 2.5),
+        num(BADGE_WIDTH),
+        num(BADGE_HEIGHT)
+    )
+    .unwrap();
+    writeln!(
+        svg,
+        r#"<text class="{}-text" x="{}" y="{}" text-anchor="middle">{}</text>"#,
+        class,
+        num(x + BADGE_WIDTH / 2.0),
+        num(baseline - 0.5),
+        text
+    )
+    .unwrap();
+}
+
+const BADGE_HEIGHT: f64 = 13.0;
+
 fn monospace_width(text: &str, font_size: f64) -> f64 {
     UnicodeWidthStr::width(text) as f64 * font_size * 0.6
 }
