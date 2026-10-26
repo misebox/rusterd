@@ -25,8 +25,18 @@ impl DetailLevel {
 pub struct GraphIR {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
-    /// Sets of entities the source asked to keep near one another
+    /// Sets of entities the source asked to keep near one another, its
+    /// groups among them
     pub near: Vec<Vec<String>>,
+    /// The groups with something drawn in them
+    pub groups: Vec<GroupIR>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GroupIR {
+    pub name: String,
+    /// Ids of the entities drawn in it, each in no other group
+    pub members: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +48,8 @@ pub struct Node {
     pub columns: Vec<ColumnIR>,
     /// Row the source pinned this entity to, if it pinned one
     pub level: Option<i64>,
+    /// Index into the graph's groups, for an entity that belongs to one
+    pub group: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,7 +80,7 @@ impl GraphIR {
             None => schema.entities.iter().map(|e| e.name.as_str()).collect(),
         };
 
-        let nodes: Vec<Node> = schema
+        let mut nodes: Vec<Node> = schema
             .entities
             .iter()
             .filter(|e| included_entities.contains(&e.name.as_str()))
@@ -148,9 +160,31 @@ impl GraphIR {
                     note: e.note.clone(),
                     columns,
                     level,
+                    group: None,
                 }
             })
             .collect();
+
+        // An entity is drawn in the colour of the first group that names it.
+        let mut groups: Vec<GroupIR> = Vec::new();
+        for group in &schema.groups {
+            let mut members = Vec::new();
+            for name in &group.members {
+                if let Some(node) = nodes
+                    .iter_mut()
+                    .find(|n| &n.id == name && n.group.is_none())
+                {
+                    node.group = Some(groups.len());
+                    members.push(name.clone());
+                }
+            }
+            if !members.is_empty() {
+                groups.push(GroupIR {
+                    name: group.name.clone(),
+                    members,
+                });
+            }
+        }
 
         let node_ids: Vec<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
 
@@ -168,10 +202,13 @@ impl GraphIR {
             })
             .collect();
 
-        // Only what is actually drawn can be kept near anything.
+        // Only what is actually drawn can be kept near anything. A group is
+        // kept together the way a near set is.
+        let group_sets: Vec<Vec<String>> = groups.iter().map(|g| g.members.clone()).collect();
         let near: Vec<Vec<String>> = schema
             .near
             .iter()
+            .chain(&group_sets)
             .map(|set| {
                 set.iter()
                     .filter(|name| node_ids.contains(&name.as_str()))
@@ -181,7 +218,12 @@ impl GraphIR {
             .filter(|set| set.len() > 1)
             .collect();
 
-        GraphIR { nodes, edges, near }
+        GraphIR {
+            nodes,
+            edges,
+            near,
+            groups,
+        }
     }
 }
 
@@ -301,5 +343,29 @@ mod tests {
         let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
 
         assert_eq!(ir.near, vec![vec!["User", "Order"]]);
+    }
+
+    #[test]
+    fn puts_each_entity_in_the_first_group_that_names_it() {
+        let input = r#"
+            entity User { id int pk }
+            entity Order { id int pk }
+            entity Audit { id int pk }
+            group People { User, nobody }
+            group "Sales and more" { Order, User }
+            group Empty { gone }
+        "#;
+        let schema = Parser::new(input).unwrap().parse().unwrap();
+        let ir = GraphIR::from_schema(&schema, None, DetailLevel::All);
+
+        let names: Vec<&str> = ir.groups.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(names, ["People", "Sales and more"]);
+        assert_eq!(ir.groups[1].members, ["Order"]);
+        let group_of = |id: &str| ir.nodes.iter().find(|n| n.id == id).unwrap().group;
+        assert_eq!(group_of("User"), Some(0));
+        assert_eq!(group_of("Order"), Some(1));
+        assert_eq!(group_of("Audit"), None);
+        // A group of one has nothing to be kept near.
+        assert!(ir.near.is_empty());
     }
 }

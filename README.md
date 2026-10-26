@@ -16,6 +16,7 @@ Documentation and demo: https://misebox.github.io/rusterd/
 - **Column types**: `int`, `string`, `decimal`, `timestamp`, `boolean`, `text`
 - **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`, drawn as badges
 - **Notes**: a few words on an entity or a column, drawn beside it
+- **Groups**: entities that belong together, drawn in a colour of their own
 - **Themes**: `auto`, `light`, `dark`, `blueprint`, `mono`
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
@@ -337,6 +338,19 @@ entity EntityName {
 focus focus_name {
     include Entity1, Entity2, Entity3
 }
+```
+
+### Notes and groups
+
+```erd
+# A note on an entity, and on a column
+entity User "a registered customer" {
+    email string unique "used to sign in"
+}
+
+# Drawn in one colour, kept close, framed when nothing else stands among them
+group Accounts { User, Profile }
+group "Order taking" { Order, OrderItem }
 ```
 
 ## Examples

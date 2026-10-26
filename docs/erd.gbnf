@@ -6,7 +6,7 @@
 # `ident-start` for other scripts.
 
 root         ::= blank item+
-item         ::= (entity | rel | focus | nameset) blank
+item         ::= (entity | rel | focus | group | nameset) blank
 
 # ---------------------------------------------------------------- whitespace
 # `sp` never crosses a line: columns and relationships end at the newline.
@@ -48,6 +48,9 @@ role         ::= sp1 "as" sp1 ident
 # ---------------------------------------------------------------- focus
 focus        ::= "focus" sp1 ident sp "{" eol blank include+ "}" eol
 include      ::= indent "include" sp1 idlist eol blank
+
+# ---------------------------------------------------------------- groups
+group        ::= "group" sp1 (ident | string) sp "{" sp idlist sp "}" eol
 
 # ---------------------------------------------------------------- layout
 nameset      ::= setkey sp "=" sp "{" sp idlist sp "}" eol

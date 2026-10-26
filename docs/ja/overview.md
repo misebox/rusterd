@@ -2,7 +2,10 @@
 
 - **エンティティ** — 型付きの列を持つテーブルを書く
 - **列の型** — `int`, `string`, `decimal`, `timestamp`, `boolean`, `text`
-- **制約** — `pk`, `fk -> Entity.column`, `not null`, `unique`
+- **制約** — `pk`, `fk -> Entity.column`, `not null`, `unique`。バッジで描く
+- **説明文** — エンティティや列に短い説明を書くと、横に描く
+- **グループ** — まとまりのあるエンティティを同じ色で描き、近くに置く
+- **テーマ** — `auto`, `light`, `dark`, `blueprint`, `mono`
 - **関係** — 多重度は `1`, `*`, `0..1`, `1..*` の 4 種類
 - **自己参照** — 自分自身を参照するエンティティ
 - **自動配置** — レベル・レベル内の順序・横位置をすべて計算する。ヒントは「どこに置くか」ではなく「何が大事か」を書く
@@ -21,9 +24,9 @@ entity Category {
     name string not null
 }
 
-entity User {
+entity User "a registered customer" {
     id int pk
-    email string unique not null
+    email string unique not null "used to sign in"
     name string
     created_at timestamp
 }

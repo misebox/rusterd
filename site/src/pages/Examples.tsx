@@ -78,6 +78,10 @@ const ABOUT: Record<string, { en: string; ja: string }> = {
     en: "Nine leaves on one parent — change Shape to fold them",
     ja: "1 つの親に葉が 9 つ。形を変えると折り返す",
   },
+  "13_groups": {
+    en: "group, a colour for each part of the schema",
+    ja: "group でスキーマの部分ごとに色を分ける",
+  },
   "21_idp": {
     en: "An identity provider, converted from its SQL dump",
     ja: "認証基盤。SQL ダンプから変換したもの",

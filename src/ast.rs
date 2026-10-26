@@ -9,6 +9,15 @@ pub struct Schema {
     pub omit: Vec<String>,
     /// Entities to draw as a name, without their columns
     pub brief: Vec<String>,
+    /// Entities that belong together, drawn in one colour and kept close
+    pub groups: Vec<Group>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Group {
+    /// What the group is called, as it is written over it
+    pub name: String,
+    pub members: Vec<String>,
 }
 
 impl Schema {

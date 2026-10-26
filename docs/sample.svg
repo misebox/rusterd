@@ -15,6 +15,8 @@
   .edge-symbol-zero { stroke-width: 1.5; }
   .edge-label { font-family: monospace; font-size: 14px; }
   .cardinality { font-family: monospace; font-size: 15px; font-weight: bold; }
+  .group-frame { fill-opacity: 0.05; stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .group-label { font-family: monospace; font-size: 13px; font-weight: bold; }
   .canvas { fill: #fff; }
   .entity-bg { fill: #fff; }
   .entity-header { fill: #e0e0e0; }
@@ -36,6 +38,25 @@
   .edge-label { fill: #444; }
   .cardinality-bg { fill: rgba(224,224,224,0.95); }
   .cardinality { fill: #222; }
+  .group-0 { fill: #dbe9ff; }
+  .group-frame-0 { stroke: #3d6fc2; fill: #3d6fc2; }
+  .group-label-0 { fill: #3d6fc2; }
+  .group-1 { fill: #d9f2e1; }
+  .group-frame-1 { stroke: #2e8b57; fill: #2e8b57; }
+  .group-label-1 { fill: #2e8b57; }
+  .group-2 { fill: #ffe6cc; }
+  .group-frame-2 { stroke: #c8701e; fill: #c8701e; }
+  .group-label-2 { fill: #c8701e; }
+  .group-3 { fill: #ebe1ff; }
+  .group-frame-3 { stroke: #7452c9; fill: #7452c9; }
+  .group-label-3 { fill: #7452c9; }
+  .group-4 { fill: #ffdfeb; }
+  .group-frame-4 { stroke: #c43d72; fill: #c43d72; }
+  .group-label-4 { fill: #c43d72; }
+  .group-5 { fill: #d3f0f0; }
+  .group-frame-5 { stroke: #1d8a8a; fill: #1d8a8a; }
+  .group-label-5 { fill: #1d8a8a; }
+  .group-label-bg { fill: #fff; }
   @media (prefers-color-scheme: dark) {
     .canvas { fill: #0d1117; }
     .entity-bg { fill: #161b22; }
@@ -58,6 +79,25 @@
     .edge-label { fill: #c9d1d9; }
     .cardinality-bg { fill: rgba(60,67,76,0.95); }
     .cardinality { fill: #e6edf3; }
+    .group-0 { fill: #1c3354; }
+    .group-frame-0 { stroke: #79a8f0; fill: #79a8f0; }
+    .group-label-0 { fill: #79a8f0; }
+    .group-1 { fill: #173d29; }
+    .group-frame-1 { stroke: #5cc88a; fill: #5cc88a; }
+    .group-label-1 { fill: #5cc88a; }
+    .group-2 { fill: #47300f; }
+    .group-frame-2 { stroke: #f0a656; fill: #f0a656; }
+    .group-label-2 { fill: #f0a656; }
+    .group-3 { fill: #2f2452; }
+    .group-frame-3 { stroke: #a98cf2; fill: #a98cf2; }
+    .group-label-3 { fill: #a98cf2; }
+    .group-4 { fill: #4a1d31; }
+    .group-frame-4 { stroke: #f07aa6; fill: #f07aa6; }
+    .group-label-4 { fill: #f07aa6; }
+    .group-5 { fill: #123d3d; }
+    .group-frame-5 { stroke: #4fc4c4; fill: #4fc4c4; }
+    .group-label-5 { fill: #4fc4c4; }
+    .group-label-bg { fill: #0d1117; }
   }
 </style>
 <rect class="canvas" width="100%" height="100%" />

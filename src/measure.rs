@@ -32,6 +32,8 @@ pub struct TextMetrics {
     /// The advance of one character of a column row, set at 12px in a font
     /// whose glyphs are 0.6 em wide.
     pub column_char_width: f64,
+    /// The same for an entity's name, set at 14px.
+    pub name_char_width: f64,
     pub line_height: f64,
     pub padding_x: f64,
     pub padding_y: f64,
@@ -45,6 +47,7 @@ impl Default for TextMetrics {
         Self {
             char_width: 8.0,
             column_char_width: 7.2,
+            name_char_width: 8.4,
             line_height: 20.0,
             padding_x: 12.0,
             padding_y: 8.0,
@@ -131,7 +134,8 @@ impl TextMetrics {
             .note
             .as_deref()
             .map_or(0.0, |note| self.column_text_width(note));
-        let header_width = self.text_width(&node.label).max(note_width) + self.padding_x * 2.0;
+        let name_width = UnicodeWidthStr::width(node.label.as_str()) as f64 * self.name_char_width;
+        let header_width = name_width.max(note_width) + self.padding_x * 2.0;
         let rows_width = if columns.is_empty() {
             0.0
         } else {
@@ -175,6 +179,7 @@ mod tests {
             note: None,
             columns,
             level: None,
+            group: None,
         }
     }
 

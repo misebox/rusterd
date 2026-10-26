@@ -180,6 +180,7 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     // Drawn to be folded, and the numbers are what folding costs it: nine
     // leaves in one row become three rows, whose lines have rows to get past.
     ("12_many_leaves.erd", 2, 1, 18),
+    ("13_groups.erd", 1, 1, 14),
     // Folded too, and the numbers below are what that cost: 3388x1184 became
     // 1940x1522, and one row of eight leaves became two of four, whose lines now
     // have a row to get past. Loosened deliberately — a diagram that fits on a
@@ -188,7 +189,7 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     // the types up in a column of their own widened its entities and the
     // arrangement moved with them: three more crossings, six fewer bends.
     ("21_idp.erd", 3, 8, 24),
-    ("sample.erd", 0, 0, 6),
+    ("sample.erd", 0, 0, 2),
 ];
 
 #[test]

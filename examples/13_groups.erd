@@ -1,0 +1,54 @@
+# Test: groups, drawn in a colour each and framed where nothing else
+# stands among them.
+
+entity User {
+    id int pk
+    email string unique not null
+}
+
+entity Profile {
+    id int pk
+    user_id int fk -> User.id
+    bio text
+}
+
+entity Session {
+    id int pk
+    user_id int fk -> User.id
+    expires_at timestamp
+}
+
+entity Post {
+    id int pk
+    author_id int fk -> User.id
+    title string not null
+}
+
+entity Comment {
+    id int pk
+    post_id int fk -> Post.id
+    body text
+}
+
+entity Tag {
+    id int pk
+    name string unique
+}
+
+entity PostTag {
+    post_id int fk -> Post.id
+    tag_id int fk -> Tag.id
+    primary_key(post_id, tag_id)
+}
+
+rel {
+    User 1 -- 0..1 Profile
+    User 1 -- * Session
+    User 1 -- * Post : "writes"
+    Post 1 -- * Comment
+    Post 1 -- * PostTag
+    Tag 1 -- * PostTag
+}
+
+group Accounts { User, Profile, Session }
+group "Writing" { Post, Comment, Tag, PostTag }

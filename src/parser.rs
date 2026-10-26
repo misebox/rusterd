@@ -17,7 +17,8 @@ pub enum ParseError {
 
 /// What may stand at the top level of a file, for the complaint when
 /// something else does.
-const TOP_LEVEL: &str = "`entity`, `rel`, `focus`, `@hint.near`, `@hint.omit` or `@hint.brief`";
+const TOP_LEVEL: &str =
+    "`entity`, `rel`, `focus`, `group`, `@hint.near`, `@hint.omit` or `@hint.brief`";
 
 #[derive(Debug)]
 pub struct Parser {
@@ -118,6 +119,7 @@ impl Parser {
         let mut near: Vec<Vec<String>> = Vec::new();
         let mut omit: Vec<String> = Vec::new();
         let mut brief: Vec<String> = Vec::new();
+        let mut groups = Vec::new();
 
         loop {
             self.skip_newlines();
@@ -143,6 +145,9 @@ impl Parser {
             } else if self.check_ident("focus") {
                 self.advance();
                 focuses.push(self.parse_focus()?);
+            } else if self.check_ident("group") {
+                self.advance();
+                groups.push(self.parse_group()?);
             } else {
                 return Err(self.unexpected_ahead(TOP_LEVEL));
             }
@@ -155,7 +160,19 @@ impl Parser {
             near,
             omit,
             brief,
+            groups,
         })
+    }
+
+    /// Parse `NAME { Entity, Entity }`, after the `group` keyword. The name is
+    /// written over the group, so it may be a string, spaces and all.
+    fn parse_group(&mut self) -> Result<Group, ParseError> {
+        let name = match self.advance().clone() {
+            Token::Ident(s) | Token::Str(s) => s,
+            tok => return Err(self.unexpected(tok, "a group name")),
+        };
+        let members = self.parse_name_set()?;
+        Ok(Group { name, members })
     }
 
     /// Read `@hint.<key> = ` at the top level, and say which key it was.
@@ -619,6 +636,31 @@ mod tests {
             vec![ColumnModifier::Default("\"active\"".into())]
         );
         assert_eq!(user.columns[2].note.as_deref(), Some("set by the admin"));
+    }
+
+    #[test]
+    fn test_parse_group() {
+        let input = r#"
+            group Accounts { User, Profile }
+            group "Order taking" {
+                Order
+                OrderItem
+            }
+        "#;
+        let schema = Parser::new(input).unwrap().parse().unwrap();
+        assert_eq!(
+            schema.groups,
+            vec![
+                Group {
+                    name: "Accounts".into(),
+                    members: vec!["User".into(), "Profile".into()],
+                },
+                Group {
+                    name: "Order taking".into(),
+                    members: vec!["Order".into(), "OrderItem".into()],
+                },
+            ]
+        );
     }
 
     #[test]

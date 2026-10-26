@@ -155,6 +155,26 @@ Several `include` lines are allowed and are concatenated. A focus changes
 nothing unless the renderer is asked for one by name. It is not a SQL view —
 nothing about the schema is being defined, only what to draw.
 
+## Groups
+
+A group names entities that belong together, such as the tables of one part of
+an application.
+
+```erd
+group Accounts { User, Profile, Session }
+group "Order taking" { Order, OrderItem, Payment }
+```
+
+The name is an identifier or, to hold spaces, a string. Each group's entities
+have their headers drawn in a colour of its own, a key below the diagram says
+which colour is which group, and its entities are kept near one another as
+`@hint.near` keeps them. Where nothing else stands among them, a dashed frame
+is drawn around them with the group's name; where something does, there is no
+frame, since a frame around an outsider would say it belongs.
+
+An entity in two groups is drawn in the first. A name that is not an entity is
+ignored, as it is in `@hint.near`.
+
 ## Layout
 
 **Placement is worked out for you.** The diagram is drawn in levels — bands of

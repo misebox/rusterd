@@ -62,7 +62,12 @@ struct Palette {
     /// Text on a key badge
     badge_text: &'static str,
     flag: &'static str,
+    /// Per group: the header's fill, and the frame and its name
+    groups: [(&'static str, &'static str); GROUP_COLOURS],
 }
+
+/// How many groups get a colour of their own; the next one starts again.
+pub const GROUP_COLOURS: usize = 6;
 
 impl Palette {
     fn css(&self, indent: &str) -> String {
@@ -98,8 +103,29 @@ impl Palette {
             (".cardinality-bg", format!("fill: {}", self.cardinality_bg)),
             (".cardinality", format!("fill: {}", self.text)),
         ];
+        // After the header, which each group's colour overrides.
+        let groups = self
+            .groups
+            .iter()
+            .enumerate()
+            .flat_map(|(i, (header, accent))| {
+                [
+                    (format!(".group-{i}"), format!("fill: {header}")),
+                    (
+                        format!(".group-frame-{i}"),
+                        format!("stroke: {accent}; fill: {accent}"),
+                    ),
+                    (format!(".group-label-{i}"), format!("fill: {accent}")),
+                ]
+            });
         rules
             .iter()
+            .map(|(selector, body)| (selector.to_string(), body.clone()))
+            .chain(groups)
+            .chain([(
+                ".group-label-bg".to_string(),
+                format!("fill: {}", self.canvas),
+            )])
             .map(|(selector, body)| format!("{indent}{selector} {{ {body}; }}\n"))
             .collect()
     }
@@ -120,6 +146,14 @@ const LIGHT: Palette = Palette {
     fk: "#9ec5fe",
     badge_text: "#24292f",
     flag: "#b0b7c0",
+    groups: [
+        ("#dbe9ff", "#3d6fc2"),
+        ("#d9f2e1", "#2e8b57"),
+        ("#ffe6cc", "#c8701e"),
+        ("#ebe1ff", "#7452c9"),
+        ("#ffdfeb", "#c43d72"),
+        ("#d3f0f0", "#1d8a8a"),
+    ],
 };
 
 const DARK: Palette = Palette {
@@ -137,6 +171,14 @@ const DARK: Palette = Palette {
     fk: "#2f5f9e",
     badge_text: "#f0f6fc",
     flag: "#57606a",
+    groups: [
+        ("#1c3354", "#79a8f0"),
+        ("#173d29", "#5cc88a"),
+        ("#47300f", "#f0a656"),
+        ("#2f2452", "#a98cf2"),
+        ("#4a1d31", "#f07aa6"),
+        ("#123d3d", "#4fc4c4"),
+    ],
 };
 
 const BLUEPRINT: Palette = Palette {
@@ -154,6 +196,14 @@ const BLUEPRINT: Palette = Palette {
     fk: "#7fd1ff",
     badge_text: "#0b3d6e",
     flag: "#9cc3e8",
+    groups: [
+        ("#1f6bb5", "#9fd3ff"),
+        ("#1b7a6e", "#8ff0d6"),
+        ("#7a5a1b", "#ffd166"),
+        ("#4b3f9e", "#c9b8ff"),
+        ("#8a2f5c", "#ffadd2"),
+        ("#13737a", "#86f0f7"),
+    ],
 };
 
 const MONO: Palette = Palette {
@@ -171,6 +221,7 @@ const MONO: Palette = Palette {
     fk: "#777",
     badge_text: "#fff",
     flag: "#555",
+    groups: [("#fff", "#000"); GROUP_COLOURS],
 };
 
 #[cfg(test)]

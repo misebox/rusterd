@@ -110,6 +110,7 @@ impl Parser {
             near: Vec::new(),
             omit: Vec::new(),
             brief: Vec::new(),
+            groups: Vec::new(),
         })
     }
 

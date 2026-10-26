@@ -2,7 +2,7 @@ use crate::ast::Cardinality;
 use crate::ir::{Edge, GraphIR};
 use crate::layout::{Layout, LayoutEdge, LayoutNode};
 use crate::measure::{BADGE_SLOT, BADGE_WIDTH, NOTE_LINE, TextMetrics};
-use crate::theme::Theme;
+use crate::theme::{GROUP_COLOURS, Theme};
 use std::collections::HashMap;
 use std::fmt::Write;
 use unicode_width::UnicodeWidthStr;
@@ -56,17 +56,22 @@ impl SvgRenderer {
     pub fn render(&self, ir: &GraphIR, layout: &Layout) -> String {
         let mut svg = String::new();
 
-        // The key stands in a band below the diagram, where it cannot land on
-        // an entity whatever the diagram turns out to look like. A narrow
-        // diagram widens to hold it.
-        let (height, width) = if self.legend {
-            (
-                layout.height + LEGEND_HEIGHT,
-                layout.width.max(self.legend_layout().1),
-            )
+        // The keys stand in bands below the diagram, where they cannot land on
+        // an entity whatever the diagram turns out to look like: first what
+        // each group's colour stands for, then the cardinalities if asked
+        // for. A narrow diagram widens to hold them.
+        let (group_starts, group_width) = group_key_layout(ir);
+        let group_band = if ir.groups.is_empty() {
+            0.0
         } else {
-            (layout.height, layout.width)
+            GROUP_KEY_HEIGHT
         };
+        let mut height = layout.height + group_band;
+        let mut width = layout.width.max(group_width);
+        if self.legend {
+            height += LEGEND_HEIGHT;
+            width = width.max(self.legend_layout().1);
+        }
 
         writeln!(
             &mut svg,
@@ -94,6 +99,8 @@ impl SvgRenderer {
   .edge-symbol-zero {{ stroke-width: 1.5; }}
   .edge-label {{ font-family: monospace; font-size: 14px; }}
   .cardinality {{ font-family: monospace; font-size: 15px; font-weight: bold; }}
+  .group-frame {{ fill-opacity: 0.05; stroke-width: 1.5; stroke-dasharray: 6 4; }}
+  .group-label {{ font-family: monospace; font-size: 13px; font-weight: bold; }}
 {}</style>"#,
             self.theme.css()
         )
@@ -110,6 +117,11 @@ impl SvgRenderer {
         // Build node lookup
         let node_map: HashMap<&str, &crate::ir::Node> =
             ir.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+
+        // 0. Frames around the groups, behind everything else
+        for frame in plan_group_frames(ir, layout) {
+            render_group_frame(&mut svg, &frame);
+        }
 
         // 1. Render edge lines (behind nodes)
         for edge in &layout.edges {
@@ -141,9 +153,12 @@ impl SvgRenderer {
             render_label(&mut svg, label);
         }
 
-        // 4. The key, if asked for
+        // 4. The keys
+        if !ir.groups.is_empty() {
+            render_group_key(&mut svg, ir, &group_starts, layout.height, width);
+        }
         if self.legend {
-            self.render_legend(&mut svg, layout.height, width);
+            self.render_legend(&mut svg, layout.height + group_band, width);
         }
 
         writeln!(&mut svg, "</svg>").unwrap();
@@ -238,26 +253,31 @@ impl SvgRenderer {
         )
         .unwrap();
 
-        // 2. Header background (gray)
+        // 2. Header background, in its group's colour if it has one
+        let header_class = match node.group {
+            Some(group) => format!("entity-header group-{}", group % GROUP_COLOURS),
+            None => "entity-header".to_string(),
+        };
         if node.columns.is_empty() {
             // No columns: header fills entire box
             writeln!(
                 svg,
-                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
-                x, y, w, layout.height
+                r#"<rect class="{}" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                header_class, x, y, w, layout.height
             )
             .unwrap();
         } else {
             // With columns: header at top with square bottom corners
             writeln!(
                 svg,
-                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
-                x, y, w, header_h
+                r#"<rect class="{}" x="{}" y="{}" width="{}" height="{}" rx="4" />"#,
+                header_class, x, y, w, header_h
             )
             .unwrap();
             writeln!(
                 svg,
-                r#"<rect class="entity-header" x="{}" y="{}" width="{}" height="{}" />"#,
+                r#"<rect class="{}" x="{}" y="{}" width="{}" height="{}" />"#,
+                header_class,
                 x,
                 y + header_h - 4.0,
                 w,
@@ -266,9 +286,15 @@ impl SvgRenderer {
             .unwrap();
         }
 
-        // 3. Entity name, and its note under it
+        // 3. Entity name, and its note under it. With no columns under them
+        // they stand in the middle of the box, which is all header.
         let name_h = self.metrics.header_height(false);
-        let text_y = y + name_h / 2.0 + 5.0;
+        let top = if node.columns.is_empty() {
+            y + (layout.height - header_h) / 2.0
+        } else {
+            y
+        };
+        let text_y = top + name_h / 2.0 + 5.0;
         writeln!(
             svg,
             r#"<text class="entity-name" x="{}" y="{}" text-anchor="middle">{}</text>"#,
@@ -283,7 +309,7 @@ impl SvgRenderer {
                 svg,
                 r#"<text class="entity-note" x="{}" y="{}" text-anchor="middle">{}</text>"#,
                 num(x + w / 2.0),
-                num(y + name_h + NOTE_LINE / 2.0 - 4.0),
+                num(top + name_h + NOTE_LINE / 2.0 - 4.0),
                 escape_xml(note)
             )
             .unwrap();
@@ -779,6 +805,150 @@ fn label_anchor(waypoints: &[(f64, f64)], width: f64) -> Option<LabelAnchor> {
 }
 
 /// Width of a monospace string in pixels, counting full-width characters twice.
+const GROUP_KEY_HEIGHT: f64 = 40.0;
+const GROUP_SWATCH: f64 = 14.0;
+
+/// Where each group's entry in the key starts, and how wide the key is.
+fn group_key_layout(ir: &GraphIR) -> (Vec<f64>, f64) {
+    let mut starts = Vec::with_capacity(ir.groups.len());
+    let mut x = LEGEND_MARGIN;
+    for group in &ir.groups {
+        starts.push(x);
+        x += GROUP_SWATCH
+            + LEGEND_ITEM_GAP / 4.0
+            + monospace_width(&group.name, LEGEND_FONT_SIZE)
+            + LEGEND_ITEM_GAP;
+    }
+    (starts, x - LEGEND_ITEM_GAP + LEGEND_MARGIN)
+}
+
+/// Say which colour is which group: a swatch of its headers and its name.
+fn render_group_key(svg: &mut String, ir: &GraphIR, starts: &[f64], top: f64, width: f64) {
+    let y = top + GROUP_KEY_HEIGHT / 2.0;
+    writeln!(
+        svg,
+        r#"<line class="entity-separator" x1="{}" y1="{}" x2="{}" y2="{}" />"#,
+        num(LEGEND_MARGIN),
+        num(top),
+        num(width - LEGEND_MARGIN),
+        num(top)
+    )
+    .unwrap();
+    for (i, (group, &x)) in ir.groups.iter().zip(starts).enumerate() {
+        writeln!(
+            svg,
+            r#"<rect class="entity-header group-{} entity-border" x="{}" y="{}" width="{}" height="{}" rx="3" />"#,
+            i % GROUP_COLOURS,
+            num(x),
+            num(y - GROUP_SWATCH / 2.0),
+            num(GROUP_SWATCH),
+            num(GROUP_SWATCH)
+        )
+        .unwrap();
+        writeln!(
+            svg,
+            r#"<text class="column-text" x="{}" y="{}">{}</text>"#,
+            num(x + GROUP_SWATCH + LEGEND_ITEM_GAP / 4.0),
+            num(y + LEGEND_TEXT_BASELINE),
+            escape_xml(&group.name)
+        )
+        .unwrap();
+    }
+}
+
+/// Room a group frame leaves around its entities, and above them for its name.
+const FRAME_PAD: f64 = 14.0;
+const FRAME_TITLE: f64 = 22.0;
+
+/// A frame drawn around one group's entities.
+struct GroupFrame<'a> {
+    colour: usize,
+    name: &'a str,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+impl GroupFrame<'_> {
+    fn overlaps(&self, x: f64, y: f64, width: f64, height: f64) -> bool {
+        self.x < x + width
+            && x < self.x + self.width
+            && self.y < y + height
+            && y < self.y + self.height
+    }
+}
+
+/// The frames worth drawing. Placement does not know about frames, so a
+/// group's entities may end up with another entity among them; a frame that
+/// would take in an entity from outside the group, or cross another frame,
+/// would say something untrue, and is left out. The colour of the headers
+/// still says which entities belong together.
+fn plan_group_frames<'a>(ir: &'a GraphIR, layout: &Layout) -> Vec<GroupFrame<'a>> {
+    let mut frames: Vec<GroupFrame> = ir
+        .groups
+        .iter()
+        .enumerate()
+        .filter_map(|(i, group)| {
+            let members: Vec<&LayoutNode> = layout
+                .nodes
+                .iter()
+                .filter(|n| group.members.contains(&n.id))
+                .collect();
+            let left = members.iter().map(|n| n.x).reduce(f64::min)?;
+            let top = members.iter().map(|n| n.y).reduce(f64::min)?;
+            let right = members.iter().map(|n| n.x + n.width).reduce(f64::max)?;
+            let bottom = members.iter().map(|n| n.y + n.height).reduce(f64::max)?;
+            let frame = GroupFrame {
+                colour: i % GROUP_COLOURS,
+                name: &group.name,
+                x: left - FRAME_PAD,
+                y: top - FRAME_PAD - FRAME_TITLE,
+                width: right - left + FRAME_PAD * 2.0,
+                height: bottom - top + FRAME_PAD * 2.0 + FRAME_TITLE,
+            };
+            let intruder = layout.nodes.iter().any(|n| {
+                !group.members.contains(&n.id) && frame.overlaps(n.x, n.y, n.width, n.height)
+            });
+            (!intruder).then_some(frame)
+        })
+        .collect();
+
+    let crossed: Vec<bool> = (0..frames.len())
+        .map(|i| {
+            (0..frames.len()).any(|j| {
+                let other = &frames[j];
+                i != j && frames[i].overlaps(other.x, other.y, other.width, other.height)
+            })
+        })
+        .collect();
+    let mut keep = crossed.iter().map(|c| !c);
+    frames.retain(|_| keep.next().unwrap_or(false));
+    frames
+}
+
+fn render_group_frame(svg: &mut String, frame: &GroupFrame) {
+    writeln!(
+        svg,
+        r#"<rect class="group-frame group-frame-{}" x="{}" y="{}" width="{}" height="{}" rx="8" />"#,
+        frame.colour,
+        num(frame.x),
+        num(frame.y),
+        num(frame.width),
+        num(frame.height)
+    )
+    .unwrap();
+    writeln!(
+        svg,
+        r#"<text class="group-label group-label-{}" x="{}" y="{}">{}</text>"#,
+        frame.colour,
+        num(frame.x + FRAME_PAD),
+        num(frame.y + FRAME_TITLE - 4.0),
+        escape_xml(frame.name)
+    )
+    .unwrap();
+}
+
 /// A small label in a rounded box, `PK` or `UQ`, standing on the row whose
 /// baseline is `baseline`.
 fn render_badge(svg: &mut String, x: f64, baseline: f64, text: &str, class: &str) {
@@ -1058,6 +1228,80 @@ mod tests {
     use crate::ir::DetailLevel;
     use crate::layout::LayoutEngine;
     use crate::parser::Parser;
+
+    fn node(id: &str, x: f64, y: f64) -> LayoutNode {
+        LayoutNode {
+            id: id.to_string(),
+            x,
+            y,
+            width: 100.0,
+            height: 60.0,
+        }
+    }
+
+    fn grouped(groups: &[&[&str]], nodes: Vec<LayoutNode>) -> (GraphIR, Layout) {
+        let ir = GraphIR {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            near: Vec::new(),
+            groups: groups
+                .iter()
+                .enumerate()
+                .map(|(i, members)| crate::ir::GroupIR {
+                    name: format!("g{i}"),
+                    members: members.iter().map(|m| m.to_string()).collect(),
+                })
+                .collect(),
+        };
+        let layout = Layout {
+            nodes,
+            edges: Vec::new(),
+            width: 800.0,
+            height: 600.0,
+            channel_gap: 60.0,
+            corner_radius: 8.0,
+        };
+        (ir, layout)
+    }
+
+    #[test]
+    fn frames_a_group_with_nothing_else_among_it() {
+        let (ir, layout) = grouped(
+            &[&["A", "B"]],
+            vec![
+                node("A", 40.0, 80.0),
+                node("B", 40.0, 240.0),
+                node("C", 400.0, 80.0),
+            ],
+        );
+        let frames = plan_group_frames(&ir, &layout);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].x, 40.0 - FRAME_PAD);
+        assert_eq!(frames[0].y, 80.0 - FRAME_PAD - FRAME_TITLE);
+        assert_eq!(frames[0].height, 220.0 + FRAME_PAD * 2.0 + FRAME_TITLE);
+    }
+
+    #[test]
+    fn leaves_out_a_frame_that_would_take_in_an_outsider() {
+        let (ir, layout) = grouped(
+            &[&["A", "B"]],
+            vec![
+                node("A", 40.0, 80.0),
+                node("C", 200.0, 160.0),
+                node("B", 400.0, 240.0),
+            ],
+        );
+        assert!(plan_group_frames(&ir, &layout).is_empty());
+    }
+
+    #[test]
+    fn leaves_out_frames_that_cross() {
+        let (ir, layout) = grouped(
+            &[&["A"], &["B"]],
+            vec![node("A", 40.0, 80.0), node("B", 150.0, 80.0)],
+        );
+        assert!(plan_group_frames(&ir, &layout).is_empty());
+    }
 
     #[test]
     fn test_render_basic() {

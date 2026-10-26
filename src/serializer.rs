@@ -256,6 +256,7 @@ mod tests {
             near: Vec::new(),
             omit: Vec::new(),
             brief: Vec::new(),
+            groups: Vec::new(),
         };
 
         let result = serialize(&schema);
@@ -306,6 +307,7 @@ mod tests {
             near: Vec::new(),
             omit: Vec::new(),
             brief: Vec::new(),
+            groups: Vec::new(),
         };
 
         let result = serialize(&schema);
@@ -328,6 +330,7 @@ mod tests {
             near: Vec::new(),
             omit: Vec::new(),
             brief: Vec::new(),
+            groups: Vec::new(),
         };
 
         let result = serialize(&schema);
