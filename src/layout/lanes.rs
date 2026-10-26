@@ -106,8 +106,8 @@ pub fn assign_channel_lanes<'a>(
             }
         }
 
-        from_above.sort_by(|a, b| a.1.lane_order().cmp(&b.1.lane_order()));
-        from_below.sort_by(|a, b| b.1.lane_order().cmp(&a.1.lane_order()));
+        from_above.sort_by_key(|a| a.1.lane_order());
+        from_below.sort_by_key(|a| std::cmp::Reverse(a.1.lane_order()));
 
         let (above, above_lanes) = pack(&from_above, 0);
         let (below, below_lanes) = pack(&from_below, above_lanes);
