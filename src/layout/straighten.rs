@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn shifts_a_crowded_border_together_to_absorb_a_jog() {
-        let nodes = vec![
+        let nodes = [
             node("A", 40.0, 200.0, 40.0),
             node("B", 300.0, 200.0, 40.0),
             node("C", 40.0, 200.0, 300.0),

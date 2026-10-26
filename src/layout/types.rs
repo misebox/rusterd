@@ -195,10 +195,12 @@ fn runs_alongside(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> b
     false
 }
 
-/// True when two axis-aligned segments cross at a point interior to both.
+/// One straight piece of a path, from one waypoint to the next.
+type Segment = ((f64, f64), (f64, f64));
+
 /// How many times lines of different edges cross one another.
 pub fn count_crossings(edges: &[LayoutEdge]) -> usize {
-    let segments: Vec<(usize, ((f64, f64), (f64, f64)))> = edges
+    let segments: Vec<(usize, Segment)> = edges
         .iter()
         .enumerate()
         .flat_map(|(i, edge)| edge.waypoints.windows(2).map(move |w| (i, (w[0], w[1]))))
@@ -215,6 +217,7 @@ pub fn count_crossings(edges: &[LayoutEdge]) -> usize {
     count
 }
 
+/// True when two axis-aligned segments cross at a point interior to both.
 fn crosses(a: ((f64, f64), (f64, f64)), b: ((f64, f64), (f64, f64))) -> bool {
     let vertical = |(p, q): ((f64, f64), (f64, f64))| p.0 == q.0;
     if vertical(a) == vertical(b) {
