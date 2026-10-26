@@ -117,7 +117,7 @@ impl LayoutEngine {
     fn content_widths(&self, ir: &GraphIR) -> Vec<f64> {
         ir.nodes
             .iter()
-            .map(|node| self.metrics.node_size(&node.label, &node.columns).0 + self.node_gap_x)
+            .map(|node| self.metrics.node_size(node).0 + self.node_gap_x)
             .collect()
     }
 

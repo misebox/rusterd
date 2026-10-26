@@ -75,6 +75,10 @@ impl Palette {
             (".entity-name", format!("fill: {}", self.text)),
             (".column-text", format!("fill: {}", self.text)),
             (".column-type", format!("fill: {}", self.muted)),
+            (
+                ".entity-note, .column-note",
+                format!("fill: {}", self.muted),
+            ),
             (".badge-pk", format!("fill: {}", self.pk)),
             (".badge-fk", format!("fill: {}", self.fk)),
             (".badge-flag", format!("stroke: {}", self.flag)),

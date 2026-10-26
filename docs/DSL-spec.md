@@ -37,8 +37,8 @@ free. Anything else at the top level is an error.
 
 - **Identifiers** start with a letter or `_` and continue with letters, digits
   or `_`. Letters may be non-ASCII, so `注文` and `顧客ID` are valid names.
-- **Strings** are double-quoted and used only for relationship labels and some
-  hint values.
+- **Strings** are double-quoted and used for relationship labels, notes and
+  some hint values. `\"` and `\\` stand for a quote and a backslash.
 - **Numbers** are integers.
 - A **column type is a bare identifier**, optionally followed by `[]` once per
   array dimension: `text[]`, `int[][]`. `varchar(255)` is a parse error — write
@@ -62,16 +62,33 @@ entity Post {
 }
 ```
 
-A column is `NAME TYPE [MODIFIER ...]` and ends at the end of the line, so
-exactly one column per line.
+A column is `NAME TYPE [MODIFIER ...] ["NOTE"]` and ends at the end of the
+line, so exactly one column per line.
 
 | Modifier | Meaning | Drawn as |
 | --- | --- | --- |
-| `pk` | primary key | `◆` and bold |
-| `fk -> Entity.column` | foreign key target | italic |
+| `pk` | primary key | a `PK` badge, and the name in bold |
+| `fk -> Entity.column` | foreign key target | an `FK` badge |
 | `not null` | both words, in this order | not drawn |
-| `unique` | | not drawn |
+| `unique` | | a `UQ` badge |
 | `default VALUE` | identifier, number, string or `func(...)` | not drawn |
+
+### Notes
+
+A string after an entity's name, or at the end of a column, is a note: what the
+entity is or what the column holds, in words. An entity's note is drawn under
+its name, a column's at the end of its row.
+
+```erd
+entity User "a registered person" {
+    id int pk
+    email varchar unique not null "used to sign in"
+    status varchar default "active" "set by an admin"
+}
+```
+
+The string straight after `default` is the default value; a note comes after
+it.
 
 Table-level constraints may appear between the columns:
 
@@ -92,7 +109,7 @@ entity OrderItem {
 ## Relationships
 
 **This is the only thing that draws a line.** A column marked `fk -> User.id`
-is rendered in italics but produces no edge; every relationship you want to see
+is marked with a badge but produces no edge; every relationship you want to see
 must be written in a `rel` block.
 
 ```erd

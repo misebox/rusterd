@@ -18,10 +18,10 @@ eol          ::= sp comment? "\n"
 blank        ::= (sp comment? "\n")*
 
 # ---------------------------------------------------------------- entities
-entity       ::= "entity" sp1 ident sp "{" eol blank member* "}" eol
+entity       ::= "entity" sp1 ident (sp1 string)? sp "{" eol blank member* "}" eol
 member       ::= indent (hint | constraint | column) eol blank
 
-column       ::= ident sp1 type modifier*
+column       ::= ident sp1 type modifier* (sp1 string)?
 type         ::= ident "[]"*
 modifier     ::= sp1 ("pk" | "unique" | "not" sp1 "null" | default | fk)
 default      ::= "default" sp1 value

@@ -24,6 +24,8 @@ impl Schema {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub name: String,
+    /// What the entity is, in the source's own words
+    pub note: Option<String>,
     pub columns: Vec<Column>,
     pub constraints: Vec<Constraint>,
     pub hints: Vec<Hint>,
@@ -34,6 +36,8 @@ pub struct Column {
     pub name: String,
     pub typ: String,
     pub modifiers: Vec<ColumnModifier>,
+    /// What the column holds, in the source's own words
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

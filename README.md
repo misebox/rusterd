@@ -14,7 +14,9 @@ Documentation and demo: https://misebox.github.io/rusterd/
 
 - **Entities**: Define tables with typed columns
 - **Column types**: `int`, `string`, `decimal`, `timestamp`, `boolean`, `text`
-- **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`
+- **Constraints**: `pk`, `fk -> Entity.column`, `not null`, `unique`, drawn as badges
+- **Notes**: a few words on an entity or a column, drawn beside it
+- **Themes**: `auto`, `light`, `dark`, `blueprint`, `mono`
 - **Relationships**: Support all cardinalities (`1`, `*`, `0..1`, `1..*`)
 - **Self-references**: Entities can reference themselves
 - **Automatic layout**: Levels, order and position are all worked out; hints say what matters, not where things go
@@ -33,9 +35,9 @@ entity Category {
     name string not null
 }
 
-entity User {
+entity User "a registered customer" {
     id int pk
-    email string unique not null
+    email string unique not null "used to sign in"
     name string
     created_at timestamp
 }

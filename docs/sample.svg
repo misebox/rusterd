@@ -1,10 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="594.6" height="652" viewBox="0 0 594.6 652">
+<svg xmlns="http://www.w3.org/2000/svg" width="594.6" height="666" viewBox="0 0 594.6 666">
 <style>
   .entity-border { fill: none; stroke-width: 1.5; }
   .entity-separator { stroke-width: 1; }
   .entity-name { font-family: monospace; font-size: 14px; font-weight: bold; }
   .column-text { font-family: monospace; font-size: 12px; }
   .column-type { font-family: monospace; font-size: 12px; }
+  .entity-note { font-family: monospace; font-size: 11px; }
+  .column-note { font-family: monospace; font-size: 12px; font-style: italic; }
   .pk { font-weight: bold; }
   .badge-flag { fill: none; stroke-width: 1; }
   .badge-pk-text, .badge-fk-text, .badge-flag-text { font-family: monospace; font-size: 9px; font-weight: bold; }
@@ -21,6 +23,7 @@
   .entity-name { fill: #222; }
   .column-text { fill: #222; }
   .column-type { fill: #6a737d; }
+  .entity-note, .column-note { fill: #6a737d; }
   .badge-pk { fill: #f6d365; }
   .badge-fk { fill: #9ec5fe; }
   .badge-flag { stroke: #b0b7c0; }
@@ -42,6 +45,7 @@
     .entity-name { fill: #e6edf3; }
     .column-text { fill: #e6edf3; }
     .column-type { fill: #8b949e; }
+    .entity-note, .column-note { fill: #8b949e; }
     .badge-pk { fill: #9e7c1c; }
     .badge-fk { fill: #2f5f9e; }
     .badge-flag { stroke: #57606a; }
@@ -57,100 +61,102 @@
   }
 </style>
 <rect class="canvas" width="100%" height="100%" />
-<path class="edge" d="M 208.4 294.8 L 220.9 294.8 Q 233.4 294.8 233.4 307.3 L 233.4 344.7 Q 233.4 357.2 220.9 357.2 L 208.4 357.2" />
-<path class="edge-symbol" d="M 218.4 287.3 L 218.4 302.3" />
-<path class="edge-symbol" d="M 221.4 357.2 L 208.4 348.2" />
-<path class="edge-symbol" d="M 221.4 357.2 L 208.4 366.2" />
-<path class="edge" d="M 173.8 378 L 173.8 468" />
-<path class="edge-symbol" d="M 181.3 388 L 166.3 388" />
-<path class="edge-symbol" d="M 173.8 455 L 164.8 468" />
-<path class="edge-symbol" d="M 173.8 455 L 182.8 468" />
-<path class="edge" d="M 444.2 164 L 444.2 254" />
-<path class="edge-symbol" d="M 451.7 174 L 436.7 174" />
-<path class="edge-symbol" d="M 444.2 241 L 435.2 254" />
-<path class="edge-symbol" d="M 444.2 241 L 453.2 254" />
-<path class="edge" d="M 270.6 164 L 270.6 194.1 Q 270.6 209 255.7 209 L 255.7 209 Q 240.8 209 240.8 223.9 L 240.8 468" />
-<path class="edge-symbol" d="M 278.1 174 L 263.1 174" />
-<circle class="edge-symbol-zero" cx="270.6" cy="180" r="4" />
-<path class="edge-symbol" d="M 240.8 455 L 231.8 468" />
-<path class="edge-symbol" d="M 240.8 455 L 249.8 468" />
-<path class="edge-symbol" d="M 233.3 449 L 248.3 449" />
-<rect class="entity-bg" x="242.57177734375" y="40" width="229.6" height="124" rx="4" />
-<rect class="entity-header" x="242.57177734375" y="40" width="229.6" height="28" rx="4" />
-<rect class="entity-header" x="242.57177734375" y="64" width="229.6" height="4" />
+<path class="edge" d="M 208.4 308.8 L 220.9 308.8 Q 233.4 308.8 233.4 321.3 L 233.4 358.7 Q 233.4 371.2 220.9 371.2 L 208.4 371.2" />
+<path class="edge-symbol" d="M 218.4 301.3 L 218.4 316.3" />
+<path class="edge-symbol" d="M 221.4 371.2 L 208.4 362.2" />
+<path class="edge-symbol" d="M 221.4 371.2 L 208.4 380.2" />
+<path class="edge" d="M 173.8 392 L 173.8 482" />
+<path class="edge-symbol" d="M 181.3 402 L 166.3 402" />
+<path class="edge-symbol" d="M 173.8 469 L 164.8 482" />
+<path class="edge-symbol" d="M 173.8 469 L 182.8 482" />
+<path class="edge" d="M 474 178 L 474 268" />
+<path class="edge-symbol" d="M 481.5 188 L 466.5 188" />
+<path class="edge-symbol" d="M 474 255 L 465 268" />
+<path class="edge-symbol" d="M 474 255 L 483 268" />
+<path class="edge" d="M 240.8 178 L 240.8 482" />
+<path class="edge-symbol" d="M 248.3 188 L 233.3 188" />
+<circle class="edge-symbol-zero" cx="240.8" cy="194" r="4" />
+<path class="edge-symbol" d="M 240.8 469 L 231.8 482" />
+<path class="edge-symbol" d="M 240.8 469 L 249.8 482" />
+<path class="edge-symbol" d="M 233.3 463 L 248.3 463" />
+<rect class="entity-bg" x="181.37177734375" y="40" width="352" height="138" rx="4" />
+<rect class="entity-header" x="181.37177734375" y="40" width="352" height="42" rx="4" />
+<rect class="entity-header" x="181.37177734375" y="78" width="352" height="4" />
 <text class="entity-name" x="357.37177734375" y="59" text-anchor="middle">User</text>
-<line class="entity-separator" x1="242.57177734375" y1="68" x2="472.17177734375" y2="68" />
-<rect class="badge-pk" x="254.6" y="79.5" width="18" height="13" rx="3" />
-<text class="badge-pk-text" x="263.6" y="89.5" text-anchor="middle">PK</text>
-<text class="column-text pk" x="276.6" y="90">id</text>
-<text class="column-type" x="363" y="90">int</text>
-<rect class="badge-flag" x="442.2" y="99.5" width="18" height="13" rx="3" />
-<text class="badge-flag-text" x="451.2" y="109.5" text-anchor="middle">UQ</text>
-<text class="column-text" x="276.6" y="110">email</text>
-<text class="column-type" x="363" y="110">string</text>
-<text class="column-text" x="276.6" y="130">name</text>
-<text class="column-type" x="363" y="130">string</text>
-<text class="column-text" x="276.6" y="150">created_at</text>
-<text class="column-type" x="363" y="150">timestamp</text>
-<rect class="entity-border" x="242.57177734375" y="40" width="229.6" height="124" rx="4" />
-<rect class="entity-bg" x="40" y="274" width="168.4" height="104" rx="4" />
-<rect class="entity-header" x="40" y="274" width="168.4" height="28" rx="4" />
-<rect class="entity-header" x="40" y="298" width="168.4" height="4" />
-<text class="entity-name" x="124.2" y="293" text-anchor="middle">Category</text>
-<line class="entity-separator" x1="40" y1="302" x2="208.4" y2="302" />
-<rect class="badge-pk" x="52" y="313.5" width="18" height="13" rx="3" />
-<text class="badge-pk-text" x="61" y="323.5" text-anchor="middle">PK</text>
-<text class="column-text pk" x="74" y="324">id</text>
-<text class="column-type" x="153.2" y="324">int</text>
-<rect class="badge-fk" x="52" y="333.5" width="18" height="13" rx="3" />
-<text class="badge-fk-text" x="61" y="343.5" text-anchor="middle">FK</text>
-<text class="column-text" x="74" y="344">parent_id</text>
-<text class="column-type" x="153.2" y="344">int</text>
-<text class="column-text" x="74" y="364">name</text>
-<text class="column-type" x="153.2" y="364">string</text>
-<rect class="entity-border" x="40" y="274" width="168.4" height="104" rx="4" />
-<rect class="entity-bg" x="393.4" y="254" width="161.20000000000002" height="124" rx="4" />
-<rect class="entity-header" x="393.4" y="254" width="161.20000000000002" height="28" rx="4" />
-<rect class="entity-header" x="393.4" y="278" width="161.20000000000002" height="4" />
-<text class="entity-name" x="474" y="273" text-anchor="middle">Order</text>
-<line class="entity-separator" x1="393.4" y1="282" x2="554.6" y2="282" />
-<rect class="badge-pk" x="405.4" y="293.5" width="18" height="13" rx="3" />
-<text class="badge-pk-text" x="414.4" y="303.5" text-anchor="middle">PK</text>
-<text class="column-text pk" x="427.4" y="304">id</text>
-<text class="column-type" x="492.2" y="304">int</text>
-<rect class="badge-fk" x="405.4" y="313.5" width="18" height="13" rx="3" />
-<text class="badge-fk-text" x="414.4" y="323.5" text-anchor="middle">FK</text>
-<text class="column-text" x="427.4" y="324">user_id</text>
-<text class="column-type" x="492.2" y="324">int</text>
-<text class="column-text" x="427.4" y="344">total</text>
-<text class="column-type" x="492.2" y="344">decimal</text>
-<text class="column-text" x="427.4" y="364">status</text>
-<text class="column-type" x="492.2" y="364">string</text>
-<rect class="entity-border" x="393.4" y="254" width="161.20000000000002" height="124" rx="4" />
-<rect class="entity-bg" x="145.785888671875" y="468" width="190" height="144" rx="4" />
-<rect class="entity-header" x="145.785888671875" y="468" width="190" height="28" rx="4" />
-<rect class="entity-header" x="145.785888671875" y="492" width="190" height="4" />
-<text class="entity-name" x="240.785888671875" y="487" text-anchor="middle">Product</text>
-<line class="entity-separator" x1="145.785888671875" y1="496" x2="335.785888671875" y2="496" />
-<rect class="badge-pk" x="157.8" y="507.5" width="18" height="13" rx="3" />
-<text class="badge-pk-text" x="166.8" y="517.5" text-anchor="middle">PK</text>
-<text class="column-text pk" x="179.8" y="518">id</text>
-<text class="column-type" x="273.4" y="518">int</text>
-<rect class="badge-fk" x="157.8" y="527.5" width="18" height="13" rx="3" />
-<text class="badge-fk-text" x="166.8" y="537.5" text-anchor="middle">FK</text>
-<text class="column-text" x="179.8" y="538">category_id</text>
-<text class="column-type" x="273.4" y="538">int</text>
-<text class="column-text" x="179.8" y="558">name</text>
-<text class="column-type" x="273.4" y="558">string</text>
-<text class="column-text" x="179.8" y="578">price</text>
-<text class="column-type" x="273.4" y="578">decimal</text>
-<text class="column-text" x="179.8" y="598">is_active</text>
-<text class="column-type" x="273.4" y="598">boolean</text>
-<rect class="entity-border" x="145.785888671875" y="468" width="190" height="144" rx="4" />
-<rect class="edge-label-bg" x="246.4" y="316.0" width="56.4" height="20.0" rx="8" />
-<text class="edge-label" x="274.6" y="326" text-anchor="middle" dominant-baseline="middle">parent</text>
-<rect class="edge-label-bg" x="416.0" y="199.0" width="56.4" height="20.0" rx="8" />
-<text class="edge-label" x="444.2" y="209" text-anchor="middle" dominant-baseline="middle">places</text>
-<rect class="edge-label-bg" x="200.0" y="382.5" width="81.6" height="20.0" rx="8" />
-<text class="edge-label" x="240.8" y="392.5" text-anchor="middle" dominant-baseline="middle">favorites</text>
+<text class="entity-note" x="357.4" y="71" text-anchor="middle">a registered customer</text>
+<line class="entity-separator" x1="181.37177734375" y1="82" x2="533.37177734375" y2="82" />
+<rect class="badge-pk" x="193.4" y="93.5" width="18" height="13" rx="3" />
+<text class="badge-pk-text" x="202.4" y="103.5" text-anchor="middle">PK</text>
+<text class="column-text pk" x="215.4" y="104">id</text>
+<text class="column-type" x="301.8" y="104">int</text>
+<rect class="badge-flag" x="381" y="113.5" width="18" height="13" rx="3" />
+<text class="badge-flag-text" x="390" y="123.5" text-anchor="middle">UQ</text>
+<text class="column-text" x="215.4" y="124">email</text>
+<text class="column-type" x="301.8" y="124">string</text>
+<text class="column-note" x="413.4" y="124">used to sign in</text>
+<text class="column-text" x="215.4" y="144">name</text>
+<text class="column-type" x="301.8" y="144">string</text>
+<text class="column-text" x="215.4" y="164">created_at</text>
+<text class="column-type" x="301.8" y="164">timestamp</text>
+<rect class="entity-border" x="181.37177734375" y="40" width="352" height="138" rx="4" />
+<rect class="entity-bg" x="40" y="288" width="168.4" height="104" rx="4" />
+<rect class="entity-header" x="40" y="288" width="168.4" height="28" rx="4" />
+<rect class="entity-header" x="40" y="312" width="168.4" height="4" />
+<text class="entity-name" x="124.2" y="307" text-anchor="middle">Category</text>
+<line class="entity-separator" x1="40" y1="316" x2="208.4" y2="316" />
+<rect class="badge-pk" x="52" y="327.5" width="18" height="13" rx="3" />
+<text class="badge-pk-text" x="61" y="337.5" text-anchor="middle">PK</text>
+<text class="column-text pk" x="74" y="338">id</text>
+<text class="column-type" x="153.2" y="338">int</text>
+<rect class="badge-fk" x="52" y="347.5" width="18" height="13" rx="3" />
+<text class="badge-fk-text" x="61" y="357.5" text-anchor="middle">FK</text>
+<text class="column-text" x="74" y="358">parent_id</text>
+<text class="column-type" x="153.2" y="358">int</text>
+<text class="column-text" x="74" y="378">name</text>
+<text class="column-type" x="153.2" y="378">string</text>
+<rect class="entity-border" x="40" y="288" width="168.4" height="104" rx="4" />
+<rect class="entity-bg" x="393.4" y="268" width="161.20000000000002" height="124" rx="4" />
+<rect class="entity-header" x="393.4" y="268" width="161.20000000000002" height="28" rx="4" />
+<rect class="entity-header" x="393.4" y="292" width="161.20000000000002" height="4" />
+<text class="entity-name" x="474" y="287" text-anchor="middle">Order</text>
+<line class="entity-separator" x1="393.4" y1="296" x2="554.6" y2="296" />
+<rect class="badge-pk" x="405.4" y="307.5" width="18" height="13" rx="3" />
+<text class="badge-pk-text" x="414.4" y="317.5" text-anchor="middle">PK</text>
+<text class="column-text pk" x="427.4" y="318">id</text>
+<text class="column-type" x="492.2" y="318">int</text>
+<rect class="badge-fk" x="405.4" y="327.5" width="18" height="13" rx="3" />
+<text class="badge-fk-text" x="414.4" y="337.5" text-anchor="middle">FK</text>
+<text class="column-text" x="427.4" y="338">user_id</text>
+<text class="column-type" x="492.2" y="338">int</text>
+<text class="column-text" x="427.4" y="358">total</text>
+<text class="column-type" x="492.2" y="358">decimal</text>
+<text class="column-text" x="427.4" y="378">status</text>
+<text class="column-type" x="492.2" y="378">string</text>
+<rect class="entity-border" x="393.4" y="268" width="161.20000000000002" height="124" rx="4" />
+<rect class="entity-bg" x="145.785888671875" y="482" width="190" height="144" rx="4" />
+<rect class="entity-header" x="145.785888671875" y="482" width="190" height="28" rx="4" />
+<rect class="entity-header" x="145.785888671875" y="506" width="190" height="4" />
+<text class="entity-name" x="240.785888671875" y="501" text-anchor="middle">Product</text>
+<line class="entity-separator" x1="145.785888671875" y1="510" x2="335.785888671875" y2="510" />
+<rect class="badge-pk" x="157.8" y="521.5" width="18" height="13" rx="3" />
+<text class="badge-pk-text" x="166.8" y="531.5" text-anchor="middle">PK</text>
+<text class="column-text pk" x="179.8" y="532">id</text>
+<text class="column-type" x="273.4" y="532">int</text>
+<rect class="badge-fk" x="157.8" y="541.5" width="18" height="13" rx="3" />
+<text class="badge-fk-text" x="166.8" y="551.5" text-anchor="middle">FK</text>
+<text class="column-text" x="179.8" y="552">category_id</text>
+<text class="column-type" x="273.4" y="552">int</text>
+<text class="column-text" x="179.8" y="572">name</text>
+<text class="column-type" x="273.4" y="572">string</text>
+<text class="column-text" x="179.8" y="592">price</text>
+<text class="column-type" x="273.4" y="592">decimal</text>
+<text class="column-text" x="179.8" y="612">is_active</text>
+<text class="column-type" x="273.4" y="612">boolean</text>
+<rect class="entity-border" x="145.785888671875" y="482" width="190" height="144" rx="4" />
+<rect class="edge-label-bg" x="246.4" y="330.0" width="56.4" height="20.0" rx="8" />
+<text class="edge-label" x="274.6" y="340" text-anchor="middle" dominant-baseline="middle">parent</text>
+<rect class="edge-label-bg" x="445.8" y="213.0" width="56.4" height="20.0" rx="8" />
+<text class="edge-label" x="474" y="223" text-anchor="middle" dominant-baseline="middle">places</text>
+<rect class="edge-label-bg" x="200.0" y="260.0" width="81.6" height="20.0" rx="8" />
+<text class="edge-label" x="240.8" y="270" text-anchor="middle" dominant-baseline="middle">favorites</text>
 </svg>

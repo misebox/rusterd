@@ -226,6 +226,14 @@ impl Parser {
     fn parse_entity(&mut self) -> Result<Entity, ParseError> {
         self.skip_newlines();
         let name = self.expect_ident()?;
+        let note = match self.peek() {
+            Token::Str(s) => {
+                let note = s.clone();
+                self.advance();
+                Some(note)
+            }
+            _ => None,
+        };
         self.skip_newlines();
         self.expect(Token::LBrace)?;
 
@@ -258,6 +266,7 @@ impl Parser {
 
         Ok(Entity {
             name,
+            note,
             columns,
             constraints,
             hints,
@@ -273,6 +282,7 @@ impl Parser {
             typ.push_str("[]");
         }
         let mut modifiers = Vec::new();
+        let mut note = None;
 
         loop {
             // End of column definition on newline or closing brace
@@ -302,6 +312,9 @@ impl Parser {
                 self.expect(Token::Dot)?;
                 let column = self.expect_ident()?;
                 modifiers.push(ColumnModifier::Fk { target, column });
+            } else if let Token::Str(s) = self.peek() {
+                note = Some(s.clone());
+                self.advance();
             } else {
                 break;
             }
@@ -311,6 +324,7 @@ impl Parser {
             name,
             typ,
             modifiers,
+            note,
         })
     }
 
@@ -584,6 +598,27 @@ mod tests {
         assert_eq!(schema.entities.len(), 1);
         assert_eq!(schema.entities[0].name, "User");
         assert_eq!(schema.entities[0].columns.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_notes() {
+        let input = r#"
+            entity User "a registered person" {
+                id int pk
+                email string unique "used to sign in"
+                status string default "active" "set by the admin"
+            }
+        "#;
+        let schema = Parser::new(input).unwrap().parse().unwrap();
+        let user = &schema.entities[0];
+        assert_eq!(user.note.as_deref(), Some("a registered person"));
+        assert_eq!(user.columns[0].note, None);
+        assert_eq!(user.columns[1].note.as_deref(), Some("used to sign in"));
+        assert_eq!(
+            user.columns[2].modifiers,
+            vec![ColumnModifier::Default("\"active\"".into())]
+        );
+        assert_eq!(user.columns[2].note.as_deref(), Some("set by the admin"));
     }
 
     #[test]

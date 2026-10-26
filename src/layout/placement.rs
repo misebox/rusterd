@@ -17,7 +17,7 @@ pub fn calculate_node_sizes(
     let mut node_sizes: HashMap<String, (f64, f64)> = HashMap::new();
 
     for node in &ir.nodes {
-        let (content_w, h) = metrics.node_size(&node.label, &node.columns);
+        let (content_w, h) = metrics.node_size(node);
 
         let down_edges = *edge_count_per_node
             .get(&(node.id.as_str(), true))

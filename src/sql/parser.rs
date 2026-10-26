@@ -231,6 +231,7 @@ impl Parser {
 
         let mut entity = Entity {
             name: table_name,
+            note: None,
             columns: Vec::new(),
             constraints: Vec::new(),
             hints: vec![],
@@ -492,6 +493,7 @@ impl Parser {
             name,
             typ,
             modifiers,
+            note: None,
         }))
     }
 

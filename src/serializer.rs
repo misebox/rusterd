@@ -27,7 +27,10 @@ pub fn serialize(schema: &Schema) -> String {
 }
 
 fn serialize_entity(output: &mut String, entity: &Entity) {
-    output.push_str(&format!("entity {} {{\n", entity.name));
+    match &entity.note {
+        Some(note) => output.push_str(&format!("entity {} {} {{\n", entity.name, quote(note))),
+        None => output.push_str(&format!("entity {} {{\n", entity.name)),
+    }
 
     // Collect PKs from constraints for composite key handling
     let composite_pk_columns: Vec<&str> = entity
@@ -101,13 +104,28 @@ fn serialize_column(output: &mut String, column: &Column, composite_pk_columns: 
             if is_bare_default(val) {
                 output.push_str(&format!(" default {}", val));
             } else {
-                let escaped = val.replace('\\', "\\\\").replace('"', "\\\"");
-                output.push_str(&format!(" default \"{}\"", escaped));
+                output.push_str(&format!(" default {}", quote(val)));
             }
         }
     }
 
+    if let Some(note) = &column.note {
+        output.push(' ');
+        output.push_str(&quote(note));
+    }
+
     output.push('\n');
+}
+
+/// A string as the ERD lexer reads it back: quoted, with its quotes and
+/// backslashes escaped. A line break would end the column, so it becomes a
+/// space.
+fn quote(text: &str) -> String {
+    let escaped = text
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace(['\r', '\n'], " ");
+    format!("\"{}\"", escaped)
 }
 
 /// True when a default value can follow `default` unquoted, that is when the
@@ -215,16 +233,19 @@ mod tests {
         let schema = Schema {
             entities: vec![Entity {
                 name: "User".to_string(),
+                note: None,
                 columns: vec![
                     Column {
                         name: "id".to_string(),
                         typ: "int".to_string(),
                         modifiers: vec![ColumnModifier::Pk],
+                        note: None,
                     },
                     Column {
                         name: "email".to_string(),
                         typ: "string".to_string(),
                         modifiers: vec![ColumnModifier::NotNull, ColumnModifier::Unique],
+                        note: None,
                     },
                 ],
                 constraints: vec![],
@@ -244,15 +265,25 @@ mod tests {
     }
 
     #[test]
+    fn notes_come_back_as_they_were_written() {
+        let source =
+            "entity User \"a \\\"registered\\\" person\" {\n    id int pk \"the key\"\n}\n";
+        let schema = crate::parser::Parser::new(source).unwrap().parse().unwrap();
+        assert_eq!(serialize(&schema), source);
+    }
+
+    #[test]
     fn test_serialize_with_fk() {
         let schema = Schema {
             entities: vec![Entity {
                 name: "Order".to_string(),
+                note: None,
                 columns: vec![
                     Column {
                         name: "id".to_string(),
                         typ: "int".to_string(),
                         modifiers: vec![ColumnModifier::Pk],
+                        note: None,
                     },
                     Column {
                         name: "user_id".to_string(),
@@ -264,6 +295,7 @@ mod tests {
                                 column: "id".to_string(),
                             },
                         ],
+                        note: None,
                     },
                 ],
                 constraints: vec![],

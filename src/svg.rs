@@ -1,7 +1,7 @@
 use crate::ast::Cardinality;
 use crate::ir::{Edge, GraphIR};
 use crate::layout::{Layout, LayoutEdge, LayoutNode};
-use crate::measure::{BADGE_SLOT, BADGE_WIDTH, TextMetrics};
+use crate::measure::{BADGE_SLOT, BADGE_WIDTH, NOTE_LINE, TextMetrics};
 use crate::theme::Theme;
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -84,6 +84,8 @@ impl SvgRenderer {
   .entity-name {{ font-family: monospace; font-size: 14px; font-weight: bold; }}
   .column-text {{ font-family: monospace; font-size: 12px; }}
   .column-type {{ font-family: monospace; font-size: 12px; }}
+  .entity-note {{ font-family: monospace; font-size: 11px; }}
+  .column-note {{ font-family: monospace; font-size: 12px; font-style: italic; }}
   .pk {{ font-weight: bold; }}
   .badge-flag {{ fill: none; stroke-width: 1; }}
   .badge-pk-text, .badge-fk-text, .badge-flag-text {{ font-family: monospace; font-size: 9px; font-weight: bold; }}
@@ -226,7 +228,7 @@ impl SvgRenderer {
         let x = layout.x;
         let y = layout.y;
         let w = layout.width;
-        let header_h = self.metrics.line_height + self.metrics.header_padding * 2.0;
+        let header_h = self.metrics.header_height(node.note.is_some());
 
         // 1. Background (white)
         writeln!(
@@ -264,8 +266,9 @@ impl SvgRenderer {
             .unwrap();
         }
 
-        // 3. Entity name
-        let text_y = y + header_h / 2.0 + 5.0;
+        // 3. Entity name, and its note under it
+        let name_h = self.metrics.header_height(false);
+        let text_y = y + name_h / 2.0 + 5.0;
         writeln!(
             svg,
             r#"<text class="entity-name" x="{}" y="{}" text-anchor="middle">{}</text>"#,
@@ -274,6 +277,17 @@ impl SvgRenderer {
             escape_xml(&node.label)
         )
         .unwrap();
+
+        if let Some(note) = &node.note {
+            writeln!(
+                svg,
+                r#"<text class="entity-note" x="{}" y="{}" text-anchor="middle">{}</text>"#,
+                num(x + w / 2.0),
+                num(y + name_h + NOTE_LINE / 2.0 - 4.0),
+                escape_xml(note)
+            )
+            .unwrap();
+        }
 
         // 4. Separator line and columns
         if !node.columns.is_empty() {
@@ -342,6 +356,16 @@ impl SvgRenderer {
                     escape_xml(&col.typ)
                 )
                 .unwrap();
+                if let Some(note) = &col.note {
+                    writeln!(
+                        svg,
+                        r#"<text class="column-note" x="{}" y="{}">{}</text>"#,
+                        num(x + grid.note_x),
+                        num(col_y),
+                        escape_xml(note)
+                    )
+                    .unwrap();
+                }
 
                 col_y += self.metrics.line_height;
             }

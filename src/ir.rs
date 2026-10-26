@@ -33,6 +33,8 @@ pub struct GraphIR {
 pub struct Node {
     pub id: String,
     pub label: String,
+    /// Drawn under the name, when the source gave one
+    pub note: Option<String>,
     pub columns: Vec<ColumnIR>,
     /// Row the source pinned this entity to, if it pinned one
     pub level: Option<i64>,
@@ -46,6 +48,7 @@ pub struct ColumnIR {
     pub is_fk: bool,
     pub is_unique: bool,
     pub is_not_null: bool,
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -122,6 +125,7 @@ impl GraphIR {
                                     .modifiers
                                     .iter()
                                     .any(|m| matches!(m, ColumnModifier::NotNull)),
+                                note: c.note.clone(),
                             })
                         } else {
                             None
@@ -141,6 +145,7 @@ impl GraphIR {
                 Node {
                     id: e.name.clone(),
                     label: e.name.clone(),
+                    note: e.note.clone(),
                     columns,
                     level,
                 }

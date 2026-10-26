@@ -1,8 +1,11 @@
-use crate::ir::ColumnIR;
+use crate::ir::{ColumnIR, Node};
 use unicode_width::UnicodeWidthStr;
 
 /// The room one badge (`PK`, `FK`, `UQ`) takes in a row, gap included.
 pub const BADGE_SLOT: f64 = 22.0;
+/// The line an entity's note takes under its name.
+pub const NOTE_LINE: f64 = 14.0;
+
 /// The badge itself, without the gap after it.
 pub const BADGE_WIDTH: f64 = 18.0;
 
@@ -18,6 +21,8 @@ pub struct ColumnGrid {
     /// The `UQ` badge. Not null is left to the source: nearly every column of
     /// a real schema is, and a badge on each would only be noise.
     pub flag_x: f64,
+    /// The column's note, after everything else
+    pub note_x: f64,
     /// The width the rows need, padding on both sides included
     pub width: f64,
 }
@@ -85,7 +90,7 @@ impl TextMetrics {
         let name_x = key_x + key_slots as f64 * BADGE_SLOT;
         let type_x = name_x + widest(|c| &c.name) + gap;
         let type_end = type_x + widest(|c| &c.typ);
-        let (flag_x, end) = if flag_slots == 0 {
+        let (flag_x, flags_end) = if flag_slots == 0 {
             (type_end, type_end)
         } else {
             let flag_x = type_end + gap;
@@ -94,18 +99,39 @@ impl TextMetrics {
                 flag_x + flag_slots as f64 * BADGE_SLOT - (BADGE_SLOT - BADGE_WIDTH),
             )
         };
+        let widest_note = columns
+            .iter()
+            .filter_map(|c| c.note.as_deref())
+            .map(|note| self.column_text_width(note))
+            .reduce(f64::max);
+        let (note_x, end) = match widest_note {
+            Some(widest) => (flags_end + gap, flags_end + gap + widest),
+            None => (flags_end, flags_end),
+        };
 
         ColumnGrid {
             key_x,
             name_x,
             type_x,
             flag_x,
+            note_x,
             width: end + self.padding_x,
         }
     }
 
-    pub fn node_size(&self, label: &str, columns: &[ColumnIR]) -> (f64, f64) {
-        let header_width = self.text_width(label) + self.padding_x * 2.0;
+    /// How tall an entity's header is: its name, and its note under it.
+    pub fn header_height(&self, has_note: bool) -> f64 {
+        let note = if has_note { NOTE_LINE } else { 0.0 };
+        self.line_height + self.header_padding * 2.0 + note
+    }
+
+    pub fn node_size(&self, node: &Node) -> (f64, f64) {
+        let columns = &node.columns;
+        let note_width = node
+            .note
+            .as_deref()
+            .map_or(0.0, |note| self.column_text_width(note));
+        let header_width = self.text_width(&node.label).max(note_width) + self.padding_x * 2.0;
         let rows_width = if columns.is_empty() {
             0.0
         } else {
@@ -113,7 +139,7 @@ impl TextMetrics {
         };
         let width = header_width.max(rows_width).max(self.min_node_width);
 
-        let header_height = self.line_height + self.header_padding * 2.0;
+        let header_height = self.header_height(node.note.is_some());
         let body_height = if columns.is_empty() {
             0.0
         } else {
@@ -138,6 +164,17 @@ mod tests {
             is_fk: false,
             is_unique: false,
             is_not_null: false,
+            note: None,
+        }
+    }
+
+    fn node(label: &str, columns: Vec<ColumnIR>) -> Node {
+        Node {
+            id: label.to_string(),
+            label: label.to_string(),
+            note: None,
+            columns,
+            level: None,
         }
     }
 
@@ -187,7 +224,7 @@ mod tests {
     #[test]
     fn test_node_size_no_columns() {
         let m = TextMetrics::default();
-        let (w, h) = m.node_size("User", &[]);
+        let (w, h) = m.node_size(&node("User", vec![]));
         assert!(w > 0.0);
         assert!(h > 0.0);
     }
@@ -196,7 +233,7 @@ mod tests {
     fn test_node_size_with_columns() {
         let m = TextMetrics::default();
         let columns = vec![column("id", "int"), column("name", "string")];
-        let (w, h) = m.node_size("User", &columns);
+        let (w, h) = m.node_size(&node("User", columns));
         assert!(w > 0.0);
         assert!(h > m.line_height);
     }
