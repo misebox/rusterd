@@ -5,6 +5,8 @@ pub mod lexer;
 pub mod measure;
 pub mod ordering;
 pub mod parser;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod png;
 pub mod serializer;
 pub mod sql;
 pub mod svg;

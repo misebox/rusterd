@@ -21,7 +21,8 @@ blank        ::= (sp comment? "\n")*
 entity       ::= "entity" sp1 ident sp "{" eol blank member* "}" eol
 member       ::= indent (hint | constraint | column) eol blank
 
-column       ::= ident sp1 ident modifier*
+column       ::= ident sp1 type modifier*
+type         ::= ident "[]"*
 modifier     ::= sp1 ("pk" | "unique" | "not" sp1 "null" | default | fk)
 default      ::= "default" sp1 value
 fk           ::= "fk" sp1 "->" sp1 ident "." ident

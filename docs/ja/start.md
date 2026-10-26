@@ -30,6 +30,13 @@ rusterd render input.erd --dense -o output.svg
 # 標準入力から読む
 cat input.erd | rusterd render - -o output.svg
 
+# SVG を表示できないビューア向けに PNG で書き出す
+rusterd render input.erd -o output.png
+rusterd render input.erd -o output.png --scale 2
+
+# SQL ダンプをそのまま描く
+rusterd render schema.sql -o schema.png --dialect postgres
+
 # SQL ダンプを ERD 記法に変換する
 rusterd convert schema.sql -o schema.erd
 rusterd convert schema.sql -d postgres
@@ -52,6 +59,12 @@ rusterd --version
 | 密 | `-D`, `--dense` | `dense` | — | なし |
 | 形 | `-a`, `--aspect <w:h>` | `aspect` | `幅:高さ` の比 | `1:1` |
 | 方言 | `-d`, `--dialect <name>` | `dialect` | `auto`, `generic`, `postgres`, `mysql` | `auto` |
+
+コマンドラインにはもう 1 つあります。出力ファイル名が `*.png` なら SVG ではなく
+PNG で書き出します。どの環境でも同じ見た目になるよう、文字はバイナリに同梱した
+フォントで描きます。`-s`, `--scale <n>` は図の 1 単位を何ピクセルにするかで、
+高解像度の画面向けには `2` を指定します。`render` は `.sql` ファイルも直接読み、
+そのときは `convert` と同じ `--dialect` を受け取ります。
 
 **詳細度** はエンティティのどこまでを描くか。`tables` は名前だけ、`pk` は主キー、
 `pk_fk` は主キーと外部キー、`all` は全列です。

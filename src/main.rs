@@ -1,6 +1,7 @@
 use rusterd::ir::{DetailLevel, GraphIR};
 use rusterd::layout::{LayoutEngine, aspect_from_name};
 use rusterd::parser::Parser;
+use rusterd::png::svg_to_png;
 use rusterd::serializer;
 use rusterd::sql::{Dialect, parse_sql};
 use rusterd::svg::{Notation, SvgRenderer};
@@ -83,30 +84,78 @@ Run '{program} <subcommand> --help' for more information.",
     )
 }
 
-fn run_render(program: &str, args: &[String]) {
-    if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
-        let help = format!(
-            "Usage: {program} render <input.erd | -> [options]
+/// An option's name, and its value when it was written `--name=value`. A value
+/// written as the next argument is picked up by `value`.
+fn split_option(arg: &str) -> (&str, Option<&str>) {
+    match arg.split_once('=') {
+        Some((name, value)) => (name, Some(value)),
+        None => (arg, None),
+    }
+}
 
-Render ERD file to SVG
-Use '-' to read from stdin.
+/// The value of the option at `args[*i]`: the one written after `=`, or else
+/// the next argument, which is then stepped over.
+fn value<'a>(args: &'a [String], i: &mut usize, inline: Option<&'a str>) -> &'a str {
+    if let Some(value) = inline {
+        return value;
+    }
+    *i += 1;
+    match args.get(*i) {
+        Some(value) => value,
+        None => {
+            eprintln!("{} needs a value", args[*i - 1]);
+            process::exit(1);
+        }
+    }
+}
+
+/// Whether an argument is the input rather than an option. `-` is stdin.
+fn is_input(arg: &str) -> bool {
+    arg == "-" || !arg.starts_with('-')
+}
+
+/// Remember the input, which there can only be one of.
+fn take_input(input: &mut Option<String>, arg: &str) {
+    if input.replace(arg.to_string()).is_some() {
+        eprintln!("Unexpected argument: {}", arg);
+        process::exit(1);
+    }
+}
+
+fn input_or_help(input: Option<String>, help: &str) -> String {
+    match input {
+        Some(path) => path,
+        None => {
+            eprintln!("No input given.");
+            eprintln!();
+            after_a_mistake(help);
+        }
+    }
+}
+
+fn run_render(program: &str, args: &[String]) {
+    let help = format!(
+        "Usage: {program} render <input.erd | input.sql | -> [options]
+
+Render an ERD file, or a SQL dump, to SVG or PNG
+Use '-' to read from stdin. An output file named *.png is written as PNG.
 
 Options:
-  -o, --output <file>   Output file (default: stdout)
+  -o, --output <file>   Output file (default: stdout, as SVG)
   -f, --focus <name>    Draw only what a focus block lists
   -d, --detail <level>  Detail level: tables, pk, pk_fk, all (default: all)
   -n, --notation <n>    Cardinality notation: crowsfoot, text (default: crowsfoot)
   -l, --legend          Draw a key to the cardinality symbols
   -D, --dense           Close up the spacing, to fit more on a screen
-  -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)"
-        );
-        if args.is_empty() {
-            after_a_mistake(&help);
-        }
-        asked_for(&help);
+  -a, --aspect <w:h>    Shape to aim for: 1:1, 16:9, 210:297 (default: 1:1)
+  -s, --scale <n>       Pixels per unit of a PNG (default: 1)
+      --dialect <name>  Dialect of a SQL input: auto, generic, postgres, mysql (default: auto)"
+    );
+    if args.is_empty() {
+        after_a_mistake(&help);
     }
 
-    let input_path = &args[0];
+    let mut input_path: Option<String> = None;
     let mut output_path: Option<String> = None;
     let mut focus: Option<String> = None;
     let mut detail = DetailLevel::All;
@@ -114,50 +163,52 @@ Options:
     let mut legend = false;
     let mut dense = false;
     let mut aspect = 1.0;
+    let mut scale = 1.0;
+    let mut dialect = Dialect::Auto;
 
-    let mut i = 1;
+    let mut i = 0;
     while i < args.len() {
-        match args[i].as_str() {
-            "-o" | "--output" => {
-                i += 1;
-                if i < args.len() {
-                    output_path = Some(args[i].clone());
-                }
-            }
-            "-f" | "--focus" => {
-                i += 1;
-                if i < args.len() {
-                    focus = Some(args[i].clone());
-                }
-            }
-            "-d" | "--detail" => {
-                i += 1;
-                if i < args.len() {
-                    detail = DetailLevel::from_name(&args[i]).unwrap_or_else(|| {
-                        eprintln!("Invalid detail level: {}", args[i]);
+        let (name, inline) = split_option(&args[i]);
+        match name {
+            _ if is_input(name) => take_input(&mut input_path, &args[i]),
+            "-h" | "--help" => asked_for(&help),
+            "-o" | "--output" => output_path = Some(value(args, &mut i, inline).to_string()),
+            "-f" | "--focus" => focus = Some(value(args, &mut i, inline).to_string()),
+            "-s" | "--scale" => {
+                let given = value(args, &mut i, inline);
+                scale = match given.parse::<f32>() {
+                    Ok(n) if n > 0.0 && n.is_finite() => n,
+                    _ => {
+                        eprintln!("Invalid scale: {}", given);
+                        eprintln!("Give it as a number above zero, such as 2.");
                         process::exit(1);
-                    });
-                }
+                    }
+                };
+            }
+            "--dialect" => dialect = read_dialect(value(args, &mut i, inline)),
+            "-d" | "--detail" => {
+                let given = value(args, &mut i, inline);
+                detail = DetailLevel::from_name(given).unwrap_or_else(|| {
+                    eprintln!("Invalid detail level: {}", given);
+                    eprintln!("Valid options: tables, pk, pk_fk, all");
+                    process::exit(1);
+                });
             }
             "-n" | "--notation" => {
-                i += 1;
-                if i < args.len() {
-                    notation = Notation::from_name(&args[i]).unwrap_or_else(|| {
-                        eprintln!("Invalid notation: {}", args[i]);
-                        eprintln!("Valid options: crowsfoot, text");
-                        process::exit(1);
-                    });
-                }
+                let given = value(args, &mut i, inline);
+                notation = Notation::from_name(given).unwrap_or_else(|| {
+                    eprintln!("Invalid notation: {}", given);
+                    eprintln!("Valid options: crowsfoot, text");
+                    process::exit(1);
+                });
             }
             "-a" | "--aspect" => {
-                i += 1;
-                if i < args.len() {
-                    aspect = aspect_from_name(&args[i]).unwrap_or_else(|| {
-                        eprintln!("Invalid aspect: {}", args[i]);
-                        eprintln!("Give it as width:height, such as 1:1 or 16:9.");
-                        process::exit(1);
-                    });
-                }
+                let given = value(args, &mut i, inline);
+                aspect = aspect_from_name(given).unwrap_or_else(|| {
+                    eprintln!("Invalid aspect: {}", given);
+                    eprintln!("Give it as width:height, such as 1:1 or 16:9.");
+                    process::exit(1);
+                });
             }
             "-l" | "--legend" => legend = true,
             "-D" | "--dense" => dense = true,
@@ -168,6 +219,7 @@ Options:
         }
         i += 1;
     }
+    let input_path = &input_or_help(input_path, &help);
 
     let input = match read_input(input_path) {
         Ok(s) => s,
@@ -179,15 +231,14 @@ Options:
 
     // Both halves of reading a file fail the same way, and say so the same
     // way: the file, then where in it, then what was wrong.
-    let mut parser = match Parser::new(&input) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("{}: {}", input_path, e);
-            process::exit(1);
-        }
+    let read = if input_path.ends_with(".sql") {
+        parse_sql(&input, dialect).map_err(|e| e.to_string())
+    } else {
+        Parser::new(&input)
+            .and_then(|mut parser| parser.parse())
+            .map_err(|e| e.to_string())
     };
-
-    let schema = match parser.parse() {
+    let schema = match read {
         Ok(s) => s,
         Err(e) => {
             eprintln!("{}: {}", input_path, e);
@@ -219,6 +270,19 @@ Options:
         .render(&ir, &layout);
 
     match output_path {
+        Some(path) if path.ends_with(".png") => {
+            let png = match svg_to_png(&svg, scale) {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1);
+                }
+            };
+            if let Err(e) = fs::write(&path, &png) {
+                eprintln!("Failed to write {}: {}", path, e);
+                process::exit(1);
+            }
+        }
         Some(path) => {
             if let Err(e) = fs::write(&path, &svg) {
                 eprintln!("Failed to write {}: {}", path, e);
@@ -236,10 +300,17 @@ Options:
     }
 }
 
+fn read_dialect(given: &str) -> Dialect {
+    Dialect::from_name(given).unwrap_or_else(|| {
+        eprintln!("Invalid dialect: {}", given);
+        eprintln!("Valid options: auto, generic, postgres, mysql");
+        process::exit(1);
+    })
+}
+
 fn run_convert(program: &str, args: &[String]) {
-    if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
-        let help = format!(
-            "Usage: {program} convert <input.sql | -> [options]
+    let help = format!(
+        "Usage: {program} convert <input.sql | -> [options]
 
 Convert SQL dump to ERD notation
 Use '-' to read from stdin.
@@ -247,36 +318,23 @@ Use '-' to read from stdin.
 Options:
   -o, --output <file>      Output file (default: stdout)
   -d, --dialect <dialect>  SQL dialect: auto, generic, postgres, mysql (default: auto)"
-        );
-        if args.is_empty() {
-            after_a_mistake(&help);
-        }
-        asked_for(&help);
+    );
+    if args.is_empty() {
+        after_a_mistake(&help);
     }
 
-    let input_path = &args[0];
+    let mut input_path: Option<String> = None;
     let mut output_path: Option<String> = None;
     let mut dialect = Dialect::Auto;
 
-    let mut i = 1;
+    let mut i = 0;
     while i < args.len() {
-        match args[i].as_str() {
-            "-o" | "--output" => {
-                i += 1;
-                if i < args.len() {
-                    output_path = Some(args[i].clone());
-                }
-            }
-            "-d" | "--dialect" => {
-                i += 1;
-                if i < args.len() {
-                    dialect = Dialect::from_name(&args[i]).unwrap_or_else(|| {
-                        eprintln!("Invalid dialect: {}", args[i]);
-                        eprintln!("Valid options: auto, generic, postgres, mysql");
-                        process::exit(1);
-                    });
-                }
-            }
+        let (name, inline) = split_option(&args[i]);
+        match name {
+            _ if is_input(name) => take_input(&mut input_path, &args[i]),
+            "-h" | "--help" => asked_for(&help),
+            "-o" | "--output" => output_path = Some(value(args, &mut i, inline).to_string()),
+            "-d" | "--dialect" => dialect = read_dialect(value(args, &mut i, inline)),
             _ => {
                 eprintln!("Unknown option: {}", args[i]);
                 process::exit(1);
@@ -284,6 +342,7 @@ Options:
         }
         i += 1;
     }
+    let input_path = &input_or_help(input_path, &help);
 
     let input = match read_input(input_path) {
         Ok(s) => s,

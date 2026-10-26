@@ -183,8 +183,9 @@ const BUDGET: &[(&str, usize, usize, usize)] = &[
     // Folded too, and the numbers below are what that cost: 3388x1184 became
     // 1940x1522, and one row of eight leaves became two of four, whose lines now
     // have a row to get past. Loosened deliberately — a diagram that fits on a
-    // screen is worth two crossings.
-    ("21_idp.erd", 2, 5, 26),
+    // screen is worth two crossings. Four more bends keep detour columns apart
+    // where two of them used to share one x and read as a single line.
+    ("21_idp.erd", 2, 5, 30),
     ("sample.erd", 0, 0, 6),
 ];
 

@@ -5,13 +5,17 @@ use super::Dialect;
 /// Map SQL type to ERD type.
 pub fn map_type(sql_type: &str, dialect: Dialect) -> String {
     let lower = sql_type.to_lowercase();
-    let base = lower.split('(').next().unwrap_or(&lower).trim();
+    let element = lower.trim_end_matches("[]");
+    let dimensions = &lower[element.len()..];
+    let base = element.split('(').next().unwrap_or(element).trim();
 
-    match dialect {
+    let typ = match dialect {
         Dialect::PostgreSQL => map_postgres_type(base),
-        Dialect::MySQL => map_mysql_type(base, &lower),
+        Dialect::MySQL => map_mysql_type(base, element),
         _ => map_generic_type(base),
-    }
+    };
+    // An ERD type is a single word, then its array dimensions
+    format!("{}{}", typ.replace(' ', ""), dimensions)
 }
 
 fn map_postgres_type(base: &str) -> String {
@@ -51,12 +55,6 @@ fn map_postgres_type(base: &str) -> String {
 
         // JSON
         "json" | "jsonb" => "json".to_string(),
-
-        // Arrays (strip array notation)
-        t if t.ends_with("[]") => {
-            let inner = &t[..t.len() - 2];
-            format!("{}[]", map_postgres_type(inner))
-        }
 
         // Default: keep original
         _ => base.to_string(),
